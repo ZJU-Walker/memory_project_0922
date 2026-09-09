@@ -89,3 +89,33 @@ in-frame or copy the newest note).
 
 * 2026-09-08 19:20 — worktree created; v5 tagged; data links in place; `uv sync --frozen` for the v6 venv running
   (`v6/uv_sync.log`).
+* 2026-09-08 19:30-19:57 — **model + tests**: v6 methods in pi0.py/pi0_config.py (`memory_v6_token_writes`,
+  `memory_v6_pointer_read`, `memory_v6_value_standardize`, `memory_v6_pointer_beta_init`); `v5_commit_sentence`
+  dispatch used by the server and `v5_heldout_video.py`. `pi0_v6_test.py` 5/5 (tiny stand-in with a 32-d key /
+  64-wide bank: four same-shaped facts side by side, newest wins, pointer bonus zero at init and only on reference
+  tokens, sequence loss finite with non-zero gradients into beta and the token key projection).
+  `pi0_v5_test.py` 26/26 — NOTE the v5 line itself fails `test_v5_oracle_sequence_writes_on_every_sentence_change`
+  at tag `v5-task1-data-20260908` (`'_TinyV5Seq' has no attribute 'v5_sentence_kv'`: A8 added the method to the
+  model and never to the tiny test class); v6 fixes the test class only. Two v6 tests were first written against
+  the v5 tiny bank (8-d keys) and the 2-token sequence fixture and failed for those reasons, not for the model.
+* 2026-09-08 19:46 — **data**: LeRobot `v6/data/lerobot/yam/task1_find_0908_v6` (71 episodes / 46,553 frames,
+  16 sentences; 20 min on iris-hgx-1); `cluster_v6/task1/task1v6_episode_manifest_v1.json` sha256
+  `5ade0b0d6e08692f760736ca50fc10f4bd7872e02f26efc7347105824eceeb46`, `task1v6_v5_subtask_labels_v1.json` sha256
+  `4baf65762486e818c9110497797368ba171cb0e475978c42ace59b87480579a8`; development = demo10 (ep 12/13), demo19
+  (26/27), demo54 (67/68). BUG found on the way: `task1_build_v5_manifest_sidecar.py` wrote the split RULE string
+  as `split_seed`; the loader does `int(split_seed)` → the v5 file `cluster_v5/task1/task1_episode_manifest_v1.json`
+  would crash a v5 task1 training (fix = rebuild it with `--split-seed 908`; v5 untouched).
+* 2026-09-08 19:50 — **config**: `V6_TASK1_*` constants (reference rows verified against the tokenizer),
+  `v6_task1_data` (beans-0905 loader settings, split seed 908), `pi05_yam_mem_v6_task1A` (oracle writes, token
+  writes + pointer read, slot keys/whitening off, warm start beans B9 ckpt 2000, fresh `memory_v6_*`, 2000 updates,
+  ckpt every 250) and `pi05_yam_mem_v6_task1B` (own writes, retry, half lr; stage-A params via
+  `OPENPI_V6_TASK1_A_PARAMS`). `project_paths.SHARED_DATA_LINKS += "v5"` (top-level link `memory_project_v6/v5`
+  → `memory_project_v5/v5`, read-only). `cluster_v6/env.sh` (worktree-local caches; `v35/cache/openpi/big_vision`
+  copied, `openpi-assets` linked).
+* 2026-09-08 19:48 — **GPUs** (user 19:47: "for test and training use 17315830 4h100, you can stop the memoryvla
+  training there but keep the 1gb alive"): the MemoryVLA torchrun (4 ranks, `MemoryVLA/cluster/yam_beans0905/
+  run_pipeline.sh memoryvla_beans0905_r1`, ~62 GB per GPU) was stopped with SIGTERM; the 1 GB `train_hs.py`
+  keep-alive (pid 3743806) is untouched; the four H100 show 1013 MiB each.
+* 2026-09-08 19:57 — norm stats running on iris-hgx-1 (`v6/logs/norm_stats_task1v6.log`); stage-A queue
+  `cluster_v6/task1/queue_task1A_hgx1.sh` (norm stats → `run_train_hgx1.sh` 4 GPUs batch 8 → development battery
+  `run_task1_evals_hgx1.sh` per kept checkpoint, GPU 0). Battery output `v6/diagnostics/videos_<exp>_<step>/`.
