@@ -254,3 +254,6 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   (own sentence change + confidence + retry), the bank receives the LABEL sentence of that step. Bank content is then
   always consistent with the closing/decision targets; own wrong notes at deployment give wrong closings, which is the
   intended failure mode (perception), not a corrupted reader. `pi05_yam_mem_v6_task1B3` carries the flag.
+* 2026-09-09 10:27 — **B2 ckpt 1250 battery**: first decision oracle 3/6, oracle_evidence 4/6, self 2/6; recall oracle
+  5/6*, oracle_evidence 6/6, self 3/6 (*ep12 oracle and ep12 self died at launch: `srun … Socket timed out`, exit 140,
+  transient; re-run to fill the record). Same picture: demo19 opens bin 2 first with the right note in hand.
