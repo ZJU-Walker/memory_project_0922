@@ -231,3 +231,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   `open bin …`; both repeat the closing note at every frozen step (12/12 episodes). Confirmed: without the arm motion in
   the image the decision never fires. Gate v2 was paused 05:34–05:57 (`pause_gate_until_freezedec_done_hgx2.sh`) and
   now runs the B2-500 battery.
+* 2026-09-09 06:39 — **B2 ckpt 500 battery**: first decision oracle 4/6, oracle_evidence 4/6, self 3/6; recall at the
+  first closing step oracle 5/6, oracle_evidence 5/6, self 2/6 (B2-250: 6/6, 6/6, 4/6). demo19 (target bin 3): all
+  three modes open `bin 2` first with the correct closing note `banana in bin 3` / `box in bin 3` just decoded, then
+  switch when the arm moves. B2 is drifting further toward motion-driven decisions; own-write recall got worse.
