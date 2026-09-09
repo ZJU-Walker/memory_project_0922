@@ -238,3 +238,8 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
 * 2026-09-09 07:45 — **B2 ckpt 750 battery**: first decision 3/6 in all three modes; recall oracle 5/6, oracle_evidence
   5/6, self 3/6. Every wrong first decision is `open bin 2` (demo19 banana/box target 3, demo54 banana target 1) with
   the right note read one step earlier in most cases: a bin-2 prior at the first decision step, corrected by the arm.
+* 2026-09-09 09:10 — **B2 ckpt 1000 battery**: first decision 4/6 in all modes, but RECALL at the first closing step
+  collapsed to oracle 3/6, oracle_evidence 3/6, self 2/6 (250: 6/6, 6/6, 4/6). With all label notes in the bank the
+  model now reads `banana in bin 2` for `banana in bin 3` (demo19) and for `banana in bin 1` (demo54): own-write
+  training with wrong notes teaches the closing sentence to guess instead of read. B2 will not yield a usable
+  checkpoint; recommendation to the user (09:12 push): stop B2, start A3 on the lead30 labels.
