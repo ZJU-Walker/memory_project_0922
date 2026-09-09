@@ -4579,6 +4579,119 @@ _CONFIGS = [
                         num_workers=12,
                         fsdp_devices=1,
                     ),
+                    # v6.1 task1 stage A2 (2026-09-09 00:05; cluster_v6/README.md): the A-250 model-path probe showed the Titans MLP bank
+                    # collapses the four `<obj> in bin _` contexts (key cosine 0.25 -> hidden 0.63) so older notes read at chance;
+                    # a LINEAR delta-rule bank + reference-context WHITENED keys recalls 284/284 at every distance. A2 = A's recipe
+                    # with that bank, whitened keys and the CONTEXT-query pointer (query = the write key of the decoded context,
+                    # beta init 10, trainable); warm start = A ckpt keep_250 (task1 sentences learned), bank re-initialised.
+                    TrainConfig(
+                        name="pi05_yam_mem_v6_task1A2",
+                        v4_protocol=True,
+                        model=dataclasses.replace(
+                            v5_model,
+                            memory_semantic=dataclasses.replace(v5_model.memory_semantic, hidden_dims=()),  # LINEAR bank
+                            memory_v5_oracle_writes=True,
+                            memory_v5_slot_keys=False,
+                            memory_v5_whiten_values=False,
+                            memory_v6_token_writes=True,
+                            memory_v6_pointer_read=True,
+                            memory_v6_value_standardize=True,
+                            memory_v6_whiten_keys=True,
+                            memory_v6_pointer_query="context",
+                            memory_v6_pointer_beta_init=10.0,
+                            memory_v4_visual_injection=False,
+                            memory_v5_pooling="standardized_attention",
+                            memory_v5_pool_queries=4,
+                            memory_v5_reference_tokens=V6_TASK1_REFERENCE_SENTENCE_TOKENS,
+                            memory_v5_write_delay_steps=0,
+                            memory_v5_prefill_history=True,
+                            memory_v5_prefill_max=16,
+                            memory_v5_query_standardize=True,
+                            memory_v5_query_prev_sentence=True,
+                        ),
+                        data=v6_task1_data,
+                        assets_base_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT)),
+                        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V6_CHECKPOINTS_DIR)),
+                        freeze_filter=v5_freeze_semantic_only,
+                        batch_size=2,
+                        gradient_accumulation_steps=1,
+                        lr_schedule=_optimizer.CosineDecaySchedule(
+                            warmup_steps=100, peak_lr=5e-5, decay_steps=10_000, decay_lr=5e-5
+                        ),
+                        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+                        memory_grad_clip=5.0,
+                        ema_decay=None,
+                        probe_lr=1e-2,
+                        weight_loader=weight_loaders.AuditedPartialCheckpointWeightLoader(
+                            str(_project_paths.project_path("v6/checkpoints/pi05_yam_mem_v6_task1A/v6_task1A_20260908_r1/keep_250/params")),
+                            matched_allowlist=(r".+",),
+                            fresh_init_allowlist=(),
+                            # the semantic bank changes shape (MLP -> linear): its initialisers are re-initialised, the
+                            # source hidden layers dropped; the pointer scale restarts at beta_init (the A run left it at 0.003)
+                            reinit_allowlist=(r".*memory_semantic/.*", r".*memory_v6_pointer_beta.*"),
+                            ignored_source_allowlist=(r".*memory_semantic/.*",),
+                            source_cast_dtype="float32",
+                        ),
+                        v4_graft_sources=(),
+                        num_train_steps=2000,
+                        save_interval=250,
+                        keep_period=250,
+                        num_workers=12,
+                        fsdp_devices=1,
+                    ),
+                    # v6.1 task1 stage B2: A2 weights (path via OPENPI_V6_TASK1_A2_PARAMS), OWN writes with retry, half lr; save 250 / keep 500.
+                    TrainConfig(
+                        name="pi05_yam_mem_v6_task1B2",
+                        v4_protocol=True,
+                        model=dataclasses.replace(
+                            v5_model,
+                            memory_semantic=dataclasses.replace(v5_model.memory_semantic, hidden_dims=()),  # LINEAR bank
+                            memory_v5_oracle_writes=False,
+                            memory_v5_slot_keys=False,
+                            memory_v5_whiten_values=False,
+                            memory_v6_token_writes=True,
+                            memory_v6_pointer_read=True,
+                            memory_v6_value_standardize=True,
+                            memory_v6_whiten_keys=True,
+                            memory_v6_pointer_query="context",
+                            memory_v6_pointer_beta_init=10.0,
+                            memory_v4_visual_injection=False,
+                            memory_v5_pooling="standardized_attention",
+                            memory_v5_pool_queries=4,
+                            memory_v5_reference_tokens=V6_TASK1_REFERENCE_SENTENCE_TOKENS,
+                            memory_v5_write_delay_steps=0,
+                            memory_v5_prefill_history=True,
+                            memory_v5_prefill_max=16,
+                            memory_v5_query_standardize=True,
+                            memory_v5_query_prev_sentence=True,
+                            memory_v5_prev_is_committed=True,  # retry-until-committed own writes
+                        ),
+                        data=v6_task1_data,
+                        assets_base_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT)),
+                        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V6_CHECKPOINTS_DIR)),
+                        freeze_filter=v5_freeze_semantic_only,
+                        batch_size=2,
+                        gradient_accumulation_steps=1,
+                        lr_schedule=_optimizer.CosineDecaySchedule(
+                            warmup_steps=100, peak_lr=2.5e-5, decay_steps=10_000, decay_lr=2.5e-5
+                        ),
+                        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+                        memory_grad_clip=5.0,
+                        ema_decay=None,
+                        probe_lr=1e-2,
+                        weight_loader=weight_loaders.AuditedPartialCheckpointWeightLoader(
+                            str(_project_paths.project_path(os.environ.get("OPENPI_V6_TASK1_A2_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1A2/v6_task1A2_20260909_r1/keep_250/params"))),
+                            matched_allowlist=(r".+",),
+                            fresh_init_allowlist=(),
+                            source_cast_dtype="float32",
+                        ),
+                        v4_graft_sources=(),
+                        num_train_steps=2000,
+                        save_interval=250,
+                        keep_period=500,
+                        num_workers=12,
+                        fsdp_devices=1,
+                    ),
                     # Bean-scoop A10/B10 = the A9/B9 recipe with the RTC delay raised 6 -> 15 controls (user 2026-09-06 14:07:
                     # the B9 server needs ~230 ms per request, i.e. 7 controls at 30 Hz, so the 6-control budget the policy was
                     # trained for made the arm "go and stuck"; 15 controls = 500 ms at 30 Hz). NOT launched yet. B10 loads A10's

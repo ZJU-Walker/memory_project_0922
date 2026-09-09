@@ -36,6 +36,11 @@ class _TinyV6Seq(_TinyV5Seq):
     v6_sentence_token_kv = pi0.Pi0.v6_sentence_token_kv
     v6_semantic_write_tokens = pi0.Pi0.v6_semantic_write_tokens
     v6_pointer_bonus = pi0.Pi0.v6_pointer_bonus
+    v6_context_queries = pi0.Pi0.v6_context_queries
+    _v6_context_keys = pi0.Pi0._v6_context_keys
+    _v6_key_whitening = pi0.Pi0._v6_key_whitening
+    _v5_whiten_map = pi0.Pi0._v5_whiten_map
+    _v5_apply_whiten = staticmethod(pi0.Pi0._v5_apply_whiten)
 
     def __init__(
         self,
@@ -59,6 +64,9 @@ class _TinyV6Seq(_TinyV5Seq):
         self.memory_v6_token_writes = token_writes
         self.memory_v6_pointer_read = pointer_read
         self.memory_v6_value_standardize = True
+        self.memory_v6_pointer_query = "hidden"
+        self.memory_v6_whiten_keys = False
+        self.memory_v5_whiten_eps = 1e-2
         # the v5 tiny bank (d_key 8, one 8-wide hidden layer) cannot hold four same-shaped facts apart; give
         # the v6 stand-in a bank with a realistic key/hidden ratio (real model: 512 / 1024)
         self.memory_semantic = memory.TitansMemory(
@@ -291,4 +299,106 @@ def test_v6_scan_slot_loop_matches_the_unrolled_loop(tiny_v6):
     # a second write on the scanned state reads back the newest association (delta rule still exact)
     read = np.asarray(mem.read_key(s_scan, k[:, 4:5]))[:, 0]
     assert np.dot(read[0], np.asarray(v[0, 4])) > 0.9
+
+
+# --------------------------------------------------------------------------- (g) context-query pointer (v6.1)
+
+
+def test_v6_context_query_pointer_reads_older_notes_by_their_context(tiny_v6):
+    """memory_v6_pointer_query="context": the query of position t is the WRITE key of the context preceding t, so
+    after writing four `<obj> in bin <d>` facts the bonus at the digit position of `<obj> in bin _` favours each
+    object's own digit -- including the objects written first -- and position 0 gets no bonus."""
+    model = tiny_v6
+    model.memory_v6_pointer_query = "context"
+    model.memory_v6_pointer_beta.value = jnp.asarray(1.0, dtype=jnp.float32)
+    try:
+        state = model.memory_semantic.init_state(1)
+        facts = {10: 30, 11: 32, 12: 31, 13: 32}
+        for obj, digit in facts.items():
+            tokens, mask = _rows((obj, 20, 21, digit))
+            state, _, _ = model.v6_semantic_write_tokens(state, tokens, mask, jnp.asarray([True]))
+        hidden = jnp.zeros((1, 4, WIDTH), dtype=jnp.float32)
+        pos_mask = jnp.ones((1, 4), dtype=bool)
+        for obj, digit in facts.items():
+            tokens, mask = _rows((obj, 20, 21, 30))  # the digit token itself must not matter for the query
+            queries = model.v6_context_queries(tokens, mask)
+            assert np.allclose(np.asarray(queries[0, 0]), 0.0)
+            bonus = np.asarray(model.v6_pointer_bonus(hidden, state, pos_mask, 128, queries=queries))[0]
+            assert np.allclose(bonus[0], 0.0)  # no context at position 0
+            digit_scores = bonus[3, [30, 31, 32]]
+            assert int(np.argmax(digit_scores)) + 30 == digit, (obj, digit, digit_scores)
+        # teacher forced and step by step agree: the query for position 3 only depends on tokens < 3
+        tokens_a, mask_a = _rows((10, 20, 21, 31))
+        tokens_b, mask_b = _rows((10, 20, 21))
+        qa = np.asarray(model.v6_context_queries(tokens_a, mask_a))[0, 3]
+        qb = np.asarray(model.v6_context_queries(tokens_b, mask_b))[0, 3]
+        np.testing.assert_allclose(qa, qb, atol=1e-5)
+        with pytest.raises(ValueError, match="needs the context queries"):
+            model.v6_pointer_bonus(hidden, state, pos_mask, 128)
+    finally:
+        model.memory_v6_pointer_query = "hidden"
+        model.memory_v6_pointer_beta.value = jnp.asarray(0.0, dtype=jnp.float32)
+
+
+def test_v6_pointer_query_config_validation():
+    with pytest.raises(ValueError, match="memory_v6_pointer_query"):
+        pi0_config.Pi0Config(
+            **_v5_kwargs(memory_v6_token_writes=True, memory_v6_pointer_read=True, memory_v5_reference_tokens=((5, 6),),
+                         memory_v6_pointer_query="bogus")
+        )
+    ok = pi0_config.Pi0Config(
+        **_v5_kwargs(memory_v6_token_writes=True, memory_v6_pointer_read=True, memory_v5_reference_tokens=((5, 6),),
+                     memory_v6_pointer_query="context")
+    )
+    assert ok.memory_v6_pointer_query == "context"
+
+
+# --------------------------------------------------------------------------- (h) v6.1: whitened keys, linear bank
+
+
+def test_v6_whitened_keys_and_linear_bank_recall_every_fact(tiny_v6):
+    """memory_v6_whiten_keys: the context keys are PCA-whitened with the map fitted on the reference contexts (unit
+    norm after); with a LINEAR bank (hidden_dims=()) the delta rule then stores four same-shaped facts and the
+    context-query pointer reads every one back, and a rewrite still wins."""
+    model = tiny_v6
+    linear = memory.TitansMemory(
+        memory.MemoryConfig(d_input=WIDTH, d_key=D_KEY, hidden_dims=(), d_value=WIDTH, mlp_l2norm=True,
+                            blank_initial_output=True, write_rule="delta_output", association_mode="pooled_frame",
+                            delta_rate=1.0, alpha_step=0.01),
+        rngs=nnx.Rngs(11),
+    )
+    saved = model.memory_semantic
+    model.memory_semantic = linear
+    model.memory_v6_whiten_keys = True
+    model.memory_v6_pointer_query = "context"
+    model.memory_v6_pointer_beta.value = jnp.asarray(1.0, dtype=jnp.float32)
+    try:
+        # whitened keys are unit and finite; the map is fitted on the static reference contexts
+        tokens, mask = _rows((10, 20, 21, 30), (13, 20, 21, 32))
+        keys, values, slots = model.v6_sentence_token_kv(tokens, mask)
+        assert np.all(np.isfinite(np.asarray(keys))) and np.allclose(np.linalg.norm(np.asarray(keys), axis=-1), 1.0, atol=1e-4)
+        state = linear.init_state(1)
+        facts = {10: 30, 11: 32, 12: 31, 13: 32}
+        for obj, digit in facts.items():
+            tk, mk = _rows((obj, 20, 21, digit))
+            state, aux, _ = model.v6_semantic_write_tokens(state, tk, mk, jnp.asarray([True]))
+            assert np.all(np.asarray(aux["commit_applied"]))
+        hidden = jnp.zeros((1, 4, WIDTH), dtype=jnp.float32)
+        for obj, digit in facts.items():
+            tk, mk = _rows((obj, 20, 21, 30))
+            bonus = np.asarray(model.v6_pointer_bonus(hidden, state, jnp.ones((1, 4), dtype=bool), 128,
+                                                      queries=model.v6_context_queries(tk, mk)))[0]
+            assert int(np.argmax(bonus[3, [30, 31, 32]])) + 30 == digit, (obj, digit, bonus[3, [30, 31, 32]])
+        # newest wins on a rewrite of the same context
+        tk, mk = _rows((10, 20, 21, 32))
+        state, _, _ = model.v6_semantic_write_tokens(state, tk, mk, jnp.asarray([True]))
+        tk, mk = _rows((10, 20, 21, 30))
+        bonus = np.asarray(model.v6_pointer_bonus(hidden, state, jnp.ones((1, 4), dtype=bool), 128,
+                                                  queries=model.v6_context_queries(tk, mk)))[0]
+        assert int(np.argmax(bonus[3, [30, 31, 32]])) + 30 == 32
+    finally:
+        model.memory_semantic = saved
+        model.memory_v6_whiten_keys = False
+        model.memory_v6_pointer_query = "hidden"
+        model.memory_v6_pointer_beta.value = jnp.asarray(0.0, dtype=jnp.float32)
 

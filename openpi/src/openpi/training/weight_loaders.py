@@ -93,6 +93,10 @@ class AuditedPartialCheckpointWeightLoader(PartialCheckpointWeightLoader):
     matched_allowlist: tuple[str, ...] = ()
     fresh_init_allowlist: tuple[str, ...] = ()
     ignored_source_allowlist: tuple[str, ...] = ()
+    # v6.1 (2026-09-09): leaves present in BOTH trees that must nevertheless be re-initialised from the target
+    # (e.g. the semantic bank's fast-weight initialisers when its layer stack changes shape). They are excluded from
+    # the matched shape/dtype audit, kept at their target init and recorded as fresh; the source values are dropped.
+    reinit_allowlist: tuple[str, ...] = ()
     manifest_output_path: str | None = None
     # v5 (cluster_v5/README.md §8, 2026-09-03 20:25): restore every source leaf AS this dtype
     # before the audit. Training checkpoints store the frozen base leaves in bfloat16 while a
@@ -450,10 +454,23 @@ def _audit_and_graft(
     matched_paths = source_paths & target_paths
     fresh_paths = target_paths - source_paths
     ignored_paths = source_paths - target_paths
+    reinit_regexes = tuple(getattr(loader, "reinit_allowlist", ()) or ())
+    reinit_paths: set[tuple[str, ...]] = set()
+    if reinit_regexes:
+        compiled_reinit = tuple(re.compile(regex) for regex in reinit_regexes)
+        reinit_paths = {
+            path for path in matched_paths if any(pattern.fullmatch(_path_string(path)) for pattern in compiled_reinit)
+        }
+        _require_allowlisted("reinit", reinit_paths, reinit_regexes)
+    # re-initialised leaves are audited neither as matched (their shapes may differ) nor against the other allowlists;
+    # they take the target init (fresh) and their source values are dropped (ignored)
+    matched_paths = matched_paths - reinit_paths
 
     _require_allowlisted("matched", matched_paths, loader.matched_allowlist)
     _require_allowlisted("fresh-init", fresh_paths, loader.fresh_init_allowlist)
     _require_allowlisted("ignored-source", ignored_paths, loader.ignored_source_allowlist)
+    fresh_paths = fresh_paths | reinit_paths
+    ignored_paths = ignored_paths | reinit_paths
 
     for path in sorted(matched_paths, key=_path_string):
         source_shape, source_dtype = _leaf_spec(flat_source[path])

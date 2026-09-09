@@ -92,11 +92,24 @@ def make_decode_fn(model, max_decode_steps: int):
 
         pointer_on = getattr(model, "memory_v6_pointer_read", False) and sem_state is not None
 
-        def logits_of(hidden_vec, index):
+        context_pointer = pointer_on and getattr(model, "memory_v6_pointer_query", "hidden") == "context"
+
+        def logits_of(hidden_vec, index, so_far_tokens=None, so_far_mask=None):
             logits = model.PaliGemma.llm(hidden_vec[:, None], method="decode")[:, 0].astype(jnp.float32)
             if pointer_on:  # v6 pointer read on the sentence positions (same rule as Pi0._sample_with_memory_v32)
                 on_span = jnp.broadcast_to(jnp.asarray(index) < model.memory_v5_sentence_len, (batch, 1))
-                logits = logits + model.v6_pointer_bonus(hidden_vec[:, None], sem_state, on_span, logits.shape[-1])[:, 0]
+                queries = None
+                if context_pointer:
+                    s_len = model.memory_v5_sentence_len
+                    if so_far_tokens is None:
+                        queries = jnp.zeros((batch, 1, model.memory_semantic.config.d_key), dtype=jnp.float32)
+                    else:
+                        ctx_q = model.v6_context_queries(so_far_tokens[:, :s_len], so_far_mask[:, :s_len])
+                        idx = jnp.clip(jnp.asarray(index), 0, s_len - 1)
+                        queries = jax.lax.dynamic_index_in_dim(ctx_q, idx, axis=1, keepdims=True)
+                logits = logits + model.v6_pointer_bonus(
+                    hidden_vec[:, None], sem_state, on_span, logits.shape[-1], queries=queries
+                )[:, 0]
             return logits
 
         def pick(logits):
@@ -132,7 +145,7 @@ def make_decode_fn(model, max_decode_steps: int):
                 kv_cache=cache,
                 cache_position=gen_base + index - 1,
             )
-            token, p = pick(logits_of(out[:, 0], index))
+            token, p = pick(logits_of(out[:, 0], index, tokens, mask))
             tokens, mask, prob, done = record(tokens, mask, prob, done, token, p, index)
             return tokens, mask, prob, done, token, cache, index + 1
 

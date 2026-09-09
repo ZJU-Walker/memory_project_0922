@@ -160,3 +160,30 @@ in-frame or copy the newest note).
   no checkpoint) stopped — its own wrong notes would corrupt the closing-step signal that teaches the lookup; stage A
   RESUMED from 250 (`switch_to_A_hgx1.sh`, --resume, 23:40). H200 gate v2 (`gate_A_v2_hgx2.sh`): three-mode battery on
   A 500, 750, …; PASS = oracle_evidence recall >= 5/6 → B from that checkpoint, then three-mode batteries on B.
+
+## 7. v6.1 (2026-09-09 00:00) — the bank must be linear and the keys whitened; the pointer queries with the write key
+
+User 23:44: "can you make sure the current method can actually recall from previous, not only the newest one?"
+`scripts/v6_model_bank_probe.py` writes the label notes of every episode through the MODEL's v6 write path and reads
+each object's digit with the key of its own context (`<obj> in bin _`), 71 episodes × 4 objects = 284 lookups, real decay:
+
+| A ckpt 250, keys/values from the model | 0 back | 1 back | 2 back | 3 back | all |
+|---|---|---|---|---|---|
+| the model's bank (Titans MLP, 3 × 1024 hidden, l2norm) | 71/71 | 30/71 | 17/71 | 14/71 | 0.465 |
+| plain linear delta-rule matrix, same keys | 71/71 | 71/71 | 51/71 | 31/71 | 0.789 |
+| linear, no decay | | | | | 0.930 |
+| linear + keys whitened over the reference token contexts | 71/71 | 71/71 | 71/71 | 71/71 | **1.000** (margin 0.17) |
+
+Cause: the four `<obj> in bin _` context keys have mean pairwise cosine 0.25 in key space but 0.63 after the bank's
+hidden layers, so the delta rule lets the newest note overwrite the older ones (the oldest reads as the newest digit).
+The bank-level probe of 2026-09-08 had used a linear matrix, which is why it reported 1.00. Also measured: the trained
+pointer scale is 0.003 after 250 steps (the "hidden" pointer query is never learned in time).
+
+Changes (all flags, v5/v6.0 configs unchanged): `hidden_dims=()` for the semantic bank (a linear associative memory:
+`_hidden` = unit key, delta rule on the single matrix), `memory_v6_whiten_keys` (PCA-whitening fitted on the unit
+context keys of every position of every reference sentence, stop-gradient, recomputed from the current blocks;
+`_v6_key_whitening`), `memory_v6_pointer_query="context"` (the pointer query is the WRITE key of the tokens decoded so
+far, `v6_context_queries`: teacher-forced in training, step by step in the sampler and in `v5_heldout_video.py`; position
+0 has no context and no bonus; `memory_v6_pointer_beta_init=10`), `AuditedPartialCheckpointWeightLoader.reinit_allowlist`
+(re-initialise leaves whose shape changed). Configs `pi05_yam_mem_v6_task1A2` (warm start A keep_250, bank + beta
+re-initialised) / `B2`. Tests: pi0_v6_test.py (g) context pointer, (h) whitened keys + linear bank.

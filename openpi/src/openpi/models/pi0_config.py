@@ -388,6 +388,16 @@ class Pi0Config(_model.BaseModelConfig):
     memory_v6_pointer_read: bool = False
     memory_v6_value_standardize: bool = True
     memory_v6_pointer_beta_init: float = 0.0
+    # `memory_v6_pointer_query`: "hidden" = the decoder feature through a trainable W_q (2026-09-08 design);
+    # "context" = the SAME key function as the write (the causal memory-blind state of the tokens decoded so far,
+    # standardized, P_k): a note written under context c is read back exactly when c is decoded again, no
+    # training needed (2026-09-09; the A-250 probe: W_q untrained after 250 steps, beta 0.003).
+    memory_v6_pointer_query: str = "hidden"
+    # `memory_v6_whiten_keys` (v6.1): PCA-whiten the token keys with the map fitted on the reference sentences'
+    # token contexts (every position of every reference row; stop-gradient, recomputed from the current blocks).
+    # Contexts that differ only in the object word share a large common component ("... in bin _") which the
+    # delta rule turns into newest-wins interference; whitened, the model-path probe recalls 284/284 (2026-09-09).
+    memory_v6_whiten_keys: bool = False
 
     pytorch_compile_mode: str | None = "max-autotune"
 
@@ -644,6 +654,8 @@ class Pi0Config(_model.BaseModelConfig):
                             raise ValueError("v6 token-level keys replace the A8 slot keys / value whitening; turn those off.")
                     if self.memory_v6_pointer_read and not self.memory_v6_token_writes:
                         raise ValueError("memory_v6_pointer_read reads token-level values; it needs memory_v6_token_writes.")
+                    if self.memory_v6_pointer_query not in ("hidden", "context"):
+                        raise ValueError("memory_v6_pointer_query must be 'hidden' or 'context'.")
                     if self.memory_v5_query_standardize and not self.memory_v5_reference_tokens:
                         raise ValueError("memory_v5_query_standardize needs memory_v5_reference_tokens.")
                     if self.memory_v5_query_prev_sentence and self.memory_v5_pooling != "standardized_attention":

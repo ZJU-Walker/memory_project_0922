@@ -761,6 +761,8 @@ class Pi0(_model.BaseModel):
                     self.memory_v6_token_writes = bool(getattr(config, "memory_v6_token_writes", False))
                     self.memory_v6_pointer_read = bool(getattr(config, "memory_v6_pointer_read", False))
                     self.memory_v6_value_standardize = bool(getattr(config, "memory_v6_value_standardize", True))
+                    self.memory_v6_whiten_keys = bool(getattr(config, "memory_v6_whiten_keys", False))
+                    self.memory_v6_pointer_query = str(getattr(config, "memory_v6_pointer_query", "hidden"))
                     if self.memory_v6_token_writes:
                         # Key map: random (near-orthogonal) rows, as in the bank-level probe; value map: identity
                         # block, so a stored value starts as the standardized token embedding itself.
@@ -1405,11 +1407,32 @@ class Pi0(_model.BaseModel):
         safe_tokens = jnp.where(has_tokens[:, None], tokens, jnp.zeros_like(tokens))
         hidden = self._v5_token_states(safe_tokens, safe_mask, causal=True)
         mu, sd = self._v5_reference_stats(tokens.shape[1], causal=True)
-        standardized = (hidden - mu) / sd
-        preceding = jnp.concatenate([standardized[:, :1], standardized[:, :-1]], axis=1)
-        keys = _memory.l2_normalize(self.memory_v6_token_key_proj(preceding.astype(jnp.float32)).astype(jnp.float32))
+        keys = self._v6_context_keys(hidden, mu, sd)
+        if getattr(self, "memory_v6_whiten_keys", False):
+            w_mu, w_u, w_scale = self._v6_key_whitening(tokens.shape[1], mu, sd)
+            flat = self._v5_apply_whiten(keys.reshape(-1, keys.shape[-1]), w_mu, w_u, w_scale)
+            keys = _memory.l2_normalize(flat).reshape(keys.shape)
         values = self.v6_token_values(safe_tokens, safe_mask)
         return keys, values, token_mask
+
+    def _v6_context_keys(self, hidden, mu, sd):
+        """Unit context keys from causal token states: key_t = P_k std(h_{t-1}) (key_0 = P_k std(h_0))."""
+        standardized = (hidden - mu) / sd
+        preceding = jnp.concatenate([standardized[:, :1], standardized[:, :-1]], axis=1)
+        return _memory.l2_normalize(self.memory_v6_token_key_proj(preceding.astype(jnp.float32)).astype(jnp.float32))
+
+    def _v6_key_whitening(self, length: int, mu, sd):
+        """Whitening map (mu, U, scale; see _v5_whiten_map) fitted on the unit context keys of every valid position of
+        every reference sentence (a static index set, so the fit uses exactly the real contexts). Stop-gradient."""
+        ref_tokens, ref_mask = self.v5_reference_token_rows(length)
+        ref_hidden = jax.lax.stop_gradient(self._v5_token_states(ref_tokens, ref_mask, causal=True))
+        ref_keys = self._v6_context_keys(ref_hidden, mu, sd)  # [r, s, dk]
+        rows, cols = [], []
+        for r, row in enumerate(self.memory_v5_reference_tokens):
+            for c in range(min(len(row), length)):
+                rows.append(r); cols.append(c)
+        contexts = ref_keys[jnp.asarray(rows, dtype=jnp.int32), jnp.asarray(cols, dtype=jnp.int32)]  # [n_ctx, dk]
+        return self._v5_whiten_map(jax.lax.stop_gradient(contexts))
 
     def v6_semantic_write_tokens(
         self,
@@ -1429,17 +1452,35 @@ class Pi0(_model.BaseModel):
         pooled = _memory.l2_normalize(jnp.sum(keys * slots.astype(jnp.float32)[..., None], axis=1, keepdims=True))
         return new_state, aux, pooled
 
+    def v6_context_queries(
+        self, tokens: at.Int[at.Array, "b s"], token_mask: at.Bool[at.Array, "b s"]
+    ) -> at.Float[at.Array, "b s dk"]:
+        """Pointer queries in "context" mode: query_t = the WRITE key of the context preceding token t (the causal
+        memory-blind state of tokens < t, standardized, P_k) -- the same function `v6_sentence_token_kv` uses, so a
+        note written under that context is read back exactly. Position 0 has no context and gets a zero query
+        (its write key carries the token itself). Works teacher-forced (label tokens) and step by step (the tokens
+        decoded so far, `token_mask` marking them)."""
+        keys, _, _ = self.v6_sentence_token_kv(tokens, token_mask)
+        return keys.at[:, 0].set(0.0)
+
     def v6_pointer_bonus(
         self,
         hidden: at.Float[at.Array, "b n emb"],
         state: _memory.MemoryState,
         position_mask: at.Bool[at.Array, "b n"],
         vocab_size: int,
+        queries: at.Float[at.Array, "b n dk"] | None = None,
     ) -> at.Float[at.Array, "b n v"]:
-        """Additive next-token logits from the bank (v6 pointer read): each decoder feature is mapped to a query,
-        the retrieved value is scored against the reference tokens' values, scaled by beta and added to those
-        tokens' logits only. With beta = 0 (default init) the bonus is exactly zero."""
-        query = self.memory_v6_pointer_query_proj(hidden.astype(jnp.float32)).astype(jnp.float32)
+        """Additive next-token logits from the bank (v6 pointer read): each position's query (the decoder feature
+        through W_q, or the context key when `queries` is given / memory_v6_pointer_query == "context") retrieves a
+        value that is scored against the reference tokens' values, scaled by beta and added to those tokens'
+        logits only. With beta = 0 the bonus is exactly zero."""
+        if getattr(self, "memory_v6_pointer_query", "hidden") == "context":
+            if queries is None:
+                raise ValueError("memory_v6_pointer_query='context' needs the context queries (v6_context_queries).")
+            query = queries.astype(jnp.float32)
+        else:
+            query = self.memory_v6_pointer_query_proj(hidden.astype(jnp.float32)).astype(jnp.float32)
         read = self.memory_semantic.read_key(state, query).astype(jnp.float32)
         ids = self.v6_reference_token_ids()
         id_arr = jnp.asarray(ids, dtype=jnp.int32)
@@ -4205,7 +4246,15 @@ class Pi0(_model.BaseModel):
             score_logits = self.PaliGemma.llm(score_hidden, method="decode").astype(jnp.float32)
             if getattr(self, "memory_v6_pointer_read", False) and semantic_state is not None and not zero_read:
                 span = gen_mask & (jnp.arange(gen_tokens.shape[1])[None, :] < self.memory_v5_sentence_len)
-                score_logits = score_logits + self.v6_pointer_bonus(score_hidden, semantic_state, span, score_logits.shape[-1])
+                score_queries = None
+                if getattr(self, "memory_v6_pointer_query", "hidden") == "context":
+                    s_len = self.memory_v5_sentence_len
+                    ctx_q = self.v6_context_queries(gen_tokens[:, :s_len], span[:, :s_len])
+                    score_queries = jnp.zeros((ctx_q.shape[0], gen_tokens.shape[1], ctx_q.shape[-1]), dtype=jnp.float32)
+                    score_queries = score_queries.at[:, :s_len].set(ctx_q)
+                score_logits = score_logits + self.v6_pointer_bonus(
+                    score_hidden, semantic_state, span, score_logits.shape[-1], queries=score_queries
+                )
             token_logp = jnp.take_along_axis(jax.nn.log_softmax(score_logits, axis=-1), gen_tokens[..., None], axis=-1)[
                 ..., 0
             ]
@@ -4252,13 +4301,27 @@ class Pi0(_model.BaseModel):
             getattr(self, "memory_v6_pointer_read", False) and semantic_state is not None and not zero_read
         )
 
-        def greedy(hidden_vec, index):
+        context_pointer = pointer_on and getattr(self, "memory_v6_pointer_query", "hidden") == "context"
+
+        def greedy(hidden_vec, index, so_far_tokens=None, so_far_mask=None):
             logits = self.PaliGemma.llm(hidden_vec[:, None], method="decode")[:, 0].astype(jnp.float32)
             if pointer_on:
                 # v6 pointer read: the bank as read at this step (the caller writes afterwards), on the
                 # sentence positions only (the decoded tokens are the sentence; FAST is never decoded here).
                 on_span = jnp.broadcast_to(jnp.asarray(index) < self.memory_v5_sentence_len, (batch, 1))
-                logits = logits + self.v6_pointer_bonus(hidden_vec[:, None], semantic_state, on_span, logits.shape[-1])[:, 0]
+                queries = None
+                if context_pointer:
+                    # context mode: the key of the tokens decoded so far (positions < index); none at index 0
+                    s_len = self.memory_v5_sentence_len
+                    if so_far_tokens is None:
+                        queries = jnp.zeros((batch, 1, self.memory_semantic.config.d_key), dtype=jnp.float32)
+                    else:
+                        ctx_q = self.v6_context_queries(so_far_tokens[:, :s_len], so_far_mask[:, :s_len])
+                        idx = jnp.clip(jnp.asarray(index), 0, s_len - 1)
+                        queries = jax.lax.dynamic_index_in_dim(ctx_q, idx, axis=1, keepdims=True)
+                logits = logits + self.v6_pointer_bonus(
+                    hidden_vec[:, None], semantic_state, on_span, logits.shape[-1], queries=queries
+                )[:, 0]
             token = jnp.argmax(logits, axis=-1)
             prob = jnp.take_along_axis(jax.nn.softmax(logits, axis=-1), token[:, None], axis=-1)[:, 0]
             return token.astype(preprocessed.tokenized_prompt.dtype), prob
@@ -4291,7 +4354,7 @@ class Pi0(_model.BaseModel):
                 kv_cache=cache,
                 cache_position=gen_base + index - 1,
             )
-            token, prob = greedy(out[:, 0], index)
+            token, prob = greedy(out[:, 0], index, tokens, mask)
             tokens, mask, probs, done = record(tokens, mask, probs, done, token, prob, index)
             return tokens, mask, probs, done, token, cache, index + 1
 
@@ -5129,7 +5192,16 @@ class Pi0(_model.BaseModel):
                 # positions), from the bank state this step reads (interventions already applied).
                 pointer_mask = causal_mask_k & ~x["causal_fast"]
                 pointer_mask = pointer_mask & (jnp.arange(causal_len)[None, :] < self.memory_v5_sentence_len)
-                logits = logits + self.v6_pointer_bonus(ce_hidden, read_sem_state, pointer_mask, logits.shape[-1])
+                pointer_queries = None
+                if getattr(self, "memory_v6_pointer_query", "hidden") == "context":
+                    # teacher forced: the label tokens of the sentence span give every position's context key
+                    s_len = self.memory_v5_sentence_len
+                    ctx_q = self.v6_context_queries(x["causal"][:, :s_len], pointer_mask[:, :s_len])
+                    pointer_queries = jnp.zeros((ctx_q.shape[0], causal_len, ctx_q.shape[-1]), dtype=jnp.float32)
+                    pointer_queries = pointer_queries.at[:, :s_len].set(ctx_q)
+                logits = logits + self.v6_pointer_bonus(
+                    ce_hidden, read_sem_state, pointer_mask, logits.shape[-1], queries=pointer_queries
+                )
             log_probs = jax.nn.log_softmax(logits, axis=-1)
             token_logp = jnp.take_along_axis(log_probs, x["causal"][..., None], axis=-1)[..., 0]
             ce = -jnp.sum(token_logp * causal_mask_k, axis=-1) / jnp.clip(jnp.sum(causal_mask_k, axis=-1), 1)
