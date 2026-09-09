@@ -402,3 +402,60 @@ def test_v6_whitened_keys_and_linear_bank_recall_every_fact(tiny_v6):
         model.memory_v6_pointer_query = "hidden"
         model.memory_v6_pointer_beta.value = jnp.asarray(0.0, dtype=jnp.float32)
 
+
+
+# --------------------------------------------------------------------------- (i) v6.2: own write timing, label content
+
+
+def test_v6_own_commit_label_content_config_validation():
+    with pytest.raises(ValueError, match="memory_v5_own_commit_label_content"):
+        pi0_config.Pi0Config(**_v5_kwargs(memory_v5_oracle_writes=True, memory_v5_own_commit_label_content=True))
+    with pytest.raises(ValueError, match="memory_v5_own_commit_label_content"):
+        pi0_config.Pi0Config(
+            **_v5_kwargs(memory_v5_oracle_writes=False, memory_v5_own_commit_label_content=True, memory_v5_write_delay_steps=1)
+        )
+    ok = pi0_config.Pi0Config(**_v5_kwargs(memory_v5_oracle_writes=False, memory_v5_own_commit_label_content=True))
+    assert ok.memory_v5_own_commit_label_content
+
+
+def test_v6_bank_sentence_follows_the_flag(tiny_v6):
+    model = tiny_v6
+    own, span = _rows((10, 20, 21, 30), (11, 20, 21, 31))
+    label, _ = _rows((10, 20, 21, 32), (12, 20, 21, 30))
+    saved = (getattr(model, "memory_v5_own_commit_label_content", False), model.memory_v5_oracle_writes)
+    try:
+        model.memory_v5_oracle_writes = False
+        model.memory_v5_own_commit_label_content = False
+        np.testing.assert_array_equal(model.v5_bank_sentence(own, label, span), own)
+        model.memory_v5_own_commit_label_content = True
+        np.testing.assert_array_equal(model.v5_bank_sentence(own, label, span), jnp.where(span, label, 0))
+        # oracle writes never pass through the rule (the write site already stores the label)
+        model.memory_v5_oracle_writes = True
+        np.testing.assert_array_equal(model.v5_bank_sentence(own, label, span), own)
+    finally:
+        model.memory_v5_own_commit_label_content, model.memory_v5_oracle_writes = saved
+
+
+def test_v6_own_commit_label_content_changes_what_the_bank_holds():
+    """Same own-write commit rule (gate at the floor: every changed argmax sentence commits), different bank
+    content: the read-side telemetry of the two runs must differ while both stay finite."""
+    original_vocab = gemma.PALIGEMMA_VOCAB_SIZE
+    try:
+        gemma.PALIGEMMA_VOCAB_SIZE = 128
+        model = _TinyV6Seq(nnx.Rngs(7), sentence_len=2, reference_tokens=((5, 6), (7, 8), (5,)), beta_init=5.0)
+        model.memory_v5_oracle_writes = False
+        model.memory_v5_write_conf = 1e-6
+        observation = _v4_sequence_observation()
+        actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+        model.memory_v5_own_commit_label_content = False
+        own = model._compute_sequence_loss_v32(jax.random.key(46), observation, actions, train=False)
+        model.memory_v5_own_commit_label_content = True
+        labelled = model._compute_sequence_loss_v32(jax.random.key(46), observation, actions, train=False)
+    finally:
+        gemma.PALIGEMMA_VOCAB_SIZE = original_vocab
+    for key, value in labelled.items():
+        assert np.all(np.isfinite(np.asarray(value))), key
+    assert float(own["v4_sem_commit_count"]) >= 1.0
+    assert float(labelled["v4_sem_commit_count"]) >= 1.0
+    # a random tiny LM's argmax sentence is not the label: the two banks hold different tokens
+    assert not np.allclose(np.asarray(labelled["v5_qk_cos_sum"]), np.asarray(own["v5_qk_cos_sum"]))

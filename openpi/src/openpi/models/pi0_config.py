@@ -291,6 +291,10 @@ class Pi0Config(_model.BaseModelConfig):
     # unless it changes and comes back; with True it compares with the last COMMITTED sentence, i.e. a sentence
     # is retried every step until it is confident enough (identical for oracle writes).
     memory_v5_prev_is_committed: bool = False
+    # v6.2 (2026-09-09): own-write TIMING (change/confidence/retry exactly as own writes) but the bank receives the
+    # LABEL sentence of that step, so the closing/decision targets never contradict the bank content (B2 taught the
+    # decoder to out-vote a correct read because its own wrong notes made the label target disagree with the bank).
+    memory_v5_own_commit_label_content: bool = False
     # Number of leading causal positions fed to the sentence encoder (the subtask sentence is
     # the left-aligned prefix of the causal buffer, FASTSubtaskTokenizer.tokenize_split). Every
     # label sentence must fit; the label builder checks this against the real tokenizer.
@@ -643,6 +647,10 @@ class Pi0Config(_model.BaseModelConfig):
                         raise ValueError("memory_v5_bank_waiting_prefix only applies to oracle writes (stage A).")
                     if self.memory_v5_write_delay_steps not in (0, 1):
                         raise ValueError("memory_v5_write_delay_steps must be 0 or 1.")
+                    if self.memory_v5_own_commit_label_content and self.memory_v5_oracle_writes:
+                        raise ValueError("memory_v5_own_commit_label_content is an own-write rule (memory_v5_oracle_writes=False).")
+                    if self.memory_v5_own_commit_label_content and self.memory_v5_write_delay_steps != 0:
+                        raise ValueError("memory_v5_own_commit_label_content requires memory_v5_write_delay_steps=0.")
                     if self.memory_v5_prefill_history and self.memory_v5_prefill_max < 1:
                         raise ValueError("memory_v5_prefill_max must be >= 1 with memory_v5_prefill_history.")
                     if self.memory_v5_prefill_history and self.memory_v5_bank_waiting_prefix:

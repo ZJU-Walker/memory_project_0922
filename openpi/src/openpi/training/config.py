@@ -5441,9 +5441,13 @@ V6_TASK1_LEAD30_MANIFEST_SHA256 = "b5bd8526f46f123af8843352b64927bd13684a0523c41
 V6_TASK1_LEAD30_SIDECAR_SHA256 = "e9703bf0b24dc3818ac6003d7181c8d99caeef6ea89f5f232abcd69327ac3634"
 
 
-def _v6_lead30_variant(name: str, base: str, *, loader_path: str, steps: int, keep: int, fresh=()) -> "TrainConfig":
+def _v6_lead30_variant(
+    name: str, base: str, *, loader_path: str, steps: int, keep: int, fresh=(), model_overrides: dict | None = None
+) -> "TrainConfig":
     by_name = {config.name: config for config in _CONFIGS}
     base_cfg = by_name[base]
+    if model_overrides:
+        base_cfg = dataclasses.replace(base_cfg, model=dataclasses.replace(base_cfg.model, **model_overrides))
     data = dataclasses.replace(
         base_cfg.data,
         base_config=dataclasses.replace(
@@ -5486,6 +5490,8 @@ _CONFIGS.extend(
                 "OPENPI_V6_TASK1_A3_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1A3/v6_task1A3_20260909_r1/keep_250/params"
             ),
             steps=2000, keep=500,
+            # v6.2: own write timing, label content in the bank (B2 lost the read: recall 6/6 -> 3/6 by step 1000)
+            model_overrides={"memory_v5_own_commit_label_content": True},
         ),
     ]
 )

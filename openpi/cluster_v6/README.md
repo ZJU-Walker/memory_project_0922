@@ -248,3 +248,9 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   the pointer bonus during own-write training (wrong own note in the bank + label target = "do not trust the read").
   B3 therefore needs read-consistent targets (closing/decision restate the model's OWN note) or oracle-content
   protection, on top of the lead30 labels.
+* 2026-09-09 09:25 — pointer beta 10.006 (A2-250) → 10.008 (B2-1000), W_q untouched (context queries): the read path did
+  not move; the decoder's own logits learned to out-vote a correct pointer bonus at the closing step. **v6.2 rule for
+  stage B** (`memory_v5_own_commit_label_content`, `Pi0.v5_bank_sentence`): the model keeps deciding WHEN to write
+  (own sentence change + confidence + retry), the bank receives the LABEL sentence of that step. Bank content is then
+  always consistent with the closing/decision targets; own wrong notes at deployment give wrong closings, which is the
+  intended failure mode (perception), not a corrupted reader. `pi05_yam_mem_v6_task1B3` carries the flag.

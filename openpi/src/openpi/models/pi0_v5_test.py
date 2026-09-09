@@ -70,6 +70,7 @@ class _TinyV5Seq(_TinyV35):
     v5_semantic_write = pi0.Pi0.v5_semantic_write
     v5_sentence_kv = pi0.Pi0.v5_sentence_kv  # A8 write path (the tiny model was never given it; pre-existing v5 failure)
     v5_commit_sentence = pi0.Pi0.v5_commit_sentence
+    v5_bank_sentence = pi0.Pi0.v5_bank_sentence
     _v4_inject_semantic = pi0.Pi0._v4_inject_semantic
 
     _v5_token_states = pi0.Pi0._v5_token_states

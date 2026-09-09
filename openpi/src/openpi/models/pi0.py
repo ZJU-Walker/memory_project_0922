@@ -660,6 +660,7 @@ class Pi0(_model.BaseModel):
                     self.memory_v5_bank_waiting_tokens = tuple(config.memory_v5_bank_waiting_tokens)
                     self.memory_v5_write_delay_steps = int(config.memory_v5_write_delay_steps)
                     self.memory_v5_prev_is_committed = bool(getattr(config, "memory_v5_prev_is_committed", False))
+                    self.memory_v5_own_commit_label_content = bool(getattr(config, "memory_v5_own_commit_label_content", False))
                     self.memory_v5_sentence_separation_weight = float(
                         getattr(config, "memory_v5_sentence_separation_weight", 0.0)
                     )
@@ -1352,6 +1353,21 @@ class Pi0(_model.BaseModel):
         """One sentence commit (delta rule = one test-time gradient step) or, when `commit` is
         False, exactly one analytic decay step -- the same transition contract as the v4 bank."""
         return self.memory_semantic.delta_write_kv_multi(state, keys, values, commit[:, None])
+
+    def v5_bank_sentence(
+        self,
+        own_sentence: at.Int[at.Array, "b s"],
+        label_sentence: at.Int[at.Array, "b s"],
+        span: at.Bool[at.Array, "b s"],
+    ) -> at.Int[at.Array, "b s"]:
+        """Sentence content that enters the bank on an own-write commit (v6.2).
+
+        Default: the model's own sentence. With `memory_v5_own_commit_label_content` the label sentence
+        of the same step (span-masked, zeros elsewhere); the commit decision itself is untouched.
+        """
+        if not getattr(self, "memory_v5_own_commit_label_content", False) or getattr(self, "memory_v5_oracle_writes", False):
+            return own_sentence
+        return jnp.where(span, label_sentence.astype(own_sentence.dtype), jnp.zeros_like(own_sentence))
 
     def v5_commit_sentence(
         self,
@@ -5312,14 +5328,20 @@ class Pi0(_model.BaseModel):
                         has_span = jnp.any(write_span, axis=-1)
                     sentence_changed = jnp.any(cur_sentence != prev_sentence, axis=-1) & has_span
                     sem_write_requested = sentence_changed & sentence_confident & transition_valid
+                    # v6.2: what enters the bank. Own writes store the model's own sentence; with
+                    # memory_v5_own_commit_label_content the model still decides WHEN (change,
+                    # confidence, retry on cur/prev = its own sentences) but the bank receives the
+                    # label sentence of this step, so a later closing/decision target can never
+                    # disagree with the bank content it is supposed to restate.
+                    bank_sentence = self.v5_bank_sentence(cur_sentence, label_sentence, write_span)
                     if getattr(self, "memory_v6_token_writes", False):
                         # v6: the sentence enters the bank as one association per token.
                         sem_write_state, sem_aux, sem_keys = self.v6_semantic_write_tokens(
-                            sem_state, cur_sentence, write_span, sem_write_requested
+                            sem_state, bank_sentence, write_span, sem_write_requested
                         )
                         sem_aux = {**sem_aux, "commit_applied": jnp.any(sem_aux["commit_applied"], axis=-1, keepdims=True)}
                     else:
-                        sem_keys, sem_values = self.v5_sentence_kv(cur_sentence, write_span)  # A8-aware (== encode+intent without the flags)
+                        sem_keys, sem_values = self.v5_sentence_kv(bank_sentence, write_span)  # A8-aware (== encode+intent without the flags)
                         sem_write_state, sem_aux = self.v5_semantic_write(
                             sem_state, sem_keys, sem_values, sem_write_requested
                         )
