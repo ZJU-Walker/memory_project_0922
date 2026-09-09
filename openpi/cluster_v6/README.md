@@ -227,3 +227,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   `pi05_yam_mem_v6_task1B3` (own writes from A3, `OPENPI_V6_TASK1_A3_PARAMS`). Battery/gate for that line:
   `run_task1_evals_v2_hgx1.sh` (SIDECAR/MANIFEST env) and `gate_generic_v3_hgx2.sh` (verdict reads the same sidecar).
   Switching the H100s from B2 to A3 is the user's call (B2 continues to 2000 until then; B2-500 battery next).
+* 2026-09-09 05:57 — freeze_decision, all six development episodes: A2-250 0/320 and B2-250 0/320 decision steps say
+  `open bin …`; both repeat the closing note at every frozen step (12/12 episodes). Confirmed: without the arm motion in
+  the image the decision never fires. Gate v2 was paused 05:34–05:57 (`pause_gate_until_freezedec_done_hgx2.sh`) and
+  now runs the B2-500 battery.
