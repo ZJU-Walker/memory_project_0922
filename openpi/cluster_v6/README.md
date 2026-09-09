@@ -299,3 +299,12 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   then `open bin 1` on a still scene 60 frames before the motion, still 6/6, 52/52. The trigger is detaching from the
   motion in the two demo54 episodes (cleanly in one, prematurely in the other); the other four still wait for the arm.
   B3 (own writes, label content) continues on these labels; its batteries (gate v4) run at 250/500/…
+* 2026-09-09 13:30 — **B2-1250 policy server** (user 13:20 "prepare the b2 server"): `cluster_v6/serve_v6_job.sh`
+  (worktree copy of serve_v5_job_v3) on the H200 (job 17329416, GPU 0, port 8000, 10.79.12.149; log
+  `v6/diagnostics/server_v6_b2_1250_20260909.log`). Warm-up 128 s + 25 s (RTC shape). Smoke from the workstation
+  (`cluster_v6/tools/serve_smoke_client.py`): reset ping OK, (50, 14) finite actions, ~260–300 ms per request. Real
+  demo10 frames through the server: watching → `box in bin 1` → `spoon in bin 2` → … → closing `spoon in bin 2` →
+  `open bin 2` (writes 1→6), i.e. the v6 read/write path works through `sample_with_memory`. Client contract unchanged
+  (`examples/yam/client_subtask.py`; task1 prompt `find the <object>`); the client now sends a bare `reset_memory`
+  ping at start (`--reset-memory`, default on) because the server only empties the bank on that ping. B3 batteries on
+  the same card run sequentially (gate v5, `B_ONLY=1 BATTERY_MODES="oracle_evidence self" PARALLEL=0`).
