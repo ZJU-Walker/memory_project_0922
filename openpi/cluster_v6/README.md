@@ -128,3 +128,10 @@ in-frame or copy the newest note).
   the prefill. Fix: `slot_loop="scan"` (same per-slot math as one `lax.scan` body; every pre-v6 caller keeps the
   unrolled loop, bit-identical) — `test_v6_scan_slot_loop_matches_the_unrolled_loop`; memory_v4 + v6 suites 13/13.
   Relaunched 20:51 (queue re-armed; run dir → --overwrite).
+* 2026-09-08 20:51-21:05 — launch 3 (20:51, scan fix) died 6 s after the data loader came up: NCCL `ncclGroupEnd`
+  "Cuda failure 999 unknown error" on the first multi-GPU execution (GPUs healthy, a 4-GPU psum inside the job passed
+  at 20:56 → transient after the SIGKILL of launch 2). Launch 4 at 20:56 (`cluster_v6/task1/restart_queue_hgx1.sh`):
+  data loader 21:00:16, **Step 0 at ~21:05** (compile now ~5 min, as v5). Step 0: ce_loss 6.89 (new task, new
+  sentences; B9 started at 2.4 on its own beans vocabulary), 19 token-level commits in the batch, v5 qk-cos 0.07
+  (the pooled-key read queries have to adapt to token keys), grad_norm 33 (clip 1.0), memory_grad_norm 7.2 (clip 5),
+  no NaN. Exp `v6_task1A_20260908_r1` = the fourth launch's run dir (--overwrite); status log has the 3 exit=1 lines.
