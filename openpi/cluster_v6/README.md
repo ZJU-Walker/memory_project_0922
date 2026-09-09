@@ -200,3 +200,12 @@ context asked for its latest token, decoded over the reference vocabulary; repor
 (The A-250 MLP-bank model on the same probe: task1 variable slots at chance beyond age 0.) First development episode of
 the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement, `open bin 2` decided from that note,
 58/58 decision steps (A-250: 0/58).
+* 2026-09-09 02:40 — **A2 ckpt 250 battery (three modes, H200 cleared on user instruction 01:32)**: oracle_evidence
+  (label notes, own closing sentence + decision) RECALL 6/6 at the first closing step, decisions right in all six
+  episodes (one first-decision step lagging in demo54 banana); self writes: recall 1/6, first decision 2/6 (wrong own
+  notes = perception, stage B's job). Verdict script fix: the closing segment is taken from the sidecar frames (when
+  the target is the newest placement its note and the closing note are identical back to back). **GATE PASS** →
+  the gate's ssh hand-off to hgx-1 failed (no Kerberos ticket on hgx-2; note for the next restart: log in with
+  GSSAPIDelegateCredentials) and the workstation fallback launched **B2** (`v6_task1B2_20260909_r1`, own writes,
+  retry, lr 2.5e-5, save 250 / keep 500) from `keep_250` of A2 at 02:44; A2 stopped at step ~420. H200: sentinel
+  `cluster_v6/gpu_sentinel_h200.sh` keeps a half-card placeholder there between batteries (user 02:44).
