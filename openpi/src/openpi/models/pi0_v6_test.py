@@ -263,3 +263,32 @@ def test_v6_sequence_loss_is_finite_with_finite_gradients(tiny_v6_seq):
     # the sentence CE reaches the v6 parameters: the pointer scale, the pointer query and the token projections
     assert float(jnp.abs(grads["memory_v6_pointer_beta"].value)) > 0.0
     assert float(jnp.max(jnp.abs(grads["memory_v6_token_key_proj"]["kernel"].value))) > 0.0
+
+
+# --------------------------------------------------------------------------- (f) scan == unrolled slot loop
+
+
+def test_v6_scan_slot_loop_matches_the_unrolled_loop(tiny_v6):
+    """delta_write_kv_multi(slot_loop="scan") (v6 token writes, f = padded sentence length) is the unrolled
+    per-slot loop of the v4/v5 callers: same state, same per-slot aux, masked slots included."""
+    mem = tiny_v6.memory_semantic
+    rng = np.random.default_rng(3)
+    b, f = 2, 6
+    k = jnp.asarray(rng.standard_normal((b, f, D_KEY)), dtype=jnp.float32)
+    k = k / jnp.linalg.norm(k, axis=-1, keepdims=True)
+    v = jnp.asarray(rng.standard_normal((b, f, WIDTH)), dtype=jnp.float32)
+    v = v / jnp.linalg.norm(v, axis=-1, keepdims=True)
+    mask = jnp.asarray([[True, True, False, True, True, False], [True, False, True, True, False, False]])
+    state = mem.init_state(b)
+    s_unrolled, aux_unrolled = mem.delta_write_kv_multi(state, k, v, mask)
+    s_scan, aux_scan = mem.delta_write_kv_multi(state, k, v, mask, slot_loop="scan")
+    for name in s_unrolled.fast_weights:
+        np.testing.assert_allclose(np.asarray(s_scan.fast_weights[name]), np.asarray(s_unrolled.fast_weights[name]), atol=1e-6, rtol=1e-6)
+    assert np.array_equal(np.asarray(aux_scan["commit_applied"]), np.asarray(aux_unrolled["commit_applied"]))
+    assert np.array_equal(np.asarray(aux_scan["commit_applied"]), np.asarray(mask))
+    for name in ("pooled_key", "hidden", "pre_residual_norm", "surprise", "final_read_residual_norm"):
+        np.testing.assert_allclose(np.asarray(aux_scan[name]), np.asarray(aux_unrolled[name]), atol=1e-6, rtol=1e-6)
+    # a second write on the scanned state reads back the newest association (delta rule still exact)
+    read = np.asarray(mem.read_key(s_scan, k[:, 4:5]))[:, 0]
+    assert np.dot(read[0], np.asarray(v[0, 4])) > 0.9
+

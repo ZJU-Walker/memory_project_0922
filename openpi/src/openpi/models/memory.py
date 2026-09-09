@@ -626,6 +626,8 @@ class TitansMemory(nnx.Module):
         k: at.Float[at.Array, "b f dk"],
         v: at.Float[at.Array, "b f dv"],
         commit_mask: at.Bool[at.Array, "b f"],
+        *,
+        slot_loop: str = "unrolled",
     ) -> tuple[MemoryState, dict[str, at.Array]]:
         """One memory step committing up to ``f`` independent associations (v4 semantic bank).
 
@@ -639,6 +641,10 @@ class TitansMemory(nnx.Module):
         happen before it. Masked-off or degenerate slots leave the state untouched (fail-closed
         to decay-only for that slot). ``f`` is a static compile-time slot budget; per-sample
         eligibility lives entirely in ``commit_mask``.
+
+        ``slot_loop``: "unrolled" (default, every pre-v6 caller; the slots are a Python loop, so the
+        compiled graph grows with ``f``) or "scan" (v6 token-level writes, ``f`` = padded sentence
+        length: the same per-slot math as one ``lax.scan`` body, graph size independent of ``f``).
         """
         if self.config.write_rule != "delta_output" or self.config.association_mode != "pooled_frame":
             raise ValueError(
@@ -660,21 +666,9 @@ class TitansMemory(nnx.Module):
         state_finite = jnp.all(jnp.isfinite(w3), axis=(-2, -1))
         rate = jax.lax.stop_gradient(jnp.asarray(self.config.delta_rate, dtype=jnp.float32))
 
-        per_slot = {
-            name: []
-            for name in (
-                "pooled_key",
-                "pooled_value",
-                "hidden",
-                "association_valid",
-                "hidden_valid",
-                "commit_applied",
-                "pre_residual_norm",
-                "surprise",
-            )
-        }
-        for i in range(num_slots):
-            pooled = self.pool_kv(k[:, i : i + 1, :], v[:, i : i + 1, :])
+        def commit_slot(w3_cur, k_i, v_i, mask_i):
+            """One association against the CURRENT w3 (post-decay, post earlier same-step commits)."""
+            pooled = self.pool_kv(k_i[:, None, :], v_i[:, None, :])
             pooled_key = pooled["pooled_key"]
             pooled_value = pooled["pooled_value"]
             hidden = self.hidden_key(state, pooled_key[:, None, :])[:, 0, :]
@@ -683,9 +677,7 @@ class TitansMemory(nnx.Module):
             hidden_valid = hidden_finite & (
                 hidden_norm_sq >= jnp.asarray(self.config.hidden_norm_sq_floor, dtype=jnp.float32)
             )
-
-            # Residual against the CURRENT w3 (post-decay, post earlier same-step commits).
-            raw_prediction = jnp.einsum("bh,bhd->bd", hidden, w3, precision=jax.lax.Precision.HIGHEST)
+            raw_prediction = jnp.einsum("bh,bhd->bd", hidden, w3_cur, precision=jax.lax.Precision.HIGHEST)
             raw_residual = pooled_value - raw_prediction
             residual_finite = jnp.all(jnp.isfinite(raw_residual), axis=-1)
             hidden_safe = jnp.where(jnp.isfinite(hidden), hidden, jnp.zeros_like(hidden))
@@ -698,27 +690,43 @@ class TitansMemory(nnx.Module):
             )
             delta_finite = jnp.all(jnp.isfinite(candidate_delta), axis=(-2, -1))
             applied = (
-                commit_mask[:, i]
+                mask_i
                 & pooled["association_valid"]
                 & state_finite
                 & hidden_valid
                 & residual_finite
                 & delta_finite
             )
-            w3 = w3 + jnp.where(applied[:, None, None], candidate_delta, jnp.zeros_like(candidate_delta))
+            w3_new = w3_cur + jnp.where(applied[:, None, None], candidate_delta, jnp.zeros_like(candidate_delta))
+            outputs = {
+                "pooled_key": pooled_key,
+                "pooled_value": pooled_value,
+                "hidden": hidden_safe,
+                "association_valid": pooled["association_valid"],
+                "hidden_valid": hidden_valid,
+                "commit_applied": applied,
+                "pre_residual_norm": jnp.linalg.norm(residual_safe, axis=-1),
+                "surprise": jnp.sum(jnp.square(residual_safe), axis=-1),
+            }
+            return w3_new, outputs
 
-            per_slot["pooled_key"].append(pooled_key)
-            per_slot["pooled_value"].append(pooled_value)
-            per_slot["hidden"].append(hidden_safe)
-            per_slot["association_valid"].append(pooled["association_valid"])
-            per_slot["hidden_valid"].append(hidden_valid)
-            per_slot["commit_applied"].append(applied)
-            pre_residual_norm = jnp.linalg.norm(residual_safe, axis=-1)
-            per_slot["pre_residual_norm"].append(pre_residual_norm)
-            per_slot["surprise"].append(jnp.sum(jnp.square(residual_safe), axis=-1))
-
+        if slot_loop == "unrolled":
+            per_slot: dict[str, list] = {}
+            for i in range(num_slots):
+                w3, outputs = commit_slot(w3, k[:, i], v[:, i], commit_mask[:, i])
+                for name, value in outputs.items():
+                    per_slot.setdefault(name, []).append(value)
+            stacked = {name: jnp.stack(values, axis=1).astype(jnp.float32) for name, values in per_slot.items()}
+        elif slot_loop == "scan":
+            w3, scanned = jax.lax.scan(
+                lambda carry, xs: commit_slot(carry, *xs),
+                w3,
+                (jnp.moveaxis(k, 1, 0), jnp.moveaxis(v, 1, 0), jnp.moveaxis(commit_mask, 1, 0)),
+            )
+            stacked = {name: jnp.moveaxis(value, 0, 1).astype(jnp.float32) for name, value in scanned.items()}
+        else:
+            raise ValueError(f"slot_loop must be 'unrolled' or 'scan', got {slot_loop!r}")
         new_state = self._canonical_delta_state(state, w3)
-        stacked = {name: jnp.stack(values, axis=1).astype(jnp.float32) for name, values in per_slot.items()}
         for name in ("association_valid", "hidden_valid", "commit_applied"):
             stacked[name] = stacked[name].astype(jnp.bool_)
         # Commit quality against the FINAL state: with delta_rate=1 a committed slot only

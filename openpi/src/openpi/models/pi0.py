@@ -1421,7 +1421,11 @@ class Pi0(_model.BaseModel):
         """One sentence commit as `s` token associations (or exactly one decay step when `commit` is False),
         plus the mean token key (unit-norm) for the diagnostic key ring."""
         keys, values, slots = self.v6_sentence_token_kv(tokens, token_mask)
-        new_state, aux = self.memory_semantic.delta_write_kv_multi(state, keys, values, slots & commit[:, None])
+        # `f` = padded sentence length (48): the slot loop must be a scan, an unrolled loop of 48 bank updates inside
+        # the 40-step training scan (and 16x in the history prefill) made the first v6 compile run > 40 min.
+        new_state, aux = self.memory_semantic.delta_write_kv_multi(
+            state, keys, values, slots & commit[:, None], slot_loop="scan"
+        )
         pooled = _memory.l2_normalize(jnp.sum(keys * slots.astype(jnp.float32)[..., None], axis=1, keepdims=True))
         return new_state, aux, pooled
 
