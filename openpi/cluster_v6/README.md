@@ -235,3 +235,6 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   first closing step oracle 5/6, oracle_evidence 5/6, self 2/6 (B2-250: 6/6, 6/6, 4/6). demo19 (target bin 3): all
   three modes open `bin 2` first with the correct closing note `banana in bin 3` / `box in bin 3` just decoded, then
   switch when the arm moves. B2 is drifting further toward motion-driven decisions; own-write recall got worse.
+* 2026-09-09 07:45 — **B2 ckpt 750 battery**: first decision 3/6 in all three modes; recall oracle 5/6, oracle_evidence
+  5/6, self 3/6. Every wrong first decision is `open bin 2` (demo19 banana/box target 3, demo54 banana target 1) with
+  the right note read one step earlier in most cases: a bin-2 prior at the first decision step, corrected by the arm.
