@@ -329,3 +329,6 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   recipe + both, from `OPENPI_V6_TASK1_B4_PARAMS` (default B3 keep_500). Launched via launch_B_generic (B3 stopped at
   ~560, 500 protected as keep_500); gate v5 instance #2 (B_ONLY) batteries B4 at 250/500/… while instance #1 finishes
   the B3-500 own-write battery and exits on B3's exit line.
+* 2026-09-09 16:31 — B3-500 own writes, PARTIAL (4/6 before the H200 went to MemER at 15:32): demo19 banana/box right
+  (own notes, read, decision after motion), demo10 spoon/tape wrong (own notes `spoon in bin 1` / `tape in bin 1`,
+  bin 2 in truth; at B3-250 demo10 spoon was right). Perception still noisy between checkpoints; B4 continues from 500.
