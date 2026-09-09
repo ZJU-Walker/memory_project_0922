@@ -4575,7 +4575,7 @@ _CONFIGS = [
                         v4_graft_sources=(),
                         num_train_steps=2000,
                         save_interval=250,
-                        keep_period=250,
+                        keep_period=500,  # user 2026-09-08 21:09: save every 250, keep only every 500 (disk)
                         num_workers=12,
                         fsdp_devices=1,
                     ),
