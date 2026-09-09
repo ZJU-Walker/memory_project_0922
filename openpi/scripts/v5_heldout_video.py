@@ -184,13 +184,14 @@ def main() -> None:
                              "recall test: with correct notes in the bank, does the model restate the target's note and decide?")
     parser.add_argument(
         "--intervention",
-        choices=("none", "flip_sides", "blank", "freeze"),
+        choices=("none", "flip_sides", "blank", "freeze", "freeze_decision"),
         default="none",
         help="flip_sides: swap the side words (left<->right) in every sentence WRITTEN to the bank; "
         "blank: never commit (the semantic bank stays empty). Decode targets/overlays are unchanged. "
         "freeze: feed the FIRST step's observation (images, state; LED off, arm still) at every step, so the only "
         "thing that advances is the memory — a counter that still reports blinks runs on a timing prior, not on "
-        "the LED (2026-09-06 20:30, real-robot report: ckpt 2750 counts blinks with the LED dark).",
+        "the LED (2026-09-06 20:30, real-robot report: ckpt 2750 counts blinks with the LED dark). "
+        "freeze_decision: hold the last pre-decision frame/state through the decision segment (no arm-motion cue).",
     )
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     parser.add_argument("--manifest", type=pathlib.Path, default=None,
@@ -268,6 +269,7 @@ def main() -> None:
     bank_keys: list[np.ndarray] = []
     records: list[StepRecord] = []
     frozen = None  # --intervention freeze: the first step's (observation, state_token_mask)
+    last_still = None  # --intervention freeze_decision: the last pre-decision step's (observation, state_token_mask)
     step_index = 0
     window_start = 0
     while window_start < length:
@@ -315,6 +317,14 @@ def main() -> None:
                 if frozen is None:
                     frozen = (observation, state_token_mask)
                 observation, state_token_mask = frozen
+            if args.intervention == "freeze_decision":
+                # 2026-09-09 05:25: hold the LAST pre-decision observation (lids closed, arm still) through the whole
+                # decision segment, so the decoded `open bin k` cannot read the robot's own motion from the images or
+                # the joint state; the human phase is seen normally (notes can be perceived/written).
+                if bool(decision_mask[t]) and last_still is not None:
+                    observation, state_token_mask = last_still
+                elif not bool(decision_mask[t]):
+                    last_still = (observation, state_token_mask)
             # A6: the last decoded sentence (the delay's pending sentence) conditions the read queries.
             # The read queries condition on the previous sentence exactly as the training scan does:
             # delay 1 -> the pending (one-step-delayed) sentence; delay 0 -> the previous sentence
