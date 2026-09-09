@@ -5432,6 +5432,64 @@ _CONFIGS.extend(
     ]
 )
 
+# v6.1 "decision lead" line (2026-09-09 05:30): the B2-250 battery decided from the robot's own motion (the decision
+# label started at the first joint motion, a perfect visual cue in training) and only then from the note. The lead30
+# sidecar starts the decision label 30 frames BEFORE the arm moves, so training has decision steps whose only source
+# of k is the bank. Same LeRobot data; only the sidecar/manifest pins change. A3 = A2's recipe on it (warm start A2
+# keep_250, all leaves matched); B3 = own writes from A3 (path via OPENPI_V6_TASK1_A3_PARAMS).
+V6_TASK1_LEAD30_MANIFEST_SHA256 = "b5bd8526f46f123af8843352b64927bd13684a0523c41df3f4d7a24f7dd6e20c"
+V6_TASK1_LEAD30_SIDECAR_SHA256 = "e9703bf0b24dc3818ac6003d7181c8d99caeef6ea89f5f232abcd69327ac3634"
+
+
+def _v6_lead30_variant(name: str, base: str, *, loader_path: str, steps: int, keep: int, fresh=()) -> "TrainConfig":
+    by_name = {config.name: config for config in _CONFIGS}
+    base_cfg = by_name[base]
+    data = dataclasses.replace(
+        base_cfg.data,
+        base_config=dataclasses.replace(
+            base_cfg.data.base_config,
+            memory_episode_manifest_path=str(
+                _project_paths.project_path("openpi/cluster_v6/task1/task1v6_episode_manifest_v1lead30.json")
+            ),
+            memory_episode_manifest_sha256=V6_TASK1_LEAD30_MANIFEST_SHA256,
+            memory_v5_subtask_labels_path=str(
+                _project_paths.project_path("openpi/cluster_v6/task1/task1v6_v5_subtask_labels_v1lead30.json")
+            ),
+            memory_v5_subtask_labels_sha256=V6_TASK1_LEAD30_SIDECAR_SHA256,
+        ),
+    )
+    return dataclasses.replace(
+        base_cfg,
+        name=name,
+        data=data,
+        weight_loader=weight_loaders.AuditedPartialCheckpointWeightLoader(
+            str(_project_paths.project_path(loader_path)),
+            matched_allowlist=(r".+",),
+            fresh_init_allowlist=tuple(fresh),
+            source_cast_dtype="float32",
+        ),
+        num_train_steps=steps,
+        save_interval=250,
+        keep_period=keep,
+    )
+
+
+_CONFIGS.extend(
+    [
+        _v6_lead30_variant(
+            "pi05_yam_mem_v6_task1A3", "pi05_yam_mem_v6_task1A2",
+            loader_path="v6/checkpoints/pi05_yam_mem_v6_task1A2/v6_task1A2_20260909_r1/keep_250/params", steps=500, keep=250,
+        ),
+        _v6_lead30_variant(
+            "pi05_yam_mem_v6_task1B3", "pi05_yam_mem_v6_task1B2",
+            loader_path=os.environ.get(
+                "OPENPI_V6_TASK1_A3_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1A3/v6_task1A3_20260909_r1/keep_250/params"
+            ),
+            steps=2000, keep=500,
+        ),
+    ]
+)
+
 _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 
 

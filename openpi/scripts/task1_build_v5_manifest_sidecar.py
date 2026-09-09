@@ -35,6 +35,11 @@ def main() -> None:
     parser.add_argument("--dataset-name", default="0908_task1")
     parser.add_argument("--manifest-name", default="task1_episode_manifest_v1.json")
     parser.add_argument("--sidecar-name", default="task1_v5_subtask_labels_v1.json")
+    parser.add_argument("--decision-lead-frames", type=int, default=0,
+                        help="start the final (decision) segment this many frames EARLIER than the first joint motion, "
+                             "shrinking the closing segment (kept >= --min-closing-frames): decision frames without arm motion, "
+                             "so the decision can only be learned from memory (2026-09-09 05:30)")
+    parser.add_argument("--min-closing-frames", type=int, default=10)
     parser.add_argument("--split-seed", type=int, default=908,
                         help="integer seed of the converter manifest split (the loader compares it with memory_manifest_split_seed as an int)")
     args = parser.parse_args()
@@ -80,6 +85,12 @@ def main() -> None:
             cursor = end + 1
         if cursor != num_frames:
             raise ValueError(f"{stable_id}: segments end at {cursor}, episode has {num_frames} frames")
+        if args.decision_lead_frames > 0 and len(side_segments) >= 2:
+            closing, decision = side_segments[-2], side_segments[-1]
+            new_start = max(decision["start"] - args.decision_lead_frames, closing["start"] + args.min_closing_frames)
+            if new_start < decision["start"]:
+                closing["end"] = new_start - 1
+                decision["start"] = new_start
         episodes.append({
             "episode_index": episode_index,
             "stable_id": stable_id,
@@ -112,6 +123,7 @@ def main() -> None:
         "lerobot_dir": str(args.lerobot_dir),
         "split_seed": int(args.split_seed),
         "split_rule": f"copied from {args.episode_manifest.name}: {conv.get('split_rule')}",
+        "decision_lead_frames": int(args.decision_lead_frames),
     }
     if f"sha256('{args.split_seed}|" not in str(conv.get("split_rule", "")):
         raise ValueError(f"--split-seed {args.split_seed} is not the seed named in the converter split_rule: {conv.get('split_rule')!r}")
