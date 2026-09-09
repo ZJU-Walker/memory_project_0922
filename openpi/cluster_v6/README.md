@@ -135,3 +135,17 @@ in-frame or copy the newest note).
   sentences; B9 started at 2.4 on its own beans vocabulary), 19 token-level commits in the batch, v5 qk-cos 0.07
   (the pooled-key read queries have to adapt to token keys), grad_norm 33 (clip 1.0), memory_grad_norm 7.2 (clip 5),
   no NaN. Exp `v6_task1A_20260908_r1` = the fourth launch's run dir (--overwrite); status log has the 3 exit=1 lines.
+* 2026-09-08 21:05-23:08 — **stage A** (`v6_task1A_20260908_r1`, 4xH100, batch 8): ~19 s/step steady; CE 6.89 → 2.18
+  (100) → 1.02 (200) → 0.78 (300). User 21:09: gate at ckpt 250, B from it if good, B saves 250 / keeps 500; user
+  21:12: test on job 17329416 (H200, hgx-2) so A keeps training → `cluster_v6/task1/gate_hgx2.sh`. **Battery ckpt 250**
+  (`v6/diagnostics/videos_v6_task1A_20260908_r1_250/`, 22:31-23:02): ORACLE writes: first decision right on 4/6, but
+  316/318 decision steps right — the two misses (demo54 banana/spoon) are a ONE-STEP LAG (the model repeats the closing
+  note at the first decision step, then `open bin 1` for the remaining 45/46). Placement sentences 136-138/140-144
+  exact under oracle writes but lagging one note behind = the decoder copies the newest bank note (the beans stage-A
+  copy shortcut). SELF writes: 1/6 first decisions (demo54 banana, probably the bin-1 prior), placement exact
+  7-76/116-144: it misnames objects/bins at the first placement and misses later ones — perception not learned yet;
+  yet its decisions are consistent with its OWN notes (`spoon in bin 1` → `open bin 1`): the read/pointer side works.
+  Strict gate = FAIL (4/6); decision 23:05 (as announced to the user): the read side is proven, so **stage B from
+  keep_250** by hand: A stopped 23:06 (last step ~360), `keep_250` copied, `v6_task1B_20260908_r1` launched 23:07
+  (own writes, retry, lr 2.5e-5, save 250 / keep 500, warm start keep_250/params). H200 side: `battery_B_hgx2.sh`
+  runs the battery on every B checkpoint (250, 500, …) as it appears; verdicts in `v6/logs/gate_task1_hgx2.log`.
