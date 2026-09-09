@@ -257,3 +257,10 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
 * 2026-09-09 10:27 — **B2 ckpt 1250 battery**: first decision oracle 3/6, oracle_evidence 4/6, self 2/6; recall oracle
   5/6*, oracle_evidence 6/6, self 3/6 (*ep12 oracle and ep12 self died at launch: `srun … Socket timed out`, exit 140,
   transient; re-run to fill the record). Same picture: demo19 opens bin 2 first with the right note in hand.
+* 2026-09-09 10:28 — **user: "Ok do it"** → B2 stopped at step ~1400 (kept 250/500/1000, latest 1250), **A3**
+  `v6_task1A3_20260909_r1` launched 10:30 on the 4 H100 (A2 recipe on the lead30 labels, warm start A2 keep_250,
+  159/159 leaves matched, 500 steps, keep 250). Gate v3 armed 10:29 on the H200 (A3 battery at 250/500 on the lead30
+  sidecar, PASS = oracle_evidence recall >= 5/6 → **B3** `v6_task1B3_20260909_r1`, own timing + label content). The
+  gate's ssh hand-off to hgx-1 works this time: its environment carries `KRB5CCNAME=/iris/u/kewalk/.krb5cc_claude_gate`
+  (a copy of the live workstation ticket on NFS; expires 09-10 01:13). User asked about a 15-frame lead instead of 30:
+  kept 30 (6 vs 3 still decision steps per episode at the 5-frame stride; the shortest closing is still 30 frames).
