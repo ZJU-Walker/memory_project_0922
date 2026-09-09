@@ -268,3 +268,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   oracle_evidence 4/6, self 2/6; recall oracle 6/6, oracle_evidence 6/6, self 4/6. Recall at the closing step thus
   swings 6/6 → 5/6 → 5/6 → 3/6 → 6/6 over B2 250…1250: unstable under own-write training rather than monotonically
   lost; the first decision never recovered from the motion cue. B2 line closed at step ~1400.
+* 2026-09-09 11:01 — **user: "if A reaches 250 directly start training B3"** → gate v3 stopped, **gate v4**
+  (`gate_generic_v4_hgx2.sh`, "launch first") armed on the H200: the moment A3 ckpt 250 is finalized it launches B3
+  from it via hgx-1 (`launch_B_generic_hgx1.sh` stops A3, protects keep_250), then runs the A3-250 battery for
+  information and the battery on every B3 checkpoint (lead30 sidecar). Expected: A3-250 ≈ 11:57, B3 launch ≈ 12:00.
