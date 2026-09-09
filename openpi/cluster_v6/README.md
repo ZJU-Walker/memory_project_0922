@@ -264,3 +264,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   gate's ssh hand-off to hgx-1 works this time: its environment carries `KRB5CCNAME=/iris/u/kewalk/.krb5cc_claude_gate`
   (a copy of the live workstation ticket on NFS; expires 09-10 01:13). User asked about a 15-frame lead instead of 30:
   kept 30 (6 vs 3 still decision steps per episode at the 5-frame stride; the shortest closing is still 30 frames).
+* 2026-09-09 10:33 — B2-1250 record completed (the two launch-failed runs re-run): first decision oracle 4/6,
+  oracle_evidence 4/6, self 2/6; recall oracle 6/6, oracle_evidence 6/6, self 4/6. Recall at the closing step thus
+  swings 6/6 → 5/6 → 5/6 → 3/6 → 6/6 over B2 250…1250: unstable under own-write training rather than monotonically
+  lost; the first decision never recovered from the motion cue. B2 line closed at step ~1400.
