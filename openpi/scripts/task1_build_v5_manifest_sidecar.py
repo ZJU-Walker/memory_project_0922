@@ -35,6 +35,8 @@ def main() -> None:
     parser.add_argument("--dataset-name", default="0908_task1")
     parser.add_argument("--manifest-name", default="task1_episode_manifest_v1.json")
     parser.add_argument("--sidecar-name", default="task1_v5_subtask_labels_v1.json")
+    parser.add_argument("--split-seed", type=int, default=908,
+                        help="integer seed of the converter manifest split (the loader compares it with memory_manifest_split_seed as an int)")
     args = parser.parse_args()
 
     meta = args.lerobot_dir / "meta"
@@ -108,8 +110,13 @@ def main() -> None:
         "schema_version": SCHEMA_MANIFEST,
         "dataset": args.dataset_name,
         "lerobot_dir": str(args.lerobot_dir),
-        "split_seed": conv.get("split_rule"),
+        "split_seed": int(args.split_seed),
         "split_rule": f"copied from {args.episode_manifest.name}: {conv.get('split_rule')}",
+    }
+    if f"sha256('{args.split_seed}|" not in str(conv.get("split_rule", "")):
+        raise ValueError(f"--split-seed {args.split_seed} is not the seed named in the converter split_rule: {conv.get('split_rule')!r}")
+    manifest = {
+        **manifest,
         "episodes": episodes,
     }
     manifest_text = _canonical(manifest)

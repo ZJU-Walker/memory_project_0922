@@ -1223,6 +1223,51 @@ V5_BEANS_DECISION_SENTENCES_V4: tuple[str, ...] = V5_BEANS_SENTENCES_V4[7:10] + 
 # per class, train 23/30/24 for x=1/2/3) and the v7 target-carry sidecar pinned to it.
 V5_BEANS_0905_MANIFEST_SHA256 = "3412223a9ab03ba0e63e544adae5efd94de0a551762c622661ba9f8983ae8776"
 V5_BEANS_0905_SIDECAR_V7_SHA256 = "a2f704b948629709117aa5ee0ff55038ef0ff867fb5d9b6a46f31993c6b5826d"
+# ---- v6 task1 (openpi/cluster_v6/README.md, 2026-09-08): find-the-object bins. 4 objects (banana, box, spoon, tape)
+# hidden by a human in 3 lidded bins, prompt `find the <object>`; the closing sentence RESTATES the note (`banana in
+# bin 2`) so the decision reads the bank in the note's own frame. 16 sentences, sorted as in the sidecar vocabulary.
+V6_TASK1_SENTENCES: tuple[str, ...] = (
+    'banana in bin 1',
+    'banana in bin 2',
+    'banana in bin 3',
+    'box in bin 1',
+    'box in bin 2',
+    'box in bin 3',
+    'open bin 1',
+    'open bin 2',
+    'open bin 3',
+    'spoon in bin 1',
+    'spoon in bin 2',
+    'spoon in bin 3',
+    'tape in bin 1',
+    'tape in bin 2',
+    'tape in bin 3',
+    'watching: no object placed yet',
+)
+V6_TASK1_REFERENCE_SENTENCE_TOKENS: tuple[tuple[int, ...], ...] = (  # PaligemmaTokenizer, lower().strip() + newline
+    (68092, 575, 8881, 235248, 235274, 108),  # banana in bin 1
+    (68092, 575, 8881, 235248, 235284, 108),  # banana in bin 2
+    (68092, 575, 8881, 235248, 235304, 108),  # banana in bin 3
+    (3057, 575, 8881, 235248, 235274, 108),  # box in bin 1
+    (3057, 575, 8881, 235248, 235284, 108),  # box in bin 2
+    (3057, 575, 8881, 235248, 235304, 108),  # box in bin 3
+    (4141, 8881, 235248, 235274, 108),  # open bin 1
+    (4141, 8881, 235248, 235284, 108),  # open bin 2
+    (4141, 8881, 235248, 235304, 108),  # open bin 3
+    (169224, 575, 8881, 235248, 235274, 108),  # spoon in bin 1
+    (169224, 575, 8881, 235248, 235284, 108),  # spoon in bin 2
+    (169224, 575, 8881, 235248, 235304, 108),  # spoon in bin 3
+    (30408, 575, 8881, 235248, 235274, 108),  # tape in bin 1
+    (30408, 575, 8881, 235248, 235284, 108),  # tape in bin 2
+    (30408, 575, 8881, 235248, 235304, 108),  # tape in bin 3
+    (87775, 235292, 793, 4018, 7765, 3599, 108),  # watching: no object placed yet
+)
+V6_TASK1_EVIDENCE_SENTENCES: tuple[str, ...] = tuple(q for q in V6_TASK1_SENTENCES if " in bin " in q)  # 12 placements
+V6_TASK1_DECISION_SENTENCES: tuple[str, ...] = tuple(q for q in V6_TASK1_SENTENCES if q.startswith("open bin "))  # 3
+# cluster_v6/task1: manifest v1 (development = demo10/demo19/demo54, no final_test, 65 train episodes of 49 demos)
+# and the restated-closing sidecar pinned to it. SHAs filled by task1_build_v5_manifest_sidecar.py (see README §6).
+V6_TASK1_MANIFEST_SHA256 = "5ade0b0d6e08692f760736ca50fc10f4bd7872e02f26efc7347105824eceeb46"
+V6_TASK1_SIDECAR_SHA256 = "4baf65762486e818c9110497797368ba171cb0e475978c42ace59b87480579a8"
 
 _CONFIGS = [
     #
@@ -2937,7 +2982,7 @@ _CONFIGS = [
             # Failure rule (user, 2026-09-02 13:02): if stageA misses the Stage-2a bar, stop.
             # ---------------------------------------------------------------------------
             *(
-                lambda v5_model, v5_data, v5_freeze_semantic_only, v5_freeze_dual, v5_loader, v5_beans_data, v5_beans_light_data, v5_beans_tray_data, v5_beans_vis_data, v5_beans_sub_data, v5_beans_0905_tgt_data: (
+                lambda v5_model, v5_data, v5_freeze_semantic_only, v5_freeze_dual, v5_loader, v5_beans_data, v5_beans_light_data, v5_beans_tray_data, v5_beans_vis_data, v5_beans_sub_data, v5_beans_0905_tgt_data, v6_task1_data: (
                     # ---- r2 (2026-09-02 18:31): standardized + trainable attention pooling ----
                     # r1 (stageA, "mean" pooling) FAILED the Stage-2a bar: the mean-pooled encoder
                     # is side-invariant (README §8). stageA2 differs from stageA ONLY in the
@@ -4431,6 +4476,109 @@ _CONFIGS = [
                         num_workers=12,
                         fsdp_devices=1,
                     ),
+                    # v6 task1 stage A (cluster_v6/README.md §3/§5, 2026-09-08): label (oracle) writes, TOKEN-LEVEL causal keys
+                    # (memory_v6_token_writes), pointer read into the sentence logits (memory_v6_pointer_read, beta from 0),
+                    # A8 slot keys / whitening OFF. Warm start = the v5 beans B9 weights (ckpt 2000, read through the
+                    # sanctioned `v5` link); the four memory_v6_* parameters are fresh. 2000 updates, checkpoints every 250.
+                    TrainConfig(
+                        name="pi05_yam_mem_v6_task1A",
+                        v4_protocol=True,
+                        model=dataclasses.replace(
+                            v5_model,
+                            memory_v5_oracle_writes=True,
+                            memory_v5_slot_keys=False,
+                            memory_v5_whiten_values=False,
+                            memory_v6_token_writes=True,
+                            memory_v6_pointer_read=True,
+                            memory_v6_value_standardize=True,
+                            memory_v6_pointer_beta_init=0.0,
+                            memory_v4_visual_injection=False,
+                            memory_v5_pooling="standardized_attention",
+                            memory_v5_pool_queries=4,
+                            memory_v5_reference_tokens=V6_TASK1_REFERENCE_SENTENCE_TOKENS,
+                            memory_v5_write_delay_steps=0,
+                            memory_v5_prefill_history=True,
+                            memory_v5_prefill_max=16,
+                            memory_v5_query_standardize=True,
+                            memory_v5_query_prev_sentence=True,
+                        ),
+                        data=v6_task1_data,
+                        assets_base_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT)),
+                        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V6_CHECKPOINTS_DIR)),
+                        freeze_filter=v5_freeze_semantic_only,
+                        batch_size=2,
+                        gradient_accumulation_steps=1,
+                        lr_schedule=_optimizer.CosineDecaySchedule(
+                            warmup_steps=100, peak_lr=5e-5, decay_steps=10_000, decay_lr=5e-5
+                        ),
+                        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+                        memory_grad_clip=5.0,
+                        ema_decay=None,
+                        probe_lr=1e-2,
+                        weight_loader=weight_loaders.AuditedPartialCheckpointWeightLoader(
+                            str(_project_paths.project_path("v5/checkpoints/pi05_yam_mem_v5_beansB9/v5_beansB9_20260906_r1/2000/params")),
+                            matched_allowlist=(r".+",),
+                            fresh_init_allowlist=(r".*memory_v6_.*",),
+                            source_cast_dtype="float32",
+                        ),
+                        v4_graft_sources=(),
+                        num_train_steps=2000,
+                        save_interval=250,
+                        keep_period=250,
+                        num_workers=12,
+                        fsdp_devices=1,
+                    ),
+                    # v6 task1 stage B: stage-A weights (path via OPENPI_V6_TASK1_A_PARAMS, default the r1 ckpt 2000), OWN writes with
+                    # retry-until-committed, half the learning rate (the B9 pattern). NOT launched until stage A passes the dev battery.
+                    TrainConfig(
+                        name="pi05_yam_mem_v6_task1B",
+                        v4_protocol=True,
+                        model=dataclasses.replace(
+                            v5_model,
+                            memory_v5_oracle_writes=False,
+                            memory_v5_slot_keys=False,
+                            memory_v5_whiten_values=False,
+                            memory_v6_token_writes=True,
+                            memory_v6_pointer_read=True,
+                            memory_v6_value_standardize=True,
+                            memory_v6_pointer_beta_init=0.0,
+                            memory_v4_visual_injection=False,
+                            memory_v5_pooling="standardized_attention",
+                            memory_v5_pool_queries=4,
+                            memory_v5_reference_tokens=V6_TASK1_REFERENCE_SENTENCE_TOKENS,
+                            memory_v5_write_delay_steps=0,
+                            memory_v5_prefill_history=True,
+                            memory_v5_prefill_max=16,
+                            memory_v5_query_standardize=True,
+                            memory_v5_query_prev_sentence=True,
+                            memory_v5_prev_is_committed=True,  # retry-until-committed own writes
+                        ),
+                        data=v6_task1_data,
+                        assets_base_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT)),
+                        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V6_CHECKPOINTS_DIR)),
+                        freeze_filter=v5_freeze_semantic_only,
+                        batch_size=2,
+                        gradient_accumulation_steps=1,
+                        lr_schedule=_optimizer.CosineDecaySchedule(
+                            warmup_steps=100, peak_lr=2.5e-5, decay_steps=10_000, decay_lr=2.5e-5
+                        ),
+                        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+                        memory_grad_clip=5.0,
+                        ema_decay=None,
+                        probe_lr=1e-2,
+                        weight_loader=weight_loaders.AuditedPartialCheckpointWeightLoader(
+                            str(_project_paths.project_path(os.environ.get("OPENPI_V6_TASK1_A_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1A/v6_task1A_20260908_r1/2000/params"))),
+                            matched_allowlist=(r".+",),
+                            fresh_init_allowlist=(),
+                            source_cast_dtype="float32",
+                        ),
+                        v4_graft_sources=(),
+                        num_train_steps=2000,
+                        save_interval=250,
+                        keep_period=250,
+                        num_workers=12,
+                        fsdp_devices=1,
+                    ),
                     # Bean-scoop A10/B10 = the A9/B9 recipe with the RTC delay raised 6 -> 15 controls (user 2026-09-06 14:07:
                     # the B9 server needs ~230 ms per request, i.e. 7 controls at 30 Hz, so the 6-control budget the policy was
                     # trained for made the arm "go and stuck"; 15 controls = 500 ms at 30 Hz). NOT launched yet. B10 loads A10's
@@ -4962,6 +5110,52 @@ _CONFIGS = [
                     ),
                     assets=AssetsConfig(
                         assets_dir=str(_project_paths.project_path(_project_paths.V5_ASSETS_ROOT / "pi05_yam_bean_scoop_0905_v5"))
+                    ),
+                ),
+                # v6 task1 (2026-09-08): same generic-task loader settings as v5_beans_0905_tgt_data; the v6 LeRobot repo
+                # (restated closing sentences), the v6 manifest/sidecar, split seed 908 (task1_build_episode_manifest.py).
+                v6_task1_data=dataclasses.replace(
+                    v4_data,
+                    repo_id="yam/task1_find_0908_v6",
+                    base_config=dataclasses.replace(
+                        v4_data.base_config,
+                        prompt_from_episode_meta=True,
+                        subtask_from_task=True,
+                        subtask_lookahead=0,
+                        memory_stride_frames=5,
+                        memory_slice_prob=0.5,
+                        memory_min_slice_steps=14,
+                        memory_sequence_buckets=(14, 27, 40),
+                        evidence_subtasks=V6_TASK1_EVIDENCE_SENTENCES,
+                        memory_required_subtasks=V6_TASK1_DECISION_SENTENCES,
+                        memory_critical_prob=0.5,
+                        memory_critical_start_pad=75,
+                        memory_subtask_vocab=V6_TASK1_SENTENCES,
+                        heldout_episodes=(),
+                        memory_waiting_max_speed=None,
+                        memory_v35_enabled=False,
+                        memory_e_tail_guard_frames=0,
+                        memory_occlusion_subtasks=(),
+                        memory_execute_subtasks=(),
+                        memory_sparse_skip_o_prob=0.0,
+                        memory_episode_manifest_path=str(
+                            _project_paths.project_path("openpi/cluster_v6/task1/task1v6_episode_manifest_v1.json")
+                        ),
+                        memory_episode_manifest_sha256=V6_TASK1_MANIFEST_SHA256,
+                        memory_manifest_split="train",
+                        memory_manifest_split_seed=908,
+                        memory_v35_frozen_population=False,
+                        memory_v4_fact_labels_path=None,
+                        memory_v4_fact_labels_sha256=None,
+                        memory_v5_subtask_labels_path=str(
+                            _project_paths.project_path("openpi/cluster_v6/task1/task1v6_v5_subtask_labels_v1.json")
+                        ),
+                        memory_v5_subtask_labels_sha256=V6_TASK1_SIDECAR_SHA256,
+                        memory_v5_generic_task=True,
+                        lerobot_dataset_root=str(_project_paths.project_path("v6/data/lerobot/yam/task1_find_0908_v6")),
+                    ),
+                    assets=AssetsConfig(
+                        assets_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT / "pi05_yam_task1_0908_v6"))
                     ),
                 ),
             ),

@@ -34,3 +34,6 @@ openpi_test_mem/
 # v4 worktree-local read-only links into the main project.
 /data
 /v35_readonly
+v6/
+# top-level link to the frozen v5 artefacts (project_paths.SHARED_DATA_LINKS)
+v5

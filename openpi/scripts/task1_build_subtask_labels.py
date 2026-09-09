@@ -417,6 +417,22 @@ def analyse(demo: pathlib.Path, entry: dict, overrides: dict) -> dict:
     }
 
 
+def closing_sentence(style: str, target: str, opened_bin: int) -> str:
+    if style == "restate":
+        return f"{target} in bin {opened_bin}"
+    return f"all bins closed, {target} is in bin {opened_bin}"
+
+
+def write_target_files(demo: pathlib.Path, segments: list[dict], revealed: list[str], opened_bin: int,
+                       style: str, tag: str) -> None:
+    for target in revealed:
+        segs = json.loads(json.dumps(segments))
+        for s in segs:
+            if s["task"] == ALL_CLOSED:
+                s["task"] = closing_sentence(style, target, opened_bin)
+        (demo / f"subtask_labels_{tag}_{target}.json").write_text(json.dumps(segs, indent=4) + "\n")
+
+
 def audit_strip(res: dict) -> np.ndarray:
     """One row per demo: the three-bin strip at every boundary frame, sentence written on top."""
     top, rois = res["_top"], res["_rois"]
@@ -468,9 +484,31 @@ def main() -> int:
     parser.add_argument("--audit-dir", type=pathlib.Path, required=True)
     parser.add_argument("--demos", nargs="*", default=None)
     parser.add_argument("--write", action="store_true", help="write label files + labels manifest")
+    parser.add_argument("--closing-style", choices=("carry", "restate"), default="carry",
+                        help="per-target closing sentence: carry = 'all bins closed, {t} is in bin {k}' (v5); "
+                             "restate = '{t} in bin {k}' (v6: the decision restates the remembered note)")
+    parser.add_argument("--target-file-tag", default="task1",
+                        help="per-target files are subtask_labels_<tag>_<target>.json (v5: task1; v6: task1v6)")
+    parser.add_argument("--derive-only", action="store_true",
+                        help="do not touch the videos: re-derive the per-target files from the existing labels manifest")
     args = parser.parse_args()
 
     table = {e["demo"]: e for e in json.loads(args.inspection.read_text())["episodes"]}
+    if args.derive_only:
+        manifest = json.loads((args.data_dir / "subtask_labels_manifest_task1.json").read_text())
+        n = 0
+        for name, rec in manifest.items():
+            if not rec["ok"] or (args.demos and name not in args.demos):
+                continue
+            write_target_files(args.data_dir / name, rec["segments"], rec["revealed"], int(rec["opened_bin"]),
+                               args.closing_style, args.target_file_tag)
+            n += len(rec["revealed"])
+        vocab = sorted({closing_sentence(args.closing_style, t, k) for rec in manifest.values() if rec["ok"]
+                        for t in rec["revealed"] for k in [int(rec["opened_bin"])]}
+                       | {s["task"] for rec in manifest.values() if rec["ok"] for s in rec["segments"] if s["task"] != ALL_CLOSED})
+        print(f"derived {n} per-target files (tag {args.target_file_tag}, closing style {args.closing_style}); "
+              f"{len(vocab)} sentences: {vocab}")
+        return 0
     overrides = json.loads(args.overrides.read_text()) if args.overrides and args.overrides.exists() else {}
     demos = args.demos or sorted(table, key=lambda s: int(s[4:]))
     args.audit_dir.mkdir(parents=True, exist_ok=True)
@@ -489,12 +527,8 @@ def main() -> int:
               f"placements={ {o: v['frame'] for o, v in res['placements'].items()} } {res['flags']}", flush=True)
         if args.write and res["ok"]:
             (demo / "subtask_labels_task1_base.json").write_text(json.dumps(res["segments"], indent=4) + "\n")
-            for target in res["revealed"]:
-                segs = json.loads(json.dumps(res["segments"]))
-                for s in segs:
-                    if s["task"] == ALL_CLOSED:
-                        s["task"] = f"all bins closed, {target} is in bin {res['opened_bin']}"
-                (demo / f"subtask_labels_task1_{target}.json").write_text(json.dumps(segs, indent=4) + "\n")
+            write_target_files(demo, res["segments"], res["revealed"], res["opened_bin"], args.closing_style,
+                               args.target_file_tag)
     if strips:
         w = max(s.shape[1] for s in strips)
         strips = [cv2.copyMakeBorder(s, 0, 4, 0, w - s.shape[1], cv2.BORDER_CONSTANT, value=(0, 0, 0)) for s in strips]

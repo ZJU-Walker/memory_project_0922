@@ -50,6 +50,9 @@ def main() -> int:
     parser.add_argument("--final-test-per-class", type=int, default=1)
     parser.add_argument("--dev-per-class", type=int, default=2)
     parser.add_argument("--dataset-name", default="0908_task1")
+    parser.add_argument("--label-tag", default="task1",
+                        help="per-target label files to place in the view: subtask_labels_<tag>_<target>.json "
+                             "(v5: task1 = target-carry closing sentence; v6: task1v6 = restated note)")
     parser.add_argument("--overwrite-view", action="store_true")
     parser.add_argument("--manifest-only", action="store_true",
                         help="do not touch the view (it must exist and match the label files); rewrite only the manifest, "
@@ -103,7 +106,7 @@ def main() -> int:
         for target in rec["revealed"]:
             name = f"{d}_{target}"
             dst = args.view_dir / name
-            label_src = src / f"subtask_labels_task1_{target}.json"
+            label_src = src / f"subtask_labels_{args.label_tag}_{target}.json"
             segments = json.loads(label_src.read_text())
             if segments[-1]["end"] + 1 != int(rec["num_frames"]):
                 raise SystemExit(f"{label_src}: labels do not tile {rec['num_frames']} frames")
@@ -141,10 +144,11 @@ def main() -> int:
                          "exclude_reason": reason or "excluded"})
 
     vocab = sorted({s["task"] for d in demos for t in labels[d]["revealed"]
-                    for s in json.loads((args.data_dir / d / f"subtask_labels_task1_{t}.json").read_text())})
+                    for s in json.loads((args.data_dir / d / f"subtask_labels_{args.label_tag}_{t}.json").read_text())})
     manifest = {
         "schema_version": 1,
         "created": "2026-09-08",
+        "label_tag": args.label_tag,
         "dataset_version": args.dataset_name,
         "raw_root": str(args.view_dir.resolve()),
         "note": ("0908 task1 find-the-object bins. One episode per (demo, revealed target); two-object bins give two "

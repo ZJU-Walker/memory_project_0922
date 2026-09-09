@@ -757,6 +757,34 @@ class Pi0(_model.BaseModel):
                         self.memory_sem_prev_query_proj.kernel.value = jnp.zeros_like(
                             self.memory_sem_prev_query_proj.kernel.value
                         )
+                    # ---- v6 (cluster_v6/README.md §3): token-level contextual keys + pointer read ----
+                    self.memory_v6_token_writes = bool(getattr(config, "memory_v6_token_writes", False))
+                    self.memory_v6_pointer_read = bool(getattr(config, "memory_v6_pointer_read", False))
+                    self.memory_v6_value_standardize = bool(getattr(config, "memory_v6_value_standardize", True))
+                    if self.memory_v6_token_writes:
+                        # Key map: random (near-orthogonal) rows, as in the bank-level probe; value map: identity
+                        # block, so a stored value starts as the standardized token embedding itself.
+                        self.memory_v6_token_key_proj = nnx.Linear(
+                            paligemma_config.width, config.memory_semantic.d_key, use_bias=False, rngs=rngs
+                        )
+                        self.memory_v6_token_value_proj = nnx.Linear(
+                            paligemma_config.width, config.memory_semantic.d_value, use_bias=False, rngs=rngs
+                        )
+                        self.memory_v6_token_value_proj.kernel.value = jnp.eye(
+                            paligemma_config.width, config.memory_semantic.d_value, dtype=jnp.float32
+                        )
+                    if self.memory_v6_pointer_read:
+                        # Small random query map (gradients reach beta from step 0) and beta = beta_init
+                        # (0 => the bonus is exactly zero at init, i.e. v5 behaviour).
+                        self.memory_v6_pointer_query_proj = nnx.Linear(
+                            paligemma_config.width, config.memory_semantic.d_key, use_bias=False, rngs=rngs
+                        )
+                        self.memory_v6_pointer_query_proj.kernel.value = (
+                            self.memory_v6_pointer_query_proj.kernel.value * jnp.float32(0.02)
+                        )
+                        self.memory_v6_pointer_beta = nnx.Param(
+                            jnp.asarray(float(getattr(config, "memory_v6_pointer_beta_init", 0.0)), dtype=jnp.float32)
+                        )
                     sem_slots = config.memory_v5_read_queries
                 else:
                     # Learned key-space addresses, one per fact slot (L2-normalized at use). Fixed
@@ -1101,19 +1129,20 @@ class Pi0(_model.BaseModel):
     # v5 (cluster_v5/README.md): sentence-fed true fast-weight semantic bank.
     # ------------------------------------------------------------------------------------
     def _v5_token_states(
-        self, tokens: at.Int[at.Array, "b s"], token_mask: at.Bool[at.Array, "b s"]
+        self, tokens: at.Int[at.Array, "b s"], token_mask: at.Bool[at.Array, "b s"], causal: bool = False
     ) -> at.Float[at.Array, "b s emb"]:
         """Layer-`memory_layer` token states of a TEXT-ONLY prefix (frozen embedder + blocks
         0..memory_layer, bidirectional over the valid tokens, no images/memory/suffix), FP32 and
-        stop-gradient'ed (D5: nothing upstream of the pooling/projections trains through here)."""
+        stop-gradient'ed (D5: nothing upstream of the pooling/projections trains through here).
+        `causal=True` (v6): pure causal attention, so state t depends on tokens <= t only -- the
+        contextual key of token t+1."""
         batch, length = tokens.shape
         depth = self.PaliGemma.llm.module.configs[0].depth
         safe_tokens = jnp.where(token_mask, tokens, 0).astype(jnp.int32)
         emb = self.PaliGemma.llm(safe_tokens, method="embed")
         cache = self._v32_empty_cache(batch, length, emb.dtype)
-        attn = self._pad_attention_columns(
-            make_attn_mask(token_mask, jnp.zeros(token_mask.shape, dtype=jnp.int32)), length
-        )
+        mask_ar = jnp.ones(token_mask.shape, dtype=jnp.int32) if causal else jnp.zeros(token_mask.shape, dtype=jnp.int32)
+        attn = self._pad_attention_columns(make_attn_mask(token_mask, mask_ar), length)
         positions = jnp.maximum(jnp.cumsum(token_mask.astype(jnp.int32), axis=1) - 1, 0)
         (hidden, _), _ = self.PaliGemma.llm(
             [emb, None],
@@ -1241,12 +1270,14 @@ class Pi0(_model.BaseModel):
         pooled = jnp.concatenate([pooled_mean, attended.reshape(attended.shape[0], -1)], axis=-1)
         return _memory.l2_normalize(pooled)
 
-    def _v5_reference_stats(self, length: int) -> tuple[at.Float[at.Array, " emb"], at.Float[at.Array, " emb"]]:
+    def _v5_reference_stats(
+        self, length: int, causal: bool = False
+    ) -> tuple[at.Float[at.Array, " emb"], at.Float[at.Array, " emb"]]:
         """Per-feature mean/std of the layer-8 token states of the static reference sentences,
         encoded by the CURRENT blocks (stop-gradient): the standardization used by the r2 sentence
-        encoder and, since A6, by the read queries."""
+        encoder and, since A6, by the read queries (`causal=True`: over the causal states, v6 keys)."""
         ref_tokens, ref_mask = self.v5_reference_token_rows(length)
-        ref_hidden = self._v5_token_states(ref_tokens, ref_mask)
+        ref_hidden = self._v5_token_states(ref_tokens, ref_mask, causal=causal)
         ref_weight = ref_mask.astype(jnp.float32)[..., None]
         ref_count = jnp.maximum(jnp.sum(ref_weight), 1.0)
         mu = jnp.sum(ref_hidden * ref_weight, axis=(0, 1)) / ref_count
@@ -1319,6 +1350,100 @@ class Pi0(_model.BaseModel):
         """One sentence commit (delta rule = one test-time gradient step) or, when `commit` is
         False, exactly one analytic decay step -- the same transition contract as the v4 bank."""
         return self.memory_semantic.delta_write_kv_multi(state, keys, values, commit[:, None])
+
+    def v5_commit_sentence(
+        self,
+        state: _memory.MemoryState,
+        tokens: at.Int[at.Array, "b s"],
+        token_mask: at.Bool[at.Array, "b s"],
+        commit: at.Bool[at.Array, " b"],
+    ) -> tuple[_memory.MemoryState, at.Bool[at.Array, " b"]]:
+        """Caller-facing sentence commit (policy server, held-out videos): the v6 token-level write when
+        `memory_v6_token_writes` is on, else the v5 pooled write (A8-aware). Returns (state, committed[b])."""
+        if getattr(self, "memory_v6_token_writes", False):
+            new_state, aux, _ = self.v6_semantic_write_tokens(state, tokens, token_mask, commit)
+            return new_state, jnp.any(aux["commit_applied"], axis=-1)
+        keys, values = self.v5_sentence_kv(tokens, token_mask)
+        new_state, aux = self.v5_semantic_write(state, keys, values, commit)
+        return new_state, aux["commit_applied"][:, 0]
+
+    # ------------------------------------------------------------------------------------
+    # v6 (cluster_v6/README.md §3): token-level contextual keys + pointer read.
+    # ------------------------------------------------------------------------------------
+    def v6_reference_token_ids(self) -> tuple[int, ...]:
+        """Every token id of the reference sentence rows (the pointer read's candidate set)."""
+        return tuple(sorted({int(t) for row in self.memory_v5_reference_tokens for t in row}))
+
+    def _v6_reference_embed_stats(self) -> tuple[at.Float[at.Array, " emb"], at.Float[at.Array, " emb"]]:
+        """Per-feature mean/std of the frozen input embeddings of the reference tokens (v6 values)."""
+        ids = jnp.asarray(self.v6_reference_token_ids(), dtype=jnp.int32)[None]
+        emb = jax.lax.stop_gradient(self.PaliGemma.llm(ids, method="embed")[0].astype(jnp.float32))
+        mu = jnp.mean(emb, axis=0)
+        sd = jnp.sqrt(jnp.mean(jnp.square(emb - mu), axis=0) + 1e-6)
+        return mu, sd
+
+    def v6_token_values(
+        self, tokens: at.Int[at.Array, "b s"], token_mask: at.Bool[at.Array, "b s"]
+    ) -> at.Float[at.Array, "b s dv"]:
+        """Unit-norm write VALUE of every token: P_v of its (standardized) frozen input embedding."""
+        safe = jnp.where(token_mask, tokens, 0).astype(jnp.int32)
+        emb = jax.lax.stop_gradient(self.PaliGemma.llm(safe, method="embed").astype(jnp.float32))
+        if getattr(self, "memory_v6_value_standardize", True):
+            mu, sd = self._v6_reference_embed_stats()
+            emb = (emb - mu) / sd
+        return _memory.l2_normalize(self.memory_v6_token_value_proj(emb).astype(jnp.float32))
+
+    def v6_sentence_token_kv(
+        self, tokens: at.Int[at.Array, "b s"], token_mask: at.Bool[at.Array, "b s"]
+    ) -> tuple[at.Float[at.Array, "b s dk"], at.Float[at.Array, "b s dv"], at.Bool[at.Array, "b s"]]:
+        """Token-level write content of a sentence: key_t = P_k std(h_{t-1}) with h the CAUSAL memory-blind
+        layer-`memory_layer` states (key_0 = P_k std(h_0)), value_t = P_v std(E[x_t]); unit-norm FP32; the
+        slot mask is the token mask. Rows without tokens are encoded as a dummy so every path stays finite."""
+        has_tokens = jnp.any(token_mask, axis=1)
+        dummy_mask = jnp.arange(token_mask.shape[1])[None, :] < 1
+        safe_mask = jnp.where(has_tokens[:, None], token_mask, dummy_mask)
+        safe_tokens = jnp.where(has_tokens[:, None], tokens, jnp.zeros_like(tokens))
+        hidden = self._v5_token_states(safe_tokens, safe_mask, causal=True)
+        mu, sd = self._v5_reference_stats(tokens.shape[1], causal=True)
+        standardized = (hidden - mu) / sd
+        preceding = jnp.concatenate([standardized[:, :1], standardized[:, :-1]], axis=1)
+        keys = _memory.l2_normalize(self.memory_v6_token_key_proj(preceding.astype(jnp.float32)).astype(jnp.float32))
+        values = self.v6_token_values(safe_tokens, safe_mask)
+        return keys, values, token_mask
+
+    def v6_semantic_write_tokens(
+        self,
+        state: _memory.MemoryState,
+        tokens: at.Int[at.Array, "b s"],
+        token_mask: at.Bool[at.Array, "b s"],
+        commit: at.Bool[at.Array, " b"],
+    ) -> tuple[_memory.MemoryState, dict[str, at.Array], at.Float[at.Array, "b 1 dk"]]:
+        """One sentence commit as `s` token associations (or exactly one decay step when `commit` is False),
+        plus the mean token key (unit-norm) for the diagnostic key ring."""
+        keys, values, slots = self.v6_sentence_token_kv(tokens, token_mask)
+        new_state, aux = self.memory_semantic.delta_write_kv_multi(state, keys, values, slots & commit[:, None])
+        pooled = _memory.l2_normalize(jnp.sum(keys * slots.astype(jnp.float32)[..., None], axis=1, keepdims=True))
+        return new_state, aux, pooled
+
+    def v6_pointer_bonus(
+        self,
+        hidden: at.Float[at.Array, "b n emb"],
+        state: _memory.MemoryState,
+        position_mask: at.Bool[at.Array, "b n"],
+        vocab_size: int,
+    ) -> at.Float[at.Array, "b n v"]:
+        """Additive next-token logits from the bank (v6 pointer read): each decoder feature is mapped to a query,
+        the retrieved value is scored against the reference tokens' values, scaled by beta and added to those
+        tokens' logits only. With beta = 0 (default init) the bonus is exactly zero."""
+        query = self.memory_v6_pointer_query_proj(hidden.astype(jnp.float32)).astype(jnp.float32)
+        read = self.memory_semantic.read_key(state, query).astype(jnp.float32)
+        ids = self.v6_reference_token_ids()
+        id_arr = jnp.asarray(ids, dtype=jnp.int32)
+        ref_values = self.v6_token_values(id_arr[None], jnp.ones((1, len(ids)), dtype=bool))[0]
+        scores = jnp.einsum("bnd,rd->bnr", read, ref_values) * self.memory_v6_pointer_beta.value
+        scores = scores * position_mask.astype(jnp.float32)[..., None]
+        bonus = jnp.zeros(hidden.shape[:2] + (vocab_size,), dtype=jnp.float32)
+        return bonus.at[..., id_arr].add(scores)
 
     def v4_fact_probe_step(self, observation: _model.Observation) -> dict[str, at.Array]:
         """Single-frame, memory-free fact-head evaluation (the Stage-1 battery boundary).
@@ -4074,6 +4199,9 @@ class Pi0(_model.BaseModel):
                 [self._v32_causal_seed(final_prefix, prefix_mask), causal_out[:, :-1]], axis=1
             )
             score_logits = self.PaliGemma.llm(score_hidden, method="decode").astype(jnp.float32)
+            if getattr(self, "memory_v6_pointer_read", False) and semantic_state is not None and not zero_read:
+                span = gen_mask & (jnp.arange(gen_tokens.shape[1])[None, :] < self.memory_v5_sentence_len)
+                score_logits = score_logits + self.v6_pointer_bonus(score_hidden, semantic_state, span, score_logits.shape[-1])
             token_logp = jnp.take_along_axis(jax.nn.log_softmax(score_logits, axis=-1), gen_tokens[..., None], axis=-1)[
                 ..., 0
             ]
@@ -4116,13 +4244,22 @@ class Pi0(_model.BaseModel):
                 extra={"conditioned_subtask_logp": total_logp, "conditioned_subtask_mean_logp": mean_logp},
             )
 
-        def greedy(hidden_vec):
+        pointer_on = (
+            getattr(self, "memory_v6_pointer_read", False) and semantic_state is not None and not zero_read
+        )
+
+        def greedy(hidden_vec, index):
             logits = self.PaliGemma.llm(hidden_vec[:, None], method="decode")[:, 0].astype(jnp.float32)
+            if pointer_on:
+                # v6 pointer read: the bank as read at this step (the caller writes afterwards), on the
+                # sentence positions only (the decoded tokens are the sentence; FAST is never decoded here).
+                on_span = jnp.broadcast_to(jnp.asarray(index) < self.memory_v5_sentence_len, (batch, 1))
+                logits = logits + self.v6_pointer_bonus(hidden_vec[:, None], semantic_state, on_span, logits.shape[-1])[:, 0]
             token = jnp.argmax(logits, axis=-1)
             prob = jnp.take_along_axis(jax.nn.softmax(logits, axis=-1), token[:, None], axis=-1)[:, 0]
             return token.astype(preprocessed.tokenized_prompt.dtype), prob
 
-        token0, prob0 = greedy(self._v32_causal_seed(final_prefix, prefix_mask)[:, 0])
+        token0, prob0 = greedy(self._v32_causal_seed(final_prefix, prefix_mask)[:, 0], 0)
         gen_tokens = jnp.zeros((batch, self.causal_token_len), dtype=preprocessed.tokenized_prompt.dtype)
         gen_mask = jnp.zeros((batch, self.causal_token_len), dtype=bool)
         gen_prob = jnp.zeros((batch, self.causal_token_len), dtype=jnp.float32)
@@ -4150,7 +4287,7 @@ class Pi0(_model.BaseModel):
                 kv_cache=cache,
                 cache_position=gen_base + index - 1,
             )
-            token, prob = greedy(out[:, 0])
+            token, prob = greedy(out[:, 0], index)
             tokens, mask, probs, done = record(tokens, mask, probs, done, token, prob, index)
             return tokens, mask, probs, done, token, cache, index + 1
 
@@ -4983,6 +5120,12 @@ class Pi0(_model.BaseModel):
             )
             ce_hidden = jnp.concatenate([self._v32_causal_seed(final_prefix, prefix_mask), causal_out[:, :-1]], axis=1)
             logits = self.PaliGemma.llm(ce_hidden, method="decode").astype(jnp.float32)
+            if getattr(self, "memory_v6_pointer_read", False) and read_sem_state is not None:
+                # v6 pointer read on the sentence span (the first memory_v5_sentence_len non-FAST causal
+                # positions), from the bank state this step reads (interventions already applied).
+                pointer_mask = causal_mask_k & ~x["causal_fast"]
+                pointer_mask = pointer_mask & (jnp.arange(causal_len)[None, :] < self.memory_v5_sentence_len)
+                logits = logits + self.v6_pointer_bonus(ce_hidden, read_sem_state, pointer_mask, logits.shape[-1])
             log_probs = jax.nn.log_softmax(logits, axis=-1)
             token_logp = jnp.take_along_axis(log_probs, x["causal"][..., None], axis=-1)[..., 0]
             ce = -jnp.sum(token_logp * causal_mask_k, axis=-1) / jnp.clip(jnp.sum(causal_mask_k, axis=-1), 1)
@@ -5093,10 +5236,17 @@ class Pi0(_model.BaseModel):
                         has_span = jnp.any(write_span, axis=-1)
                     sentence_changed = jnp.any(cur_sentence != prev_sentence, axis=-1) & has_span
                     sem_write_requested = sentence_changed & sentence_confident & transition_valid
-                    sem_keys, sem_values = self.v5_sentence_kv(cur_sentence, write_span)  # A8-aware (== encode+intent without the flags)
-                    sem_write_state, sem_aux = self.v5_semantic_write(
-                        sem_state, sem_keys, sem_values, sem_write_requested
-                    )
+                    if getattr(self, "memory_v6_token_writes", False):
+                        # v6: the sentence enters the bank as one association per token.
+                        sem_write_state, sem_aux, sem_keys = self.v6_semantic_write_tokens(
+                            sem_state, cur_sentence, write_span, sem_write_requested
+                        )
+                        sem_aux = {**sem_aux, "commit_applied": jnp.any(sem_aux["commit_applied"], axis=-1, keepdims=True)}
+                    else:
+                        sem_keys, sem_values = self.v5_sentence_kv(cur_sentence, write_span)  # A8-aware (== encode+intent without the flags)
+                        sem_write_state, sem_aux = self.v5_semantic_write(
+                            sem_state, sem_keys, sem_values, sem_write_requested
+                        )
                     sem_state = jax.tree.map(
                         lambda new, old: jnp.where(
                             transition_valid.reshape((b,) + (1,) * (new.ndim - 1)), new, old
@@ -5490,8 +5640,14 @@ class Pi0(_model.BaseModel):
                     row_mask = prefill_mask[:, p, :sent_len]
                     row_valid = jnp.any(row_mask, axis=-1)
                     row_tokens = jnp.where(row_mask, prefill_tokens[:, p, :sent_len], 0)
-                    row_keys, row_values = self.v5_sentence_kv(row_tokens, row_mask)
-                    written_state, row_aux = self.v5_semantic_write(sem_init_state, row_keys, row_values, row_valid)
+                    if getattr(self, "memory_v6_token_writes", False):
+                        written_state, row_aux, row_keys = self.v6_semantic_write_tokens(
+                            sem_init_state, row_tokens, row_mask, row_valid
+                        )
+                        row_aux = {**row_aux, "commit_applied": jnp.any(row_aux["commit_applied"], axis=-1, keepdims=True)}
+                    else:
+                        row_keys, row_values = self.v5_sentence_kv(row_tokens, row_mask)
+                        written_state, row_aux = self.v5_semantic_write(sem_init_state, row_keys, row_values, row_valid)
                     gap = jnp.where(row_valid, jnp.maximum(prefill_gaps[:, p], 0), 0)
                     decayed_state, _ = self.memory_semantic.analytic_decay(written_state, gap)
                     sem_init_state = jax.tree.map(

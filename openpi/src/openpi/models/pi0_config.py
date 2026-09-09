@@ -373,6 +373,21 @@ class Pi0Config(_model.BaseModelConfig):
     memory_v5_whiten_values: bool = False
     memory_v5_slot_max_diff: int = 2
     memory_v5_whiten_eps: float = 1e-2
+    # 2026-09-08 (v6, cluster_v6/README.md): TOKEN-LEVEL CONTEXTUAL KEYS + POINTER READ -- the addressing a
+    # fast-weight language model has for free, replacing the A8 template slots (which merge all twelve
+    # "{obj} in bin {k}" sentences of the task1 vocabulary into one slot). Bank-level probe with the B9 encoder:
+    # four facts coexist and each reads back at 1.00 (pooled keys 0.47), beans count 1.00 (0.38), old bin 1.00.
+    # `memory_v6_token_writes`: a sentence is written token by token with delta_write_kv_multi -- key_t = P_k of
+    # the standardized CAUSAL layer-`memory_layer` state that precedes token t, value_t = P_v of the
+    # (standardized) input embedding of token t. Nothing task-specific: the standardization statistics are
+    # computed from the reference sentence rows the config already pins.
+    # `memory_v6_pointer_read`: while the sentence is decoded, every decoder feature queries the bank through a
+    # trainable map; the retrieved value is scored against the reference tokens' values and added (x beta) to
+    # those tokens' logits. beta starts at `memory_v6_pointer_beta_init` (0 = exactly v5 behaviour at init).
+    memory_v6_token_writes: bool = False
+    memory_v6_pointer_read: bool = False
+    memory_v6_value_standardize: bool = True
+    memory_v6_pointer_beta_init: float = 0.0
 
     pytorch_compile_mode: str | None = "max-autotune"
 
@@ -526,6 +541,8 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("v3.5 requires nonzero write-side and read-side loss weights.")
                 if not self.memory_time_consistent_augmentation:
                     raise ValueError("v3.5 requires time-consistent sequence augmentation.")
+            if (self.memory_v6_token_writes or self.memory_v6_pointer_read) and not self.memory_v5_sentence_bank:
+                raise ValueError("memory_v6_* flags need memory_v5_sentence_bank=True.")
             if self.memory_v5_sentence_bank and not self.memory_v4_dual_bank:
                 raise ValueError("memory_v5_sentence_bank requires memory_v4_dual_bank=True (it reuses the dual-bank plumbing).")
             if not self.memory_v4_dual_bank and (
@@ -620,6 +637,13 @@ class Pi0Config(_model.BaseModelConfig):
                         raise ValueError("memory_v5_prefill_max must be >= 1 with memory_v5_prefill_history.")
                     if self.memory_v5_prefill_history and self.memory_v5_bank_waiting_prefix:
                         raise ValueError("memory_v5_prefill_history writes sentences exactly; drop the waiting rewrite.")
+                    if self.memory_v6_token_writes or self.memory_v6_pointer_read:
+                        if not self.memory_v5_reference_tokens:
+                            raise ValueError("memory_v6_token_writes / memory_v6_pointer_read need memory_v5_reference_tokens.")
+                        if self.memory_v5_slot_keys or self.memory_v5_whiten_values:
+                            raise ValueError("v6 token-level keys replace the A8 slot keys / value whitening; turn those off.")
+                    if self.memory_v6_pointer_read and not self.memory_v6_token_writes:
+                        raise ValueError("memory_v6_pointer_read reads token-level values; it needs memory_v6_token_writes.")
                     if self.memory_v5_query_standardize and not self.memory_v5_reference_tokens:
                         raise ValueError("memory_v5_query_standardize needs memory_v5_reference_tokens.")
                     if self.memory_v5_query_prev_sentence and self.memory_v5_pooling != "standardized_attention":

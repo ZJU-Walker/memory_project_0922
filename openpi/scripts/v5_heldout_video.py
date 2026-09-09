@@ -90,15 +90,21 @@ def make_decode_fn(model, max_decode_steps: int):
         memory_valid = prepared["memory_valid"]
         causal_len = model.causal_token_len
 
-        def logits_of(hidden_vec):
-            return model.PaliGemma.llm(hidden_vec[:, None], method="decode")[:, 0].astype(jnp.float32)
+        pointer_on = getattr(model, "memory_v6_pointer_read", False) and sem_state is not None
+
+        def logits_of(hidden_vec, index):
+            logits = model.PaliGemma.llm(hidden_vec[:, None], method="decode")[:, 0].astype(jnp.float32)
+            if pointer_on:  # v6 pointer read on the sentence positions (same rule as Pi0._sample_with_memory_v32)
+                on_span = jnp.broadcast_to(jnp.asarray(index) < model.memory_v5_sentence_len, (batch, 1))
+                logits = logits + model.v6_pointer_bonus(hidden_vec[:, None], sem_state, on_span, logits.shape[-1])[:, 0]
+            return logits
 
         def pick(logits):
             probs = jax.nn.softmax(logits, axis=-1)
             token = jnp.argmax(logits, axis=-1).astype(jnp.int32)
             return token, jnp.take_along_axis(probs, token[:, None], axis=-1)[:, 0]
 
-        token0, prob0 = pick(logits_of(model._v32_causal_seed(final_prefix, prefix_mask)[:, 0]))  # noqa: SLF001
+        token0, prob0 = pick(logits_of(model._v32_causal_seed(final_prefix, prefix_mask)[:, 0], 0))  # noqa: SLF001
         gen_tokens = jnp.zeros((batch, causal_len), dtype=jnp.int32)
         gen_mask = jnp.zeros((batch, causal_len), dtype=bool)
         gen_prob = jnp.zeros((batch, causal_len), dtype=jnp.float32)
@@ -126,7 +132,7 @@ def make_decode_fn(model, max_decode_steps: int):
                 kv_cache=cache,
                 cache_position=gen_base + index - 1,
             )
-            token, p = pick(logits_of(out[:, 0]))
+            token, p = pick(logits_of(out[:, 0], index))
             tokens, mask, prob, done = record(tokens, mask, prob, done, token, p, index)
             return tokens, mask, prob, done, token, cache, index + 1
 
@@ -141,6 +147,10 @@ def make_decode_fn(model, max_decode_steps: int):
 def make_write_fn(model):
     @nnx.jit
     def write(model, tokens, mask, sem_state, commit):
+        if getattr(model, "memory_v6_token_writes", False):
+            # v6: token-level write; the diagnostic key is the mean token key
+            new_state, aux, pooled = model.v6_semantic_write_tokens(sem_state, tokens, mask, commit)
+            return new_state, jnp.any(aux["commit_applied"], axis=-1), pooled[:, 0]
         keys, values = model.v5_sentence_kv(tokens, mask)  # A8-aware (== encode+intent without the flags)
         new_state, aux = model.v5_semantic_write(sem_state, keys, values, commit)
         return new_state, aux["commit_applied"][:, 0], keys[:, 0]
