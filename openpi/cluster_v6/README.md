@@ -312,3 +312,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   the note), still 0/6 everywhere (A3's two demo54 early firings are gone), decisions right after motion 6/6. Own
   writes demo10 spoon: recall from OWN notes RIGHT (18/18 closing steps), decisions 58/64, evidence exact 109/144
   (A3-250: 70/144) — perception improving at 250 with the read intact (label-content rule).
+* 2026-09-09 14:18 — **B3-250 own writes**: recall from OWN notes 5/6 (A3-250 0/6, B2-250 4/6), decision right after
+  motion 6/6, own notes exact ≈100/140 per episode (A3: ≈50). Miss = demo10 tape (wrote `tape in bin 1`, read it
+  faithfully). Evidence recall 6/6. Still-step decisions 0/6 in all 12 runs: the motion trigger persists; decide at
+  B3-500 whether to mask the decision loss after motion onset.
