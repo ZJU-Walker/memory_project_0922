@@ -316,3 +316,6 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   motion 6/6, own notes exact ≈100/140 per episode (A3: ≈50). Miss = demo10 tape (wrote `tape in bin 1`, read it
   faithfully). Evidence recall 6/6. Still-step decisions 0/6 in all 12 runs: the motion trigger persists; decide at
   B3-500 whether to mask the decision loss after motion onset.
+* 2026-09-09 15:21 — **B3-500 evidence**: recall 6/6; still-step decisions demo54 spoon 6/6 (fires 60 frames before the
+  motion again, as A3-250 did), the other five 0/6 (switch at the arm); decisions after motion right in all six
+  (demo54 banana 41/52). Own-write half running.
