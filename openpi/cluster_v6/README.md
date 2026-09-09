@@ -319,3 +319,13 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
 * 2026-09-09 15:21 — **B3-500 evidence**: recall 6/6; still-step decisions demo54 spoon 6/6 (fires 60 frames before the
   motion again, as A3-250 did), the other five 0/6 (switch at the arm); decisions after motion right in all six
   (demo54 banana 41/52). Own-write half running.
+* 2026-09-09 15:40 — **v6.3 / B4** (user 15:22 "ok do it … directly start B, do we still need A?" → no: the label-content
+  rule keeps the reader clean during own writes, so B4 warm-starts from B3-500). Two knobs: (1)
+  `memory_v6_decision_ce_weight_after_motion=0.1` — the per-step sentence CE on the DATASET-flagged decision steps
+  (= arm moving) is ×0.1, so the 6 still steps per episode carry about as much decision gradient as the ~50 moving
+  ones; (2) `memory_v6_still_decision_boost=4.0` over `memory_v6_still_decision_frames=30` (user: "upsample the
+  decision moments without arm moving") — sequence starts whose step grid covers a still decision frame are drawn 4×
+  more often (`data_loader._still_decision_boost`, logged as mass before → after). `pi05_yam_mem_v6_task1B4` = B3
+  recipe + both, from `OPENPI_V6_TASK1_B4_PARAMS` (default B3 keep_500). Launched via launch_B_generic (B3 stopped at
+  ~560, 500 protected as keep_500); gate v5 instance #2 (B_ONLY) batteries B4 at 250/500/… while instance #1 finishes
+  the B3-500 own-write battery and exits on B3's exit line.
