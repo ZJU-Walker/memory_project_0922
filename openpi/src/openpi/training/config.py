@@ -5409,6 +5409,29 @@ _CONFIGS.append(
 
 if len({config.name for config in _CONFIGS}) != len(_CONFIGS):
     raise ValueError("Config names must be unique.")
+# v6.1 recall-probe configs (2026-09-09, scripts/v6_bank_recall_probe.py): the task1 A2 model (linear bank, whitened
+# keys, context pointer) with another task's reference sentences and data config, so the same checkpoint's write path
+# can be probed on the beans and the old bins vocabularies. Never trained.
+def _v6_probe_variant(name: str, base: str, reference_tokens, data_from: str) -> "TrainConfig":
+    by_name = {config.name: config for config in _CONFIGS}
+    base_cfg = by_name[base]
+    return dataclasses.replace(
+        base_cfg,
+        name=name,
+        model=dataclasses.replace(base_cfg.model, memory_v5_reference_tokens=reference_tokens),
+        data=by_name[data_from].data,
+    )
+
+
+_CONFIGS.extend(
+    [
+        _v6_probe_variant(
+            "pi05_yam_mem_v6_probe_beans", "pi05_yam_mem_v6_task1A2", V5_BEANS_REFERENCE_SENTENCE_TOKENS_V4, "pi05_yam_mem_v5_beansB9"
+        ),
+        _v6_probe_variant("pi05_yam_mem_v6_probe_bins", "pi05_yam_mem_v6_task1A2", V5_REFERENCE_SENTENCE_TOKENS, "pi05_yam_mem_v5_stageA2"),
+    ]
+)
+
 _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 
 
