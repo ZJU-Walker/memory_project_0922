@@ -243,3 +243,8 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   model now reads `banana in bin 2` for `banana in bin 3` (demo19) and for `banana in bin 1` (demo54): own-write
   training with wrong notes teaches the closing sentence to guess instead of read. B2 will not yield a usable
   checkpoint; recommendation to the user (09:12 push): stop B2, start A3 on the lead30 labels.
+* 2026-09-09 09:20 — `v6_bank_recall_probe.py` on B2-500 and B2-1000: variable slots 284/284 = 1.000 at every age
+  (identical to A2-250). The bank lookup is intact; the battery collapse is the closing decoder learning to override
+  the pointer bonus during own-write training (wrong own note in the bank + label target = "do not trust the read").
+  B3 therefore needs read-consistent targets (closing/decision restate the model's OWN note) or oracle-content
+  protection, on top of the lead30 labels.
