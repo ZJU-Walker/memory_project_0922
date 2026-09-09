@@ -149,3 +149,14 @@ in-frame or copy the newest note).
   keep_250** by hand: A stopped 23:06 (last step ~360), `keep_250` copied, `v6_task1B_20260908_r1` launched 23:07
   (own writes, retry, lr 2.5e-5, save 250 / keep 500, warm start keep_250/params). H200 side: `battery_B_hgx2.sh`
   runs the battery on every B checkpoint (250, 500, …) as it appears; verdicts in `v6/logs/gate_task1_hgx2.log`.
+* 2026-09-08 23:18-23:40 — **the oracle numbers do not test memory** (user 23:18: "can this say it actually remembers, if
+  the object is not the newest one?"): in oracle mode the closing note (`spoon in bin 2`, which IS the answer) is written
+  for the model at the first closing step, so the decision only needs the newest note. The recall test proper is the
+  FIRST closing step (bank = watching + the 4 placement notes, closing note not yet written; 5/6 dev targets are 1-3
+  notes back). A ckpt 250 there: **2/6** (demo19 banana 1 back, demo54 spoon 3 back), the misses keep the prompted object
+  and guess the bin (often 1). New battery mode `--write-mode oracle_evidence` (label notes for the human phase, OWN
+  closing sentence and decision) confirms 2/6 and shows the consequence: a wrong own closing note → wrong bin opened.
+  `task1_battery_verdict.py` now reports RECALL (first closing step) per mode. **Reversal 23:39**: stage B (30 min in,
+  no checkpoint) stopped — its own wrong notes would corrupt the closing-step signal that teaches the lookup; stage A
+  RESUMED from 250 (`switch_to_A_hgx1.sh`, --resume, 23:40). H200 gate v2 (`gate_A_v2_hgx2.sh`): three-mode battery on
+  A 500, 750, …; PASS = oracle_evidence recall >= 5/6 → B from that checkpoint, then three-mode batteries on B.
