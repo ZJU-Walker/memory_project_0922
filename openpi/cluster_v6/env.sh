@@ -14,8 +14,9 @@ export HOME=/iris/u/kewalk
 export PYTHONDONTWRITEBYTECODE=1
 # shellcheck source=../cluster_v35/env.sh
 source "${v6_env_dir}/../cluster_v35/env.sh"
-# the v6 LeRobot datasets (and the v5 ones through symlinks) live under v6/data/lerobot
-export HF_LEROBOT_HOME="${MEMORY_PROJECT_ROOT}/v6/data/lerobot"
+# NOTE: HF_LEROBOT_HOME stays at the v3.5 contract value (${MEMORY_PROJECT_ROOT}/data/lerobot; train.py verifies
+# it). The v6 datasets are reached through the data config's explicit lerobot_dataset_root (v6/data/lerobot/...);
+# only the converter (cluster_v6/task1/convert_task1v6_hgx1.sh) sets HF_LEROBOT_HOME to the v6 dir itself.
 
 mkdir -p \
   "${MEMORY_PROJECT_ROOT}/v6/assets" \
