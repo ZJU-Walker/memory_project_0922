@@ -276,3 +276,11 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   (27 GB) and launched **B3** `v6_task1B3_20260909_r1` at 12:02 on the 4 H100 (own write timing + label content, lead30
   labels, lr 2.5e-5, save 250 / keep 500, 2000 steps). A3-250 battery (information only) follows on the H200; the user
   wants each development episode reported as soon as it lands.
+* 2026-09-09 12:15 — **A3-250 battery, first episode (demo10 spoon)** and a metric fix. The battery's `decision` flag
+  comes from the LeRobot task labels (decision = first joint motion), so "first decision" was still measured at
+  motion onset. `task1_battery_verdict.py` now takes the decision boundary from the sidecar and reports
+  `still a/b` = correct decisions among the still decision steps before motion (v1 dirs: unchanged numbers).
+  demo10 spoon: oracle_evidence recall RIGHT, decisions 58/64 but **still 0/6**: the model says the closing note through
+  the six still steps and switches to `open bin 2` exactly at the arm motion (frame 430). Plain oracle mode shows
+  still 5/6 only because the oracle writes the `open bin 2` label into the bank at the boundary (leak; not a memory
+  test). Own writes: perception not trained yet (stage A). Watch B3 for the trigger moving before the motion.
