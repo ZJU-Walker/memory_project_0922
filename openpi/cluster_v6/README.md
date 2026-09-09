@@ -187,3 +187,16 @@ far, `v6_context_queries`: teacher-forced in training, step by step in the sampl
 0 has no context and no bonus; `memory_v6_pointer_beta_init=10`), `AuditedPartialCheckpointWeightLoader.reinit_allowlist`
 (re-initialise leaves whose shape changed). Configs `pi05_yam_mem_v6_task1A2` (warm start A keep_250, bank + beta
 re-initialised) / `B2`. Tests: pi0_v6_test.py (g) context pointer, (h) whitened keys + linear bank.
+
+**Verified inside the trained model (A2 ckpt 250, 02:10; `scripts/v6_bank_recall_probe.py`, task-agnostic: every written
+context asked for its latest token, decoded over the reference vocabulary; reports `v6/diagnostics/bank_recall_probe/`):**
+
+| task (episodes) | variable slots (objects / digits / sides) | by age 0 / 1 / 2 / 3 notes back |
+|---|---|---|
+| task1 (71) | 284/284 = 1.000 | 1.000 / 1.000 / 1.000 / 1.000 |
+| beans 0905 (89) | 267/267 = 1.000 | 1.000 / 1.000 / – / – |
+| old bins 0830-0831 (70) | 140/140 = 1.000 | – / 1.000 / 1.000 / – |
+
+(The A-250 MLP-bank model on the same probe: task1 variable slots at chance beyond age 0.) First development episode of
+the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement, `open bin 2` decided from that note,
+58/58 decision steps (A-250: 0/58).
