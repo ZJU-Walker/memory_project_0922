@@ -165,7 +165,10 @@ def main() -> None:
     parser.add_argument("--episode-index", type=int, required=True, help="LeRobot episode index (manifest episode_index)")
     parser.add_argument("--write-retry", action="store_true",
                         help="retry-until-committed change detector (prev = last COMMITTED sentence); default = the config's memory_v5_prev_is_committed")
-    parser.add_argument("--write-mode", choices=("self", "oracle"), default="self")
+    parser.add_argument("--write-mode", choices=("self", "oracle", "oracle_evidence"), default="self",
+                        help="self: own decoded sentences; oracle: every label change; oracle_evidence: labels only for the "
+                             "frames BEFORE the closing segment (the notes), own sentences from the closing segment on -- the "
+                             "recall test: with correct notes in the bank, does the model restate the target's note and decide?")
     parser.add_argument(
         "--intervention",
         choices=("none", "flip_sides", "blank", "freeze"),
@@ -239,6 +242,8 @@ def main() -> None:
     lookahead = data_config.subtask_lookahead
     sentence_len = cfg.model.memory_v5_sentence_len
     conf_threshold = cfg.model.memory_v5_write_conf
+    # oracle_evidence: label writes stop at the closing segment (second-to-last sidecar segment = the restated note)
+    oracle_until = int(segments[-2]["start"]) if args.write_mode == "oracle_evidence" and len(segments) >= 2 else length
     prev_is_committed = bool(args.write_retry or getattr(cfg.model, "memory_v5_prev_is_committed", False))
     decode = make_decode_fn(model, args.max_decode_steps)
     write = make_write_fn(model)
@@ -316,7 +321,8 @@ def main() -> None:
             pred = _decode_text(sp, gen_tokens[gen_mask])
             conf = float(gen_prob[gen_mask].mean()) if gen_mask.any() else 0.0
             # the sentence to (maybe) write
-            if args.write_mode == "oracle":
+            oracle_here = args.write_mode == "oracle" or (args.write_mode == "oracle_evidence" and frame + lookahead < oracle_until)
+            if oracle_here:
                 span = (causal_mask[t] & ~causal_fast[t])[:sentence_len]
                 cur = np.where(span, causal[t][:sentence_len], 0).astype(np.int32)[None]
                 confident = True
