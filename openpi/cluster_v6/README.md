@@ -308,3 +308,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   (`examples/yam/client_subtask.py`; task1 prompt `find the <object>`); the client now sends a bare `reset_memory`
   ping at start (`--reset-memory`, default on) because the server only empties the bank on that ping. B3 batteries on
   the same card run sequentially (gate v5, `B_ONLY=1 BATTERY_MODES="oracle_evidence self" PARALLEL=0`).
+* 2026-09-09 14:02 — **B3-250 battery (sequential, evidence + self)**: evidence recall 6/6 (demo54 banana no longer skips
+  the note), still 0/6 everywhere (A3's two demo54 early firings are gone), decisions right after motion 6/6. Own
+  writes demo10 spoon: recall from OWN notes RIGHT (18/18 closing steps), decisions 58/64, evidence exact 109/144
+  (A3-250: 70/144) — perception improving at 250 with the read intact (label-content rule).
