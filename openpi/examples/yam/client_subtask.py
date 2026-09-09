@@ -55,6 +55,10 @@ class Args:
     max_steps: int = 12000
     hz: float = 20.0
     prompt: str = PROMPT
+    reset_memory: bool = True
+    """Send a bare {"reset_memory": true} ping before the first observation so every client run (= one episode)
+    starts with an EMPTY memory bank. The server only resets on this ping (and once after its warmup), so without it a
+    second episode would inherit the notes of the first. Set --no-reset-memory to continue a bank on purpose."""
     max_joint_delta: float = 1.0
     """Per-step safety clamp: cap |target - current| across all joints to this many radians."""
 
@@ -215,6 +219,8 @@ def main(args: Args) -> None:
     ws_client = _websocket_client_policy.WebsocketClientPolicy(host=args.host, port=args.port)
     logging.info("Server metadata: %s", ws_client.get_server_metadata())
     policy = action_chunk_broker.ActionChunkBroker(ws_client, action_horizon=args.action_horizon)
+    if args.reset_memory:
+        logging.info("Memory reset: %s", ws_client.infer({"reset_memory": True}))
 
     if args.dry_run:
         _run_dry(policy, args)
