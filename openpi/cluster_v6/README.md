@@ -284,3 +284,12 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   the six still steps and switches to `open bin 2` exactly at the arm motion (frame 430). Plain oracle mode shows
   still 5/6 only because the oracle writes the `open bin 2` label into the bank at the boundary (leak; not a memory
   test). Own writes: perception not trained yet (stage A). Watch B3 for the trigger moving before the motion.
+* 2026-09-09 12:40 — A3-250 battery episodes 2–5 (demo10 tape, demo19 banana/box, demo54 banana): evidence-mode read
+  RIGHT in the first three (older notes and the newest alike), still decision steps 0/6 everywhere, decision content
+  right from the first moving frame (demo19 now `open bin 3` at once, where B2 said `open bin 2`). **demo54 banana is
+  the first lead30 effect**: at the closing start (still scene) the model skipped the closing note and said
+  `open bin 1` (right bin, conf 0.81) — a decision without motion — but one step later flipped to `open bin 2`, wrote it
+  (own writes after the closing) and held it until the arm moved, then `open bin 1`. Reading: the decision digit is
+  anchored by the just-decoded closing note (the `open bin _` context has no note of its own in the bank); when the
+  decision fires before the closing note it is a guess. B3 trains this ordering further; a prompt-object query for the
+  decision digit is a candidate follow-up if B3 keeps firing early without the note.
