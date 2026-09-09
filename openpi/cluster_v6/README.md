@@ -209,3 +209,21 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   GSSAPIDelegateCredentials) and the workstation fallback launched **B2** (`v6_task1B2_20260909_r1`, own writes,
   retry, lr 2.5e-5, save 250 / keep 500) from `keep_250` of A2 at 02:44; A2 stopped at step ~420. H200: sentinel
   `cluster_v6/gpu_sentinel_h200.sh` keeps a half-card placeholder there between batteries (user 02:44).
+* 2026-09-09 04:30 — **B2 ckpt 250 battery**: self recall 4/6 (own notes now mostly right: perception is being learned),
+  self first decision 3/6; oracle_evidence first decision fell to 3/6 (A2-250: 5/6) while oracle_evidence recall stays
+  6/6. Pattern in the failing episodes (e.g. demo10 tape, own note `tape in bin 2` RIGHT): the first 4–5 decision
+  steps say `open bin 1` and switch to `open bin 2` exactly when the replayed arm starts moving toward bin 2. The
+  decision label starts at the first joint motion, so every training decision frame carries the robot's own motion —
+  a perfect visual cue that beats the note. Pointer beta unchanged at 10.006 in both checkpoints.
+* 2026-09-09 05:30 — **`--intervention freeze_decision`** (images/state held at the last pre-decision step through the
+  decision segment, oracle_evidence writes; `v6/diagnostics/freezedec_<exp>_keep_250/`): demo10 spoon — A2-250 AND
+  B2-250 repeat the closing note `spoon in bin 2` for all 58 decision steps and never emit `open bin …` (0/58 each).
+  The switch to the decision phrase is triggered by the image change (arm motion), not by the note. Fix prepared, not
+  yet trained: sidecar **lead30** (`task1_build_v5_manifest_sidecar.py --decision-lead-frames 30 --min-closing-frames
+  10`; `task1v6_*_v1lead30.json`, decision label starts 30 frames = 1 s before the first joint motion, closing lengths
+  min 30 / median 71 / max 126) — the same LeRobot data, only the label boundaries move, so the model sees decision
+  steps whose only source of the bin is the bank (the deployment regime: the robot does not move before the decision).
+  Configs `pi05_yam_mem_v6_task1A3` (A2 recipe on lead30, warm start A2 keep_250, 500 steps, keep 250) and
+  `pi05_yam_mem_v6_task1B3` (own writes from A3, `OPENPI_V6_TASK1_A3_PARAMS`). Battery/gate for that line:
+  `run_task1_evals_v2_hgx1.sh` (SIDECAR/MANIFEST env) and `gate_generic_v3_hgx2.sh` (verdict reads the same sidecar).
+  Switching the H100s from B2 to A3 is the user's call (B2 continues to 2000 until then; B2-500 battery next).
