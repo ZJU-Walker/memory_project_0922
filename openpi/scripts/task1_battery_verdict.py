@@ -11,10 +11,12 @@ DEV = (12, 13, 26, 27, 67, 68)
 MODES = ("oracle", "oracle_evidence", "self")
 
 
-def _recall(records: list[dict]) -> dict:
-    """The closing segment = the run of steps just before the first decision step whose label is the restated note
-    (`<target> in bin k`). Its FIRST step is the recall test proper: in oracle mode the closing note is not yet in the
-    bank at that step; in oracle_evidence/self modes it is never handed over."""
+def _recall(records: list[dict], closing_start: int | None = None) -> dict:
+    """The closing segment = the restated note (`<target> in bin k`) just before the first decision step. Its FIRST
+    step is the recall test proper: in oracle mode the closing note is not yet in the bank at that step; in
+    oracle_evidence/self modes it is never handed over. `closing_start` (the sidecar's frame) is needed when the
+    target was the LAST object placed: its placement note and the closing note are the same text back to back, and
+    the run of identical labels would otherwise start at the placement (2026-09-09 02:35, demo19 box)."""
     i_dec = next((i for i, r in enumerate(records) if str(r["gt_now"]).startswith("open bin")), None)
     if i_dec is None or i_dec == 0:
         return {"label": None, "first_pred": None, "first_ok": False, "exact": 0, "steps": 0}
@@ -22,6 +24,8 @@ def _recall(records: list[dict]) -> dict:
     i0 = i_dec - 1
     while i0 > 0 and records[i0 - 1]["gt_now"] == label:
         i0 -= 1
+    if closing_start is not None:
+        i0 = max(i0, next((i for i, r in enumerate(records) if int(r["frame"]) >= closing_start), i0))
     seg = records[i0:i_dec]
     return {"label": label, "first_pred": seg[0]["pred"], "first_ok": seg[0]["pred"] == label,
             "exact": sum(1 for r in seg if r["pred"] == label), "steps": len(seg)}
@@ -31,7 +35,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("out_dir", type=pathlib.Path)
     parser.add_argument("--min-oracle", type=int, default=5)
+    parser.add_argument("--sidecar", type=pathlib.Path,
+                        default=pathlib.Path(__file__).resolve().parents[1] / "cluster_v6/task1/task1v6_v5_subtask_labels_v1.json",
+                        help="v5 sentence sidecar (closing-segment frames)")
     args = parser.parse_args()
+    sidecar = json.loads(args.sidecar.read_text()) if args.sidecar.exists() else None
     rows, counts, recalls = [], {m: 0 for m in MODES}, {m: 0 for m in MODES}
     for mode in MODES:
         for ep in DEV:
@@ -43,7 +51,11 @@ def main() -> None:
             ok = bool(s.get("first_decision_correct"))
             counts[mode] += int(ok)
             bank = [b for b in s.get("final_bank", [])]
-            recall = _recall(s["records"])
+            closing_start = None
+            if sidecar is not None and s["stable_id"] in sidecar.get("episodes", {}):
+                segs = sidecar["episodes"][s["stable_id"]]["segments"]
+                closing_start = int(segs[-2]["start"]) if len(segs) >= 2 else None
+            recall = _recall(s["records"], closing_start)
             recalls[mode] += int(recall["first_ok"])
             rows.append(
                 f"  {mode:15s} ep{ep:02d} {s['stable_id'].split('/')[-1]:14s} prompt={s['prompt']!r:20s} "
