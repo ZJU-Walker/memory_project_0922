@@ -119,3 +119,12 @@ in-frame or copy the newest note).
 * 2026-09-08 19:57 — norm stats running on iris-hgx-1 (`v6/logs/norm_stats_task1v6.log`); stage-A queue
   `cluster_v6/task1/queue_task1A_hgx1.sh` (norm stats → `run_train_hgx1.sh` 4 GPUs batch 8 → development battery
   `run_task1_evals_hgx1.sh` per kept checkpoint, GPU 0). Battery output `v6/diagnostics/videos_<exp>_<step>/`.
+* 2026-09-08 20:05-20:50 — **first two launches**: (1) 20:04 died at start — `cluster_v6/env.sh` had moved
+  `HF_LEROBOT_HOME` to `v6/data/lerobot`, train.py enforces the v3.5 contract value (fixed fe70c2d; the v6 dataset is
+  reached through the config's explicit `lerobot_dataset_root`). (2) 20:06 loaded data (65 train episodes) and passed
+  the weight audit (158 matched from beans B9-2000, 7 fresh = the four `memory_v6_*` leaves + 3 empty bias slots) but
+  sat in XLA compilation for 44 min (v5 A9/B9 reached step 2 in ~10 min): `delta_write_kv_multi` unrolls its slot
+  loop in Python and v6 passes f = 48 slots (padded sentence length) per write, inside the 40-step scan and 16x in
+  the prefill. Fix: `slot_loop="scan"` (same per-slot math as one `lax.scan` body; every pre-v6 caller keeps the
+  unrolled loop, bit-identical) — `test_v6_scan_slot_loop_matches_the_unrolled_loop`; memory_v4 + v6 suites 13/13.
+  Relaunched 20:51 (queue re-armed; run dir → --overwrite).
