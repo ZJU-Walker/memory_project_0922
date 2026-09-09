@@ -295,6 +295,12 @@ class Pi0Config(_model.BaseModelConfig):
     # LABEL sentence of that step, so the closing/decision targets never contradict the bank content (B2 taught the
     # decoder to out-vote a correct read because its own wrong notes made the label target disagree with the bank).
     memory_v5_own_commit_label_content: bool = False
+    # v6.3 (2026-09-09 15:25): weight of the per-step sentence CE on decision steps flagged by the DATASET decision
+    # mask (task labels: decision = first joint motion). With the lead30 sidecar the decision sentence is also the
+    # target on the still steps before the motion, which are NOT flagged; weighting the flagged steps down leaves the
+    # still window as the main place where "open bin k" is learned, so the arm motion stops being the trigger.
+    # 1.0 = unchanged; 0.0 = no supervision once the arm moves.
+    memory_v6_decision_ce_weight_after_motion: float = 1.0
     # Number of leading causal positions fed to the sentence encoder (the subtask sentence is
     # the left-aligned prefix of the causal buffer, FASTSubtaskTokenizer.tokenize_split). Every
     # label sentence must fit; the label builder checks this against the real tokenizer.
@@ -647,6 +653,8 @@ class Pi0Config(_model.BaseModelConfig):
                         raise ValueError("memory_v5_bank_waiting_prefix only applies to oracle writes (stage A).")
                     if self.memory_v5_write_delay_steps not in (0, 1):
                         raise ValueError("memory_v5_write_delay_steps must be 0 or 1.")
+                    if not 0.0 <= self.memory_v6_decision_ce_weight_after_motion <= 1.0:
+                        raise ValueError("memory_v6_decision_ce_weight_after_motion must lie in [0, 1].")
                     if self.memory_v5_own_commit_label_content and self.memory_v5_oracle_writes:
                         raise ValueError("memory_v5_own_commit_label_content is an own-write rule (memory_v5_oracle_writes=False).")
                     if self.memory_v5_own_commit_label_content and self.memory_v5_write_delay_steps != 0:

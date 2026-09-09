@@ -459,3 +459,29 @@ def test_v6_own_commit_label_content_changes_what_the_bank_holds():
     assert float(labelled["v4_sem_commit_count"]) >= 1.0
     # a random tiny LM's argmax sentence is not the label: the two banks hold different tokens
     assert not np.allclose(np.asarray(labelled["v5_qk_cos_sum"]), np.asarray(own["v5_qk_cos_sum"]))
+
+
+# --------------------------------------------------------------------------- (j) v6.3: decision CE weight after motion
+
+
+def test_v6_decision_ce_weight_after_motion(tiny_v6_seq):
+    model = tiny_v6_seq
+    observation = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    n_dec = int(np.sum(np.asarray(observation.seq_decision_mask)))
+    assert n_dec >= 1, "fixture has no decision step"
+    saved = getattr(model, "memory_v6_decision_ce_weight_after_motion", 1.0)
+    try:
+        model.memory_v6_decision_ce_weight_after_motion = 1.0
+        full = model._compute_sequence_loss_v32(jax.random.key(46), observation, actions, train=False)
+        model.memory_v6_decision_ce_weight_after_motion = 0.0
+        masked = model._compute_sequence_loss_v32(jax.random.key(46), observation, actions, train=False)
+    finally:
+        model.memory_v6_decision_ce_weight_after_motion = saved
+    for key, value in masked.items():
+        assert np.all(np.isfinite(np.asarray(value))), key
+    # the flagged decision steps drop out of the CE, everything else is untouched
+    assert float(np.sum(np.asarray(masked["ce"]))) < float(np.sum(np.asarray(full["ce"])))
+    np.testing.assert_allclose(np.asarray(masked["flow"]), np.asarray(full["flow"]))
+    with pytest.raises(ValueError, match="memory_v6_decision_ce_weight_after_motion"):
+        pi0_config.Pi0Config(**_v5_kwargs(memory_v6_decision_ce_weight_after_motion=1.5))

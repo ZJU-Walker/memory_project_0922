@@ -661,6 +661,7 @@ class Pi0(_model.BaseModel):
                     self.memory_v5_write_delay_steps = int(config.memory_v5_write_delay_steps)
                     self.memory_v5_prev_is_committed = bool(getattr(config, "memory_v5_prev_is_committed", False))
                     self.memory_v5_own_commit_label_content = bool(getattr(config, "memory_v5_own_commit_label_content", False))
+                    self.memory_v6_decision_ce_weight_after_motion = float(getattr(config, "memory_v6_decision_ce_weight_after_motion", 1.0))
                     self.memory_v5_sentence_separation_weight = float(
                         getattr(config, "memory_v5_sentence_separation_weight", 0.0)
                     )
@@ -5413,7 +5414,11 @@ class Pi0(_model.BaseModel):
                 )
                 validf = valid.astype(jnp.float32)
             outputs = {
-                "ce": ce * validf,
+                # v6.3: down-weight the sentence CE on the dataset-flagged (arm-moving) decision steps; the still
+                # decision steps of the lead30 labels are not flagged and keep full weight.
+                "ce": ce * validf * jnp.where(
+                    x["decision_mask"], float(getattr(self, "memory_v6_decision_ce_weight_after_motion", 1.0)), 1.0
+                ),
                 "flow": flow * validf,
                 "valid": validf,
                 # Core-steepness telemetry (v34_run1/2 postmortems): the raw inner write

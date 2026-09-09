@@ -1696,6 +1696,35 @@ def _memory_critical_windows(info: dict[str, np.ndarray], data_config: "_config.
     return window.astype(np.int32)
 
 
+def _still_decision_boost(
+    weights: np.ndarray,
+    *,
+    frame: np.ndarray,
+    episode: np.ndarray,
+    valid_steps: np.ndarray,
+    stride: int,
+    decision_lo: np.ndarray,
+    still_frames: int,
+    boost: float,
+) -> tuple[np.ndarray, float, float]:
+    """v6.3: scale the weight of every start whose step grid (frame + k*stride, k < valid_steps) hits a still
+    decision frame [decision_lo[e] - still_frames, decision_lo[e]) of its episode (decision_lo < 0 = no decision).
+    Returns (new weights, mass fraction on those starts before, after)."""
+    lo = decision_lo[episode] - still_frames
+    hi = decision_lo[episode]  # exclusive
+    ok = (decision_lo[episode] >= 0) & (hi > lo)
+    first_k = np.maximum(0, -np.floor_divide(-(lo - frame), stride))
+    last_k = np.minimum(valid_steps - 1, np.floor_divide(hi - 1 - frame, stride))
+    covers = ok & (first_k <= last_k) & (weights > 0)
+    total = float(weights.sum())
+    before = float(weights[covers].sum()) / total if total > 0 else 0.0
+    out = weights.copy()
+    out[covers] *= boost
+    out /= out.sum()
+    after = float(out[covers].sum())
+    return out, before, after
+
+
 @dataclasses.dataclass(frozen=True)
 class _SequenceSamplingInfo:
     weights: np.ndarray
@@ -1983,6 +2012,22 @@ def _sequence_sampling_info(
                     idx = np.nonzero(mc_ok & (episode == e))[0]
                     weights[idx] = mc_prob / n_cells / len(members) / len(idx)
 
+    boost = float(getattr(data_config, "memory_v6_still_decision_boost", 1.0))
+    if boost != 1.0:
+        required_ids = {int(i) for i, t in dataset_meta.tasks.items() if t in data_config.memory_required_subtasks}
+        decision_lo = np.full(num_episodes, -1, dtype=np.int64)
+        for e in range(num_episodes):
+            hits = np.nonzero(np.isin(np.asarray(info["episode_tasks"][e]), list(required_ids)))[0]
+            if len(hits):
+                decision_lo[e] = int(hits[0])
+        weights, before, after = _still_decision_boost(
+            weights, frame=frame, episode=episode, valid_steps=valid_steps, stride=stride, decision_lo=decision_lo,
+            still_frames=int(data_config.memory_v6_still_decision_frames), boost=boost,
+        )
+        logging.info(
+            "v6.3 still-decision boost x%g over %d frames before the dataset decision: mass on covering starts %.1f%% -> %.1f%%",
+            boost, int(data_config.memory_v6_still_decision_frames), 100 * before, 100 * after,
+        )
     logging.info(
         f"sequence sampling: {n_full} full starts (p={full_mass:.3g}), "
         f"{n_slice} slice starts (p={slice_mass:.3g}), "

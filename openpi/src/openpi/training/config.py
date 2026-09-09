@@ -147,6 +147,12 @@ class DataConfig:
     # Memory-critical starts are drawn uniformly from this many frames before the evidence
     # phase (memory is blank shortly before the answer becomes visible).
     memory_critical_start_pad: int = 75
+    # v6.3 (2026-09-09, user: "upsample the decision moments without arm moving"): multiply the sampling weight of every
+    # sequence start whose step grid covers at least one STILL decision frame, i.e. a frame in
+    # [first dataset decision frame - memory_v6_still_decision_frames, first dataset decision frame). With the lead30
+    # sidecar those frames carry the decision sentence while the robot has not moved yet. 1.0 = off.
+    memory_v6_still_decision_boost: float = 1.0
+    memory_v6_still_decision_frames: int = 0
     # v3.4: the ordered subtask vocabulary for the auxiliary demand loss (plan 5.1) -- the
     # per-step subtask string is mapped to its index here (unknown -> -1, masked out). Must
     # match the model's memory_aux_num_classes.
@@ -5442,7 +5448,8 @@ V6_TASK1_LEAD30_SIDECAR_SHA256 = "e9703bf0b24dc3818ac6003d7181c8d99caeef6ea89f5f
 
 
 def _v6_lead30_variant(
-    name: str, base: str, *, loader_path: str, steps: int, keep: int, fresh=(), model_overrides: dict | None = None
+    name: str, base: str, *, loader_path: str, steps: int, keep: int, fresh=(), model_overrides: dict | None = None,
+    data_overrides: dict | None = None,
 ) -> "TrainConfig":
     by_name = {config.name: config for config in _CONFIGS}
     base_cfg = by_name[base]
@@ -5460,6 +5467,7 @@ def _v6_lead30_variant(
                 _project_paths.project_path("openpi/cluster_v6/task1/task1v6_v5_subtask_labels_v1lead30.json")
             ),
             memory_v5_subtask_labels_sha256=V6_TASK1_LEAD30_SIDECAR_SHA256,
+            **(data_overrides or {}),
         ),
     )
     return dataclasses.replace(
@@ -5492,6 +5500,18 @@ _CONFIGS.extend(
             steps=2000, keep=500,
             # v6.2: own write timing, label content in the bank (B2 lost the read: recall 6/6 -> 3/6 by step 1000)
             model_overrides={"memory_v5_own_commit_label_content": True},
+        ),
+        _v6_lead30_variant(
+            "pi05_yam_mem_v6_task1B4", "pi05_yam_mem_v6_task1B2",
+            loader_path=os.environ.get(
+                "OPENPI_V6_TASK1_B4_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1B3/v6_task1B3_20260909_r1/keep_500/params"
+            ),
+            steps=2000, keep=500,
+            # v6.3 (user 15:22 "directly start B"): B3 recipe from B3-500 + sentence CE x0.1 on the arm-moving decision
+            # steps, so the still window (bank = only source of k) carries the decision supervision.
+            model_overrides={"memory_v5_own_commit_label_content": True, "memory_v6_decision_ce_weight_after_motion": 0.1},
+            # + sequence starts covering the 30 still decision frames drawn 4x more often
+            data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 30},
         ),
     ]
 )
