@@ -272,3 +272,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   (`gate_generic_v4_hgx2.sh`, "launch first") armed on the H200: the moment A3 ckpt 250 is finalized it launches B3
   from it via hgx-1 (`launch_B_generic_hgx1.sh` stops A3, protects keep_250), then runs the A3-250 battery for
   information and the battery on every B3 checkpoint (lead30 sidecar). Expected: A3-250 ≈ 11:57, B3 launch ≈ 12:00.
+* 2026-09-09 12:02 — A3 ckpt 250 finalized 11:59 (CE 0.26 at step 200) → gate v4 stopped A3 (12:00), protected keep_250
+  (27 GB) and launched **B3** `v6_task1B3_20260909_r1` at 12:02 on the 4 H100 (own write timing + label content, lead30
+  labels, lr 2.5e-5, save 250 / keep 500, 2000 steps). A3-250 battery (information only) follows on the H200; the user
+  wants each development episode reported as soon as it lands.
