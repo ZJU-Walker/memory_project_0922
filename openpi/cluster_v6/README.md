@@ -293,3 +293,9 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   anchored by the just-decoded closing note (the `open bin _` context has no note of its own in the bank); when the
   decision fires before the closing note it is a guess. B3 trains this ordering further; a prompt-object query for the
   decision digit is a candidate follow-up if B3 keeps firing early without the note.
+* 2026-09-09 12:43 — **A3-250 battery complete** (lead30 boundary): recall at the first closing step oracle_evidence
+  5/6 (demo54 banana skipped the note), self 0/6; first decision at the first STILL step oracle_evidence 1/6, self 1/6;
+  decision right once the arm moves 6/6 (evidence). **demo54 spoon = first clean success**: closing note read right,
+  then `open bin 1` on a still scene 60 frames before the motion, still 6/6, 52/52. The trigger is detaching from the
+  motion in the two demo54 episodes (cleanly in one, prematurely in the other); the other four still wait for the arm.
+  B3 (own writes, label content) continues on these labels; its batteries (gate v4) run at 250/500/…
