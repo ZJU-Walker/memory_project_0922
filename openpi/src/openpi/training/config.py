@@ -1274,6 +1274,70 @@ V6_TASK1_DECISION_SENTENCES: tuple[str, ...] = tuple(q for q in V6_TASK1_SENTENC
 # and the restated-closing sidecar pinned to it. SHAs filled by task1_build_v5_manifest_sidecar.py (see README §6).
 V6_TASK1_MANIFEST_SHA256 = "5ade0b0d6e08692f760736ca50fc10f4bd7872e02f26efc7347105824eceeb46"
 V6_TASK1_SIDECAR_SHA256 = "4baf65762486e818c9110497797368ba171cb0e475978c42ace59b87480579a8"
+# ---- v6.4 task1 MERGED TAIL (2026-09-09 18:00, user: no closing sentence, one sentence from 'lids closed' to the end).
+# The tail sentence keeps the note FIRST ('spoon in bin 2, lids closed, pick it up') because the bin digit is read from the
+# bank by the context preceding it: the phrasing probe on B3-500 read 71/71 with the note first and 31/71 with
+# 'lid closed, pick up spoon in bin 2' (scripts/v6_context_phrasing_probe.py). 25 sentences, sorted as in the sidecar.
+V6_TASK1_TAIL_SENTENCES: tuple[str, ...] = (
+    'banana in bin 1',
+    'banana in bin 1, lids closed, pick it up',
+    'banana in bin 2',
+    'banana in bin 2, lids closed, pick it up',
+    'banana in bin 3',
+    'banana in bin 3, lids closed, pick it up',
+    'box in bin 1',
+    'box in bin 1, lids closed, pick it up',
+    'box in bin 2',
+    'box in bin 2, lids closed, pick it up',
+    'box in bin 3',
+    'box in bin 3, lids closed, pick it up',
+    'spoon in bin 1',
+    'spoon in bin 1, lids closed, pick it up',
+    'spoon in bin 2',
+    'spoon in bin 2, lids closed, pick it up',
+    'spoon in bin 3',
+    'spoon in bin 3, lids closed, pick it up',
+    'tape in bin 1',
+    'tape in bin 1, lids closed, pick it up',
+    'tape in bin 2',
+    'tape in bin 2, lids closed, pick it up',
+    'tape in bin 3',
+    'tape in bin 3, lids closed, pick it up',
+    'watching: no object placed yet',
+)
+V6_TASK1_TAIL_REFERENCE_SENTENCE_TOKENS: tuple[tuple[int, ...], ...] = (  # PaligemmaTokenizer, lower().strip() + newline
+    (68092, 575, 8881, 235248, 235274, 108),  # banana in bin 1
+    (68092, 575, 8881, 235248, 235274, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # banana in bin 1, lids closed, pick it up
+    (68092, 575, 8881, 235248, 235284, 108),  # banana in bin 2
+    (68092, 575, 8881, 235248, 235284, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # banana in bin 2, lids closed, pick it up
+    (68092, 575, 8881, 235248, 235304, 108),  # banana in bin 3
+    (68092, 575, 8881, 235248, 235304, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # banana in bin 3, lids closed, pick it up
+    (3057, 575, 8881, 235248, 235274, 108),  # box in bin 1
+    (3057, 575, 8881, 235248, 235274, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # box in bin 1, lids closed, pick it up
+    (3057, 575, 8881, 235248, 235284, 108),  # box in bin 2
+    (3057, 575, 8881, 235248, 235284, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # box in bin 2, lids closed, pick it up
+    (3057, 575, 8881, 235248, 235304, 108),  # box in bin 3
+    (3057, 575, 8881, 235248, 235304, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # box in bin 3, lids closed, pick it up
+    (169224, 575, 8881, 235248, 235274, 108),  # spoon in bin 1
+    (169224, 575, 8881, 235248, 235274, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # spoon in bin 1, lids closed, pick it up
+    (169224, 575, 8881, 235248, 235284, 108),  # spoon in bin 2
+    (169224, 575, 8881, 235248, 235284, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # spoon in bin 2, lids closed, pick it up
+    (169224, 575, 8881, 235248, 235304, 108),  # spoon in bin 3
+    (169224, 575, 8881, 235248, 235304, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # spoon in bin 3, lids closed, pick it up
+    (30408, 575, 8881, 235248, 235274, 108),  # tape in bin 1
+    (30408, 575, 8881, 235248, 235274, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # tape in bin 1, lids closed, pick it up
+    (30408, 575, 8881, 235248, 235284, 108),  # tape in bin 2
+    (30408, 575, 8881, 235248, 235284, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # tape in bin 2, lids closed, pick it up
+    (30408, 575, 8881, 235248, 235304, 108),  # tape in bin 3
+    (30408, 575, 8881, 235248, 235304, 235269, 79844, 7337, 235269, 4788, 665, 908, 108),  # tape in bin 3, lids closed, pick it up
+    (87775, 235292, 793, 4018, 7765, 3599, 108),  # watching: no object placed yet
+)
+# the LeRobot per-frame tasks still carry the v1 strings ('open bin k' from the first joint motion): they stay the mask
+# vocabulary for evidence/required subtasks, so the aux vocab lists both
+V6_TASK1_TAIL_VOCAB: tuple[str, ...] = V6_TASK1_TAIL_SENTENCES + V6_TASK1_DECISION_SENTENCES
+V6_TASK1_TAIL_MANIFEST_SHA256 = "4db5a922a8cb9438750890eebebd33f99a80ee187f6082827889e65d455db081"
+V6_TASK1_TAIL_SIDECAR_SHA256 = "35d83e42b184ae546f9bc162676550d64e71b36177411f7eb3e5cc6b96f46426"
+
 
 _CONFIGS = [
     #
@@ -5449,7 +5513,9 @@ V6_TASK1_LEAD30_SIDECAR_SHA256 = "e9703bf0b24dc3818ac6003d7181c8d99caeef6ea89f5f
 
 def _v6_lead30_variant(
     name: str, base: str, *, loader_path: str, steps: int, keep: int, fresh=(), model_overrides: dict | None = None,
-    data_overrides: dict | None = None,
+    data_overrides: dict | None = None, manifest: str = "task1v6_episode_manifest_v1lead30.json",
+    sidecar: str = "task1v6_v5_subtask_labels_v1lead30.json", manifest_sha: str = V6_TASK1_LEAD30_MANIFEST_SHA256,
+    sidecar_sha: str = V6_TASK1_LEAD30_SIDECAR_SHA256,
 ) -> "TrainConfig":
     by_name = {config.name: config for config in _CONFIGS}
     base_cfg = by_name[base]
@@ -5459,14 +5525,10 @@ def _v6_lead30_variant(
         base_cfg.data,
         base_config=dataclasses.replace(
             base_cfg.data.base_config,
-            memory_episode_manifest_path=str(
-                _project_paths.project_path("openpi/cluster_v6/task1/task1v6_episode_manifest_v1lead30.json")
-            ),
-            memory_episode_manifest_sha256=V6_TASK1_LEAD30_MANIFEST_SHA256,
-            memory_v5_subtask_labels_path=str(
-                _project_paths.project_path("openpi/cluster_v6/task1/task1v6_v5_subtask_labels_v1lead30.json")
-            ),
-            memory_v5_subtask_labels_sha256=V6_TASK1_LEAD30_SIDECAR_SHA256,
+            memory_episode_manifest_path=str(_project_paths.project_path(f"openpi/cluster_v6/task1/{manifest}")),
+            memory_episode_manifest_sha256=manifest_sha,
+            memory_v5_subtask_labels_path=str(_project_paths.project_path(f"openpi/cluster_v6/task1/{sidecar}")),
+            memory_v5_subtask_labels_sha256=sidecar_sha,
             **(data_overrides or {}),
         ),
     )
@@ -5512,6 +5574,22 @@ _CONFIGS.extend(
             model_overrides={"memory_v5_own_commit_label_content": True, "memory_v6_decision_ce_weight_after_motion": 0.1},
             # + sequence starts covering the 30 still decision frames drawn 4x more often
             data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 30},
+        ),
+        _v6_lead30_variant(
+            "pi05_yam_mem_v6_task1B5", "pi05_yam_mem_v6_task1B2",
+            loader_path=os.environ.get(
+                "OPENPI_V6_TASK1_B5_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1B4/v6_task1B4_20260909_r1/keep_250/params"
+            ),
+            steps=2000, keep=500,
+            # v6.4 merged tail: the closing note and 'open bin k' become ONE sentence held to the end; the 25-sentence
+            # reference vocabulary replaces the 16; loss weight and still-window boost as in B4 (the still window is now
+            # the whole pre-motion tail, ~150 frames)
+            manifest="task1v6_episode_manifest_v1tail.json", sidecar="task1v6_v5_subtask_labels_v1tail.json",
+            manifest_sha=V6_TASK1_TAIL_MANIFEST_SHA256, sidecar_sha=V6_TASK1_TAIL_SIDECAR_SHA256,
+            model_overrides={"memory_v5_own_commit_label_content": True, "memory_v6_decision_ce_weight_after_motion": 0.1,
+                             "memory_v5_reference_tokens": V6_TASK1_TAIL_REFERENCE_SENTENCE_TOKENS},
+            data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 150,
+                            "memory_subtask_vocab": V6_TASK1_TAIL_VOCAB},
         ),
     ]
 )
