@@ -257,7 +257,10 @@ def main() -> None:
     sentence_len = cfg.model.memory_v5_sentence_len
     conf_threshold = cfg.model.memory_v5_write_conf
     # oracle_evidence: label writes stop at the closing segment (second-to-last sidecar segment = the restated note)
-    oracle_until = int(segments[-2]["start"]) if args.write_mode == "oracle_evidence" and len(segments) >= 2 else length
+    # oracle_evidence: label notes are handed over up to the closing note; with a merged tail (sidecar "tail_merged":
+    # closing + decision = one segment) that is the tail segment itself
+    _evidence_end = segments[-1]["start"] if sidecar.get("tail_merged") else (segments[-2]["start"] if len(segments) >= 2 else length)
+    oracle_until = int(_evidence_end) if args.write_mode == "oracle_evidence" else length
     prev_is_committed = bool(args.write_retry or getattr(cfg.model, "memory_v5_prev_is_committed", False))
     decode = make_decode_fn(model, args.max_decode_steps)
     write = make_write_fn(model)

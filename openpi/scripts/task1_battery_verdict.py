@@ -75,7 +75,16 @@ def main() -> None:
             dec = _decisions(s["records"], decision_start)
             ok = dec["first_ok"]
             counts[mode] += int(ok)
-            recall = _recall(s["records"], closing_start)
+            if sidecar is not None and sidecar.get("tail_merged") and decision_start is not None:
+                # merged tail ("<obj> in bin k, lids closed, pick it up"): the read and the decision are the same
+                # sentence; recall = the tail sentence right at its first step
+                tail = [r for r in s["records"] if int(r["frame"]) >= decision_start]
+                label = tail[0]["gt_now"] if tail else None
+                recall = {"label": label, "first_pred": tail[0]["pred"] if tail else None,
+                          "first_ok": bool(tail) and tail[0]["pred"] == label,
+                          "exact": sum(1 for r in tail if r["pred"] == label), "steps": len(tail)}
+            else:
+                recall = _recall(s["records"], closing_start)
             recalls[mode] += int(recall["first_ok"])
             rows.append(
                 f"  {mode:15s} ep{ep:02d} {s['stable_id'].split('/')[-1]:14s} prompt={s['prompt']!r:20s} "

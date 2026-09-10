@@ -40,6 +40,10 @@ def main() -> None:
                              "shrinking the closing segment (kept >= --min-closing-frames): decision frames without arm motion, "
                              "so the decision can only be learned from memory (2026-09-09 05:30)")
     parser.add_argument("--min-closing-frames", type=int, default=10)
+    parser.add_argument("--merge-tail", default="",
+                        help="replace the closing note + decision segments by ONE segment (closing start .. episode end) whose "
+                             "sentence is this template with {note} = the closing note (e.g. '{note}, lids closed, pick it up'); "
+                             "the note stays first so the bank read keeps its context (2026-09-09 18:00, phrasing probe)")
     parser.add_argument("--split-seed", type=int, default=908,
                         help="integer seed of the converter manifest split (the loader compares it with memory_manifest_split_seed as an int)")
     args = parser.parse_args()
@@ -85,6 +89,13 @@ def main() -> None:
             cursor = end + 1
         if cursor != num_frames:
             raise ValueError(f"{stable_id}: segments end at {cursor}, episode has {num_frames} frames")
+        if args.merge_tail and len(side_segments) >= 2:
+            closing, decision = side_segments[-2], side_segments[-1]
+            if closing["sentence"] not in vocabulary or decision["end"] != num_frames - 1:
+                raise ValueError(f"{stable_id}: unexpected tail {closing['sentence']!r} / {decision}")
+            merged = args.merge_tail.format(note=closing["sentence"])
+            side_segments[-2:] = [{"start": closing["start"], "end": decision["end"], "sentence": merged}]
+            vocabulary.discard(decision["sentence"]); vocabulary.add(merged)
         if args.decision_lead_frames > 0 and len(side_segments) >= 2:
             closing, decision = side_segments[-2], side_segments[-1]
             new_start = max(decision["start"] - args.decision_lead_frames, closing["start"] + args.min_closing_frames)
@@ -124,6 +135,8 @@ def main() -> None:
         "split_seed": int(args.split_seed),
         "split_rule": f"copied from {args.episode_manifest.name}: {conv.get('split_rule')}",
         "decision_lead_frames": int(args.decision_lead_frames),
+        "tail_merged": bool(args.merge_tail),
+        "merge_tail_template": args.merge_tail,
     }
     if f"sha256('{args.split_seed}|" not in str(conv.get("split_rule", "")):
         raise ValueError(f"--split-seed {args.split_seed} is not the seed named in the converter split_rule: {conv.get('split_rule')!r}")
@@ -136,6 +149,7 @@ def main() -> None:
     manifest_sha = hashlib.sha256(manifest_text.encode("utf-8")).hexdigest()
     sidecar = {
         "schema_version": SCHEMA_SIDECAR,
+        "tail_merged": bool(args.merge_tail),
         "dataset_version": args.dataset_name,
         "num_episodes": len(sidecar_episodes),
         "sentences": sorted(vocabulary),
