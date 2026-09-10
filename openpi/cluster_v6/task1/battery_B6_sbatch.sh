@@ -21,6 +21,11 @@ export HOME=/iris/u/kewalk PYTHONDONTWRITEBYTECODE=1
 export SIDECAR=$cv6/task1/task1v6_v5_subtask_labels_v1tailgo.json MANIFEST=$cv6/task1/task1v6_episode_manifest_v1tailgo.json
 cd "$root/openpi" || exit 2
 echo "==== battery job $SLURM_JOB_ID on $SLURMD_NODENAME $(date) ===="; nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+# GPU self-test: iris10 GPU 0 had 27 uncorrected ECC errors on 09-10 and JAX failed with CUDA_ERROR_UNKNOWN there.
+nvidia-smi --query-gpu=index,ecc.errors.uncorrected.volatile.total,retired_pages.pending --format=csv,noheader
+if ! srun --jobid=$SLURM_JOB_ID --overlap --nodes=1 --ntasks=1 --gres=gpu:1 .venv/bin/python -c "import jax; d=jax.devices(); assert d[0].platform=='gpu', d; print('jax ok', d)"; then
+  echo "JAX cannot use the allocated GPU on $SLURMD_NODENAME -> exiting so the job can be resubmitted elsewhere (--exclude=$SLURMD_NODENAME)"; exit 7
+fi
 for step in $STEPS; do
   out=$root/v6/diagnostics/videos_${EXP}_${step}; mkdir -p "$out"
   while ! { [ -e "$root/v6/checkpoints/$CFG/$EXP/$step/params" ] && grep -q "\[step=$step\] CheckpointManager Save Finalize is done on all hosts" "$root/v6/logs/train_$EXP.log"; }; do
