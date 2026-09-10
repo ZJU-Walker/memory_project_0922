@@ -368,3 +368,8 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   decode, tail sentence `… lids closed, pick it up` held; latency ~330 ms for notes, **~530 ms for the 13-token tail
   sentence** → recommend `--hz 10` on the client (5 controls = 500 ms ≈ one tail-phase inference). Client
   `examples/yam/client_memory_v6_task1.py` dry-run OK. The user cancelled job 17315830 at 21:31 (B5 stopped at ~580).
+* 2026-09-09 22:28 — B5-500 server restarted with `CPUS=12` and `--num-steps 6` (`serve_v6_job_v2.sh`,
+  `relaunch_b5_server_hgx2.sh`; log `server_v6_b5_500_20260909c.log`): notes 305 ms (was 330), tail 475–505 ms (was
+  500–530) per request at the 5-frame stride — the CPU starvation was minor; the tail cost is the 13-token
+  autoregressive decode (~15 ms/token). Levers if needed: fill the deterministic suffix `, lids closed, pick it up`
+  server-side once the note prefix is decoded (~100 ms), or a shorter tail vocabulary at the next training.
