@@ -373,3 +373,13 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   500–530) per request at the 5-frame stride — the CPU starvation was minor; the tail cost is the 13-token
   autoregressive decode (~15 ms/token). Levers if needed: fill the deterministic suffix `, lids closed, pick it up`
   server-side once the note prefix is decoded (~100 ms), or a shorter tail vocabulary at the next training.
+* 2026-09-09 23:15 — **v6.5 / B6** (user 23:04 after the real-robot test: "too slow" and "arm moving only in some
+  episodes"; 23:09 "use job 17329416, stop the server, keep 1 GB alive"). (1) SHORT tail `<note>, go` (8 tokens vs 13;
+  `task1v6_*_v1tailgo.json`, sha 23e09ef9… / 88ea99df…; `V6_TASK1_TAILGO_*`). (2) **Action loss masked on still-tail
+  steps**: the demos keep the arm still 1–3 s after the lids close while the operator started teleop, and under the
+  merged tail those frames taught "tail sentence + still scene = wait" → the robot sometimes never moved.
+  `MemoryV34Labels.tail_subtasks` emits `seq_still_tail_mask` = (CE target ∈ tail sentences) ∧ ¬(dataset decision
+  phase); `Observation.seq_still_tail_mask`; `memory_v6_flow_mask_still_tail` zeroes the flow loss there (sentence CE
+  untouched). (3) CE weight after motion back to 1.0. `pi05_yam_mem_v6_task1B6` from B5 ckpt 500
+  (`OPENPI_V6_TASK1_B6_PARAMS`), training on the H200 of 17329416 (1 GPU, batch 8) — the server is down meanwhile.
+  Tests: transforms_v6_test 1/1, pi0_v6 flow-mask test, config load.
