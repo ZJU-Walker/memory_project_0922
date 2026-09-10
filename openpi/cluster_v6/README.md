@@ -383,3 +383,13 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   untouched). (3) CE weight after motion back to 1.0. `pi05_yam_mem_v6_task1B6` from B5 ckpt 500
   (`OPENPI_V6_TASK1_B6_PARAMS`), training on the H200 of 17329416 (1 GPU, batch 8) — the server is down meanwhile.
   Tests: transforms_v6_test 1/1, pi0_v6 flow-mask test, config load.
+* 2026-09-09 23:32 — **v6.5 FRESH line, A6 → B6** (user 23:26: "start fresh, don't start from what we have now";
+  "first A and then B, A 200 steps, B save every 200"). The B5-500 warm start (`v6_task1B6_20260909_r1`, 1 H200,
+  batch 8) had died OOM at step 0 anyway (needs >132 GiB; r2 on the H100s was killed at 23:26 per the user).
+  `pi05_yam_mem_v6_task1A6` = A2 recipe (oracle writes, linear bank, whitened keys, context pointer, beta 10) from the
+  beans B9 ckpt 2000 (fresh `memory_v6_*`, `memory_semantic` re-initialised), tailgo sidecar, still-tail flow mask,
+  boost 4/150, lr 5e-5, 201 steps, save/keep 200. `pi05_yam_mem_v6_task1B6` now = own writes + label content + CE 1.0
+  + flow mask from A6 step 200 (`OPENPI_V6_TASK1_A6_PARAMS`), lr 2.5e-5, save/keep every 200, 2000 steps.
+  `cluster_v6/task1/chain_A6_B6_hgx1.sh` runs both back to back on job 17356154 (2×H100, FSDP 2, batch 8; the user's
+  own training there was stopped at 23:20 on their instruction, keep-alive 2668788 kept): A6 `v6_task1A6_20260909_r1`
+  → B6 `v6_task1B6_20260909_r3`. Batteries for the new checkpoints go to the H200 with the tailgo sidecar.
