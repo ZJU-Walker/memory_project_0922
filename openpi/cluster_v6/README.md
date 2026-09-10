@@ -349,3 +349,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   predicted from the label ratio), decisions after motion right in 5/6 evidence episodes (demo19 banana 0/62: the ×0.1
   weight also weakened the after-motion decision there); own-write recall 3/6 (B3-250 5/6, B3-500 partial 2/4):
   perception noisy between checkpoints. B4 line closed at ~450 (keep_250 kept); superseded by B5 (merged tail).
+* 2026-09-09 19:54 — **B5-250 first episode (demo10 spoon)**: evidence mode says `spoon in bin 2, lids closed, pick it
+  up` on the FIRST tail frame (310, right after the last placement label, still scene), bin read from the bank (3rd of 4
+  notes), 82/82 tail steps, still 24/24 — the decision comes from memory at the lid-closing moment. Own writes: own
+  note `spoon in bin 1` (evidence exact 39/144, B4-250 had 111) read faithfully → wrong; perception disturbed at 250.
