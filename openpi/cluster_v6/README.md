@@ -407,3 +407,8 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   timing. Self 1/6 (ep68; ep13 right from the 2nd step): own notes are still degenerate at step 200 ('spoon in bin 1'
   in 4 episodes, inspect exact 5–8/144) — perception needs more B steps, as in the B2–B5 chain. Step 400 battery started
   04:57.
+* 2026-09-10 06:00 — **B6-400 verdict**: evidence 5/6 at the first still step (ep26 said 'box in bin 3, go' for one
+  step — right bin, wrong object — then 75/76 right), all six fire the tail from memory without motion (still 19–24/24
+  in 5). Self 3/6 (ep27, ep67, ep68 right from the first still step and held to the end); misses = own notes with the
+  wrong bin on demo10 (bin 1 for bin 2) and the object mix-up on ep26. The switch-timing defect of step 200 is gone;
+  own-write perception is the remaining gap. B6 CE 0.36 @600. Step-600 battery started 06:00.
