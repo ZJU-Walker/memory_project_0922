@@ -163,6 +163,8 @@ class Observation(Generic[ArrayT]):
     # applied before reading step t and state-valid/reachable refer only to earlier E commits.
     seq_write_mask: at.Bool[ArrayT, "*sb st"] | None = None
     seq_decision_mask: at.Bool[ArrayT, "*sb st"] | None = None
+    # v6.5: tail sentence already the target but the arm not yet moving (action loss masked there when enabled)
+    seq_still_tail_mask: at.Bool[ArrayT, "*sb st"] | None = None
     seq_occlusion_mask: at.Bool[ArrayT, "*sb st"] | None = None
     seq_read_state_valid: at.Bool[ArrayT, "*sb st"] | None = None
     seq_read_credit_reachable: at.Bool[ArrayT, "*sb st"] | None = None
@@ -229,6 +231,7 @@ class Observation(Generic[ArrayT]):
             seq_waiting_mask=data.get("seq_waiting_mask"),
             seq_write_mask=data.get("seq_write_mask"),
             seq_decision_mask=data.get("seq_decision_mask"),
+            seq_still_tail_mask=data.get("seq_still_tail_mask"),
             seq_occlusion_mask=data.get("seq_occlusion_mask"),
             seq_read_state_valid=data.get("seq_read_state_valid"),
             seq_read_credit_reachable=data.get("seq_read_credit_reachable"),

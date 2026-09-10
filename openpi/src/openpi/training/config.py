@@ -153,6 +153,10 @@ class DataConfig:
     # sidecar those frames carry the decision sentence while the robot has not moved yet. 1.0 = off.
     memory_v6_still_decision_boost: float = 1.0
     memory_v6_still_decision_frames: int = 0
+    # v6.5 (2026-09-09 23:05): the per-step "still tail" mask = sidecar sentence in this set AND not yet in the dataset
+    # decision phase (arm still). The action (flow) loss is masked there (model flag memory_v6_flow_mask_still_tail):
+    # the demos hold the arm still for 1-3 s after the lids close, which taught "tail sentence + still scene = wait".
+    memory_v6_tail_sentences: tuple[str, ...] = ()
     # v3.4: the ordered subtask vocabulary for the auxiliary demand loss (plan 5.1) -- the
     # per-step subtask string is mapped to its index here (unknown -> -1, masked out). Must
     # match the model's memory_aux_num_classes.
@@ -722,6 +726,7 @@ class LeRobotYamDataConfig(DataConfigFactory):
                     evidence_subtasks=tuple(base_config.evidence_subtasks),
                     memory_required_subtasks=tuple(base_config.memory_required_subtasks),
                     state_mask_prob=getattr(model_config, "memory_state_mask_prob", 0.0),
+                    tail_subtasks=tuple(base_config.memory_v6_tail_sentences),
                 ),
             )
         if use_memory:
@@ -1337,6 +1342,66 @@ V6_TASK1_TAIL_REFERENCE_SENTENCE_TOKENS: tuple[tuple[int, ...], ...] = (  # Pali
 V6_TASK1_TAIL_VOCAB: tuple[str, ...] = V6_TASK1_TAIL_SENTENCES + V6_TASK1_DECISION_SENTENCES
 V6_TASK1_TAIL_MANIFEST_SHA256 = "4db5a922a8cb9438750890eebebd33f99a80ee187f6082827889e65d455db081"
 V6_TASK1_TAIL_SIDECAR_SHA256 = "35d83e42b184ae546f9bc162676550d64e71b36177411f7eb3e5cc6b96f46426"
+# ---- v6.5 task1 SHORT merged tail (2026-09-09 23:05, user: the 13-token tail is too slow on the robot): '<note>, go' = 8 tokens.
+V6_TASK1_TAILGO_SENTENCES: tuple[str, ...] = (
+    'banana in bin 1',
+    'banana in bin 1, go',
+    'banana in bin 2',
+    'banana in bin 2, go',
+    'banana in bin 3',
+    'banana in bin 3, go',
+    'box in bin 1',
+    'box in bin 1, go',
+    'box in bin 2',
+    'box in bin 2, go',
+    'box in bin 3',
+    'box in bin 3, go',
+    'spoon in bin 1',
+    'spoon in bin 1, go',
+    'spoon in bin 2',
+    'spoon in bin 2, go',
+    'spoon in bin 3',
+    'spoon in bin 3, go',
+    'tape in bin 1',
+    'tape in bin 1, go',
+    'tape in bin 2',
+    'tape in bin 2, go',
+    'tape in bin 3',
+    'tape in bin 3, go',
+    'watching: no object placed yet',
+)
+V6_TASK1_TAILGO_REFERENCE_SENTENCE_TOKENS: tuple[tuple[int, ...], ...] = (  # PaligemmaTokenizer, lower().strip() + newline
+    (68092, 575, 8881, 235248, 235274, 108),  # banana in bin 1
+    (68092, 575, 8881, 235248, 235274, 235269, 871, 108),  # banana in bin 1, go
+    (68092, 575, 8881, 235248, 235284, 108),  # banana in bin 2
+    (68092, 575, 8881, 235248, 235284, 235269, 871, 108),  # banana in bin 2, go
+    (68092, 575, 8881, 235248, 235304, 108),  # banana in bin 3
+    (68092, 575, 8881, 235248, 235304, 235269, 871, 108),  # banana in bin 3, go
+    (3057, 575, 8881, 235248, 235274, 108),  # box in bin 1
+    (3057, 575, 8881, 235248, 235274, 235269, 871, 108),  # box in bin 1, go
+    (3057, 575, 8881, 235248, 235284, 108),  # box in bin 2
+    (3057, 575, 8881, 235248, 235284, 235269, 871, 108),  # box in bin 2, go
+    (3057, 575, 8881, 235248, 235304, 108),  # box in bin 3
+    (3057, 575, 8881, 235248, 235304, 235269, 871, 108),  # box in bin 3, go
+    (169224, 575, 8881, 235248, 235274, 108),  # spoon in bin 1
+    (169224, 575, 8881, 235248, 235274, 235269, 871, 108),  # spoon in bin 1, go
+    (169224, 575, 8881, 235248, 235284, 108),  # spoon in bin 2
+    (169224, 575, 8881, 235248, 235284, 235269, 871, 108),  # spoon in bin 2, go
+    (169224, 575, 8881, 235248, 235304, 108),  # spoon in bin 3
+    (169224, 575, 8881, 235248, 235304, 235269, 871, 108),  # spoon in bin 3, go
+    (30408, 575, 8881, 235248, 235274, 108),  # tape in bin 1
+    (30408, 575, 8881, 235248, 235274, 235269, 871, 108),  # tape in bin 1, go
+    (30408, 575, 8881, 235248, 235284, 108),  # tape in bin 2
+    (30408, 575, 8881, 235248, 235284, 235269, 871, 108),  # tape in bin 2, go
+    (30408, 575, 8881, 235248, 235304, 108),  # tape in bin 3
+    (30408, 575, 8881, 235248, 235304, 235269, 871, 108),  # tape in bin 3, go
+    (87775, 235292, 793, 4018, 7765, 3599, 108),  # watching: no object placed yet
+)
+V6_TASK1_TAILGO_TAIL_SENTENCES: tuple[str, ...] = tuple(q for q in V6_TASK1_TAILGO_SENTENCES if q.endswith(', go'))  # 12 tail sentences
+V6_TASK1_TAILGO_VOCAB: tuple[str, ...] = V6_TASK1_TAILGO_SENTENCES + V6_TASK1_DECISION_SENTENCES
+V6_TASK1_TAILGO_MANIFEST_SHA256 = "23e09ef906d1399f3bad0400a9c20b0c276eb7a314d789ea85c1b3fc56db3b0b"
+V6_TASK1_TAILGO_SIDECAR_SHA256 = "88ea99df4aca6b05232f99b89af57fa7135ced4bf850229e4c007adb96b2eaaa"
+
 
 
 _CONFIGS = [
@@ -5597,15 +5662,17 @@ _CONFIGS.extend(
                 "OPENPI_V6_TASK1_B6_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1B5/v6_task1B5_20260909_r1/keep_500/params"
             ),
             steps=2000, keep=500,
-            # v6.4b: B5 with FULL sentence CE on the moving decision steps again — with the merged tail the same sentence
-            # spans still and motion, so the ×0.1 (anti-motion-cue) weight only left the motion phase under-supervised
-            # (B5-250: flicker to the newest note's tail in 3/6 evidence episodes)
-            manifest="task1v6_episode_manifest_v1tail.json", sidecar="task1v6_v5_subtask_labels_v1tail.json",
-            manifest_sha=V6_TASK1_TAIL_MANIFEST_SHA256, sidecar_sha=V6_TASK1_TAIL_SIDECAR_SHA256,
+            # v6.5 (user 23:04, real robot): (1) SHORT tail '<note>, go' (8 tokens, was 13) for speed; (2) the action
+            # loss is masked on still-tail frames so the arm starts moving as soon as the tail sentence fires;
+            # (3) full sentence CE on moving steps again (merged tail needs no anti-motion weight). From B5-500.
+            manifest="task1v6_episode_manifest_v1tailgo.json", sidecar="task1v6_v5_subtask_labels_v1tailgo.json",
+            manifest_sha=V6_TASK1_TAILGO_MANIFEST_SHA256, sidecar_sha=V6_TASK1_TAILGO_SIDECAR_SHA256,
             model_overrides={"memory_v5_own_commit_label_content": True, "memory_v6_decision_ce_weight_after_motion": 1.0,
-                             "memory_v5_reference_tokens": V6_TASK1_TAIL_REFERENCE_SENTENCE_TOKENS},
+                             "memory_v5_reference_tokens": V6_TASK1_TAILGO_REFERENCE_SENTENCE_TOKENS,
+                             "memory_v6_flow_mask_still_tail": True},
             data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 150,
-                            "memory_subtask_vocab": V6_TASK1_TAIL_VOCAB},
+                            "memory_subtask_vocab": V6_TASK1_TAILGO_VOCAB,
+                            "memory_v6_tail_sentences": V6_TASK1_TAILGO_TAIL_SENTENCES},
         ),
     ]
 )

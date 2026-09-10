@@ -301,6 +301,9 @@ class Pi0Config(_model.BaseModelConfig):
     # still window as the main place where "open bin k" is learned, so the arm motion stops being the trigger.
     # 1.0 = unchanged; 0.0 = no supervision once the arm moves.
     memory_v6_decision_ce_weight_after_motion: float = 1.0
+    # v6.5: zero the action (flow) loss on still-tail steps (Observation.seq_still_tail_mask from the data config's
+    # memory_v6_tail_sentences); the sentence CE there is untouched
+    memory_v6_flow_mask_still_tail: bool = False
     # Number of leading causal positions fed to the sentence encoder (the subtask sentence is
     # the left-aligned prefix of the causal buffer, FASTSubtaskTokenizer.tokenize_split). Every
     # label sentence must fit; the label builder checks this against the real tokenizer.

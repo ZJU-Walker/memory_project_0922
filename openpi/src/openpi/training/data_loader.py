@@ -2764,6 +2764,7 @@ _SEQUENCE_TIME_KEYS = frozenset(
         # object/cell IDs) are deliberately not listed.
         "seq_write_mask",
         "seq_decision_mask",
+        "seq_still_tail_mask",
         "seq_occlusion_mask",
         "seq_read_state_valid",
         "seq_read_credit_reachable",

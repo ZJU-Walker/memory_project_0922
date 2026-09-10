@@ -485,3 +485,35 @@ def test_v6_decision_ce_weight_after_motion(tiny_v6_seq):
     np.testing.assert_allclose(np.asarray(masked["flow"]), np.asarray(full["flow"]))
     with pytest.raises(ValueError, match="memory_v6_decision_ce_weight_after_motion"):
         pi0_config.Pi0Config(**_v5_kwargs(memory_v6_decision_ce_weight_after_motion=1.5))
+
+
+# --------------------------------------------------------------------------- (k) v6.5: action loss masked on still-tail steps
+
+
+def test_v6_flow_mask_still_tail(tiny_v6_seq):
+    import dataclasses as _dc
+
+    model = tiny_v6_seq
+    base = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    still = jnp.asarray(np.asarray(base.seq_step_mask) & ~np.asarray(base.seq_decision_mask))
+    observation = _dc.replace(base, seq_still_tail_mask=still)
+    saved = getattr(model, "memory_v6_flow_mask_still_tail", False)
+    try:
+        model.memory_v6_flow_mask_still_tail = False
+        full = model._compute_sequence_loss_v32(jax.random.key(46), observation, actions, train=False)
+        model.memory_v6_flow_mask_still_tail = True
+        masked = model._compute_sequence_loss_v32(jax.random.key(46), observation, actions, train=False)
+    finally:
+        model.memory_v6_flow_mask_still_tail = saved
+    for key, value in masked.items():
+        assert np.all(np.isfinite(np.asarray(value))), key
+    assert float(np.sum(np.asarray(masked["flow"]))) < float(np.sum(np.asarray(full["flow"])))
+    np.testing.assert_allclose(np.asarray(masked["ce"]), np.asarray(full["ce"]))  # the sentence loss is untouched
+    # no mask field -> identical to the unmasked loss even with the flag on
+    model.memory_v6_flow_mask_still_tail = True
+    try:
+        plain = model._compute_sequence_loss_v32(jax.random.key(46), base, actions, train=False)
+    finally:
+        model.memory_v6_flow_mask_still_tail = saved
+    np.testing.assert_allclose(np.asarray(plain["flow"]), np.asarray(full["flow"]))

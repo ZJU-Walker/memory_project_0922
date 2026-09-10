@@ -662,6 +662,7 @@ class Pi0(_model.BaseModel):
                     self.memory_v5_prev_is_committed = bool(getattr(config, "memory_v5_prev_is_committed", False))
                     self.memory_v5_own_commit_label_content = bool(getattr(config, "memory_v5_own_commit_label_content", False))
                     self.memory_v6_decision_ce_weight_after_motion = float(getattr(config, "memory_v6_decision_ce_weight_after_motion", 1.0))
+                    self.memory_v6_flow_mask_still_tail = bool(getattr(config, "memory_v6_flow_mask_still_tail", False))
                     self.memory_v5_sentence_separation_weight = float(
                         getattr(config, "memory_v5_sentence_separation_weight", 0.0)
                     )
@@ -4953,6 +4954,11 @@ class Pi0(_model.BaseModel):
         if v35_on:
             xs["write_mask"] = step_first(observation.seq_write_mask)
             xs["decision_mask"] = step_first(observation.seq_decision_mask)
+            xs["still_tail_mask"] = (
+                step_first(observation.seq_still_tail_mask)
+                if observation.seq_still_tail_mask is not None
+                else jnp.zeros_like(xs["decision_mask"])
+            )
             xs["read_state_valid"] = step_first(observation.seq_read_state_valid)
             xs["read_credit_reachable"] = step_first(observation.seq_read_credit_reachable)
             xs["decay_gap_before"] = step_first(observation.seq_decay_gap_before)
@@ -5419,7 +5425,12 @@ class Pi0(_model.BaseModel):
                 "ce": ce * validf * jnp.where(
                     x["decision_mask"], float(getattr(self, "memory_v6_decision_ce_weight_after_motion", 1.0)), 1.0
                 ),
-                "flow": flow * validf,
+                # v6.5: no action supervision on still-tail steps (tail sentence said, arm not yet moving in the demo)
+                "flow": flow * validf * (
+                    jnp.where(x["still_tail_mask"], 0.0, 1.0)
+                    if getattr(self, "memory_v6_flow_mask_still_tail", False) and "still_tail_mask" in x
+                    else 1.0
+                ),
                 "valid": validf,
                 # Core-steepness telemetry (v34_run1/2 postmortems): the raw inner write
                 # gradient norm ramped ~0.5-2.8 (healthy) -> 45-53 before both explosion

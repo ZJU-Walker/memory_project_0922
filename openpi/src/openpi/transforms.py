@@ -911,6 +911,9 @@ class MemoryV34Labels(DataTransformFn):
     evidence_subtasks: tuple[str, ...]
     memory_required_subtasks: tuple[str, ...]
     state_mask_prob: float = 0.0
+    # v6.5: sentences of the merged decision tail; emits seq_still_tail_mask = (shifted CE label is a tail sentence)
+    # AND NOT (observation in the dataset decision phase = arm moving). Empty = field not emitted.
+    tail_subtasks: tuple[str, ...] = ()
 
     def __call__(self, data: DataDict) -> DataDict:
         subtask = data.get("subtask")
@@ -950,6 +953,9 @@ class MemoryV34Labels(DataTransformFn):
         data["seq_subtask_class"] = subtask_class
         data["seq_evidence_mask"] = evidence_mask
         data["seq_waiting_mask"] = waiting_mask
+        if self.tail_subtasks:
+            tail = set(self.tail_subtasks)
+            data["seq_still_tail_mask"] = np.asarray([q in tail for q in subtask], dtype=bool) & ~waiting_mask
 
         side = int(np.asarray(data.pop("episode_side", -1)).item())
         if side < 0:
