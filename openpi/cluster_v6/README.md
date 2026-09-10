@@ -424,3 +424,4 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   eval the first wrong own note poisons every later note. Candidate fix (not started): compute the note CE at
   write steps with the bank read detached (perception-only writes), or mix own-content and label-content bank
   fills during training.
+* 2026-09-10 09:23 — **B6-1000 verdict**: evidence 5/6, self 2/6 (ep13 tape, ep27 box). Step-1200 battery started.
