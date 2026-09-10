@@ -3,7 +3,7 @@
 # iris9 and resubmit while it exits 7 (= landed on the ECC-broken L40S idx 6 of iris9). Up to $MAX attempts.
 PREV=${PREV:-17359368}; MAX=${MAX:-8}
 SSHO="-o BatchMode=yes -o IdentitiesOnly=yes -i /iris/u/kewalk/.ssh/id_ed25519 -o UserKnownHostsFile=/iris/u/kewalk/.ssh/known_hosts"
-export KRB5CCNAME=${KRB5CCNAME:-FILE:/tmp/krb5cc_24706_xWOW6i}
+export KRB5CCNAME=FILE:/tmp/krb5cc_24706_xWOW6i  # hard-set: each Claude shell inherits a KRB5CCNAME that names a non-existent cache
 log=/iris/u/kewalk/memory_project_v6/v6/logs/battery_1999_resubmit.log
 say() { echo "$(date '+%m/%d %H:%M') $*" >> "$log"; }
 sc() { timeout 60 ssh $SSHO sc "$@" 2>/dev/null | grep -v "afs\|pubkey"; }
