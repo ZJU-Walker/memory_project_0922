@@ -5580,7 +5580,7 @@ def _v6_lead30_variant(
     name: str, base: str, *, loader_path: str, steps: int, keep: int, fresh=(), model_overrides: dict | None = None,
     data_overrides: dict | None = None, manifest: str = "task1v6_episode_manifest_v1lead30.json",
     sidecar: str = "task1v6_v5_subtask_labels_v1lead30.json", manifest_sha: str = V6_TASK1_LEAD30_MANIFEST_SHA256,
-    sidecar_sha: str = V6_TASK1_LEAD30_SIDECAR_SHA256,
+    sidecar_sha: str = V6_TASK1_LEAD30_SIDECAR_SHA256, reinit=(), ignored=(), save_every: int = 250,
 ) -> "TrainConfig":
     by_name = {config.name: config for config in _CONFIGS}
     base_cfg = by_name[base]
@@ -5605,10 +5605,12 @@ def _v6_lead30_variant(
             str(_project_paths.project_path(loader_path)),
             matched_allowlist=(r".+",),
             fresh_init_allowlist=tuple(fresh),
+            reinit_allowlist=tuple(reinit),
+            ignored_source_allowlist=tuple(ignored),
             source_cast_dtype="float32",
         ),
         num_train_steps=steps,
-        save_interval=250,
+        save_interval=save_every,
         keep_period=keep,
     )
 
@@ -5656,15 +5658,31 @@ _CONFIGS.extend(
             data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 150,
                             "memory_subtask_vocab": V6_TASK1_TAIL_VOCAB},
         ),
+        # ---- v6.5 FRESH line (user 23:26: "start fresh, don't start from what we have now; first A then B, A 200 steps,
+        # B save every 200"): A6 = the A2 recipe (oracle writes, linear bank, whitened keys, context pointer, beta 10)
+        # warm-started from the beans B9 ckpt 2000 like the original A (fresh memory_v6_* params, memory_semantic
+        # re-initialised because the B9 bank is the MLP shape) on the SHORT merged-tail labels with the still-tail
+        # action mask; B6 = own writes + label content from A6's step-200 checkpoint, save/keep every 200.
+        _v6_lead30_variant(
+            "pi05_yam_mem_v6_task1A6", "pi05_yam_mem_v6_task1A2",
+            loader_path="v5/checkpoints/pi05_yam_mem_v5_beansB9/v5_beansB9_20260906_r1/2000/params",
+            fresh=(r".*memory_v6_.*",), reinit=(r".*memory_semantic/.*",), ignored=(r".*memory_semantic/.*",),
+            steps=201, keep=200, save_every=200,
+            manifest="task1v6_episode_manifest_v1tailgo.json", sidecar="task1v6_v5_subtask_labels_v1tailgo.json",
+            manifest_sha=V6_TASK1_TAILGO_MANIFEST_SHA256, sidecar_sha=V6_TASK1_TAILGO_SIDECAR_SHA256,
+            model_overrides={"memory_v6_decision_ce_weight_after_motion": 1.0,
+                             "memory_v5_reference_tokens": V6_TASK1_TAILGO_REFERENCE_SENTENCE_TOKENS,
+                             "memory_v6_flow_mask_still_tail": True},
+            data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 150,
+                            "memory_subtask_vocab": V6_TASK1_TAILGO_VOCAB,
+                            "memory_v6_tail_sentences": V6_TASK1_TAILGO_TAIL_SENTENCES},
+        ),
         _v6_lead30_variant(
             "pi05_yam_mem_v6_task1B6", "pi05_yam_mem_v6_task1B2",
             loader_path=os.environ.get(
-                "OPENPI_V6_TASK1_B6_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1B5/v6_task1B5_20260909_r1/keep_500/params"
+                "OPENPI_V6_TASK1_A6_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1A6/v6_task1A6_20260909_r1/200/params"
             ),
-            steps=2000, keep=500,
-            # v6.5 (user 23:04, real robot): (1) SHORT tail '<note>, go' (8 tokens, was 13) for speed; (2) the action
-            # loss is masked on still-tail frames so the arm starts moving as soon as the tail sentence fires;
-            # (3) full sentence CE on moving steps again (merged tail needs no anti-motion weight). From B5-500.
+            steps=2000, keep=200, save_every=200,
             manifest="task1v6_episode_manifest_v1tailgo.json", sidecar="task1v6_v5_subtask_labels_v1tailgo.json",
             manifest_sha=V6_TASK1_TAILGO_MANIFEST_SHA256, sidecar_sha=V6_TASK1_TAILGO_SIDECAR_SHA256,
             model_overrides={"memory_v5_own_commit_label_content": True, "memory_v6_decision_ce_weight_after_motion": 1.0,
