@@ -332,3 +332,16 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
 * 2026-09-09 16:31 — B3-500 own writes, PARTIAL (4/6 before the H200 went to MemER at 15:32): demo19 banana/box right
   (own notes, read, decision after motion), demo10 spoon/tape wrong (own notes `spoon in bin 1` / `tape in bin 1`,
   bin 2 in truth; at B3-250 demo10 spoon was right). Perception still noisy between checkpoints; B4 continues from 500.
+* 2026-09-09 18:10 — **v6.4 merged tail / B5** (user 17:53: "don't do the closing sentence … once the lids are all closed
+  say 'lid closed, pick up … in bin x' and hold it till the end"). B4-250 (first episode) confirmed that loss weight and
+  upsampling cannot move the trigger: within a still scene the closing note outnumbers the decision frames (median 71
+  vs 30) and the frames are identical, so the closing note is the correct prediction. Merging both into ONE tail
+  sentence removes the split. Phrasing probe (`scripts/v6_context_phrasing_probe.py`, B3-500, 71 episodes, bank read
+  of the prompted object's bin): note-first `spoon in bin 2, lids closed, open it` 71/71, the user's word order
+  `lid closed, pick up spoon in bin 2` 31/71 (key cosine to the own note 0.18 vs 1.00) — the context before the digit is
+  the bank key, so the note stays first. Sidecar builder `--merge-tail "{note}, lids closed, pick it up"` →
+  `task1v6_*_v1tail.json` (sha 4db5a922… / 35d83e42…; 25 sentences; tail = closing start … episode end, 286–501
+  frames). Battery/verdict handle `tail_merged` (oracle_evidence hands over notes up to the tail start; recall = the tail
+  sentence at its first step). `pi05_yam_mem_v6_task1B5` = B4 recipe (label content, CE ×0.1 after motion, still boost
+  ×4 over 150 frames) + 25-sentence reference vocabulary, warm start B4 keep_250 (protected by hand at 18:04). B4
+  stopped at ~450; gate v5 #4 batteries B5 on the tail sidecar.
