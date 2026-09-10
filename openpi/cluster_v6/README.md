@@ -412,3 +412,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   in 5). Self 3/6 (ep27, ep67, ep68 right from the first still step and held to the end); misses = own notes with the
   wrong bin on demo10 (bin 1 for bin 2) and the object mix-up on ep26. The switch-timing defect of step 200 is gone;
   own-write perception is the remaining gap. B6 CE 0.36 @600. Step-600 battery started 06:00.
+* 2026-09-10 07:03 — **B6-600 verdict**: evidence 5/6 (ep13's first still step said 'tape in bin 2' without ', go',
+  then 81/82), self 3/6 but a DIFFERENT set than at 400 (ep12/ep26/ep27 right; demo54 both wrong with own notes
+  17/116 exact, right at 400) — own-write perception still oscillates between checkpoints, as in the B2–B5 chain.
+  Step-800 battery started 07:03 (CE 0.29 @800).
