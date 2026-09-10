@@ -71,6 +71,11 @@ class Args:
     # Run synthetic requests before serving so the JIT compile (minutes) happens here, not on the
     # robot's first request; the memory is reset afterwards (ported from v4).
     warmup: bool = True
+    write_conf: float | None = None
+    """Override the checkpoint's memory_v5_write_conf (0.9 in the v6 task1 configs): a sentence enters the bank only
+    when its mean token probability reaches this. 2026-09-10 robot test: notes rarely appeared / were not committed."""
+    log_steps: bool = True
+    """Log every request's decoded sentence, confidence, commit flag and bank size (diagnosis on the robot)."""
 
 
 def _build_server_metadata(train_config: Any, data_config: Any, *, simulated_delay: int | None) -> dict[str, Any]:
@@ -189,6 +194,8 @@ class MemoryPolicy(_policy.Policy):
         num_steps: int = 10,
         zero_read: bool = False,
         force_subtask: str = "",
+        write_conf: float | None = None,
+        log_steps: bool = False,
         action_horizon: int,
         action_dim: int,
         raw_action_dim: int,
@@ -198,6 +205,9 @@ class MemoryPolicy(_policy.Policy):
         super().__init__(model, **kwargs)
         self._decode_tokenizer = decode_tokenizer
         self._stop_token = stop_token
+        self._write_conf_override = write_conf
+        self._log_steps = bool(log_steps)
+        self._step_counter = 0
         self._max_decode_steps = max_decode_steps
         self._num_steps = int(num_steps)
         self._zero_read = bool(zero_read)
@@ -244,7 +254,7 @@ class MemoryPolicy(_policy.Policy):
                 init_state=lambda: model.memory_semantic.init_state(1),
                 write_fn=write_fn,
                 sentence_len=int(model.memory_v5_sentence_len),
-                write_conf=float(model.memory_v5_write_conf),
+                write_conf=float(model.memory_v5_write_conf if write_conf is None else write_conf),
                 prev_is_committed=bool(getattr(model, "memory_v5_prev_is_committed", False)),
                 delay_steps=int(getattr(model, "memory_v5_write_delay_steps", 0)),
                 decode_text=lambda ids: decode_tokenizer.decode(ids).strip(),
@@ -320,6 +330,7 @@ class MemoryPolicy(_policy.Policy):
     def infer(self, obs: dict, *, noise: np.ndarray | None = None) -> dict:  # type: ignore[misc]
         inputs = jax.tree.map(lambda x: x, obs)  # copy: transforms may modify in place
         if inputs.pop("reset_memory", False):
+            self._step_counter = 0
             with self._lock:
                 self._memory_state = self._init_state()
                 self._writes = 0
@@ -382,6 +393,14 @@ class MemoryPolicy(_policy.Policy):
         outputs = self._output_transform(outputs)
         outputs["subtask"] = subtask
         outputs["writes"] = writes
+        self._step_counter += 1
+        if self._log_steps:
+            if v5_info is not None:
+                logging.info("step %d: %r conf=%.2f changed=%s committed=%s writes=%d bank=%d (%.0f ms)", self._step_counter, subtask,
+                             float(v5_info["confidence"]), bool(v5_info["changed"]), bool(v5_info["committed"]), int(writes),
+                             len(v5_info.get("bank", [])), 1000 * model_time)
+            else:
+                logging.info("step %d: %r writes=%d (%.0f ms)", self._step_counter, subtask, int(writes), 1000 * model_time)
         if v5_info is not None:
             outputs["subtask_confidence"] = v5_info["confidence"]
             outputs["bank"] = v5_info["bank"]
@@ -448,6 +467,8 @@ def create_policy(args: Args) -> MemoryPolicy:
         num_steps=args.num_steps,
         zero_read=args.zero_read,
         force_subtask=args.force_subtask,
+        write_conf=args.write_conf,
+        log_steps=args.log_steps,
         action_horizon=train_config.model.action_horizon,
         action_dim=train_config.model.action_dim,
         raw_action_dim=int(np.asarray(norm_stats["actions"].mean).shape[-1]),
