@@ -426,3 +426,4 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   fills during training.
 * 2026-09-10 09:23 — **B6-1000 verdict**: evidence 5/6, self 2/6 (ep13 tape, ep67 banana). Step-1200 battery started.
 * 2026-09-10 10:39 — **B6-1200 verdict: evidence 6/6, self 4/6** (ep12, ep26, ep27, ep67 right from the first still step and held; ep13 own note bin 1 for bin 2, ep68 bin 2 for bin 1). Best self so far; step-1400 battery started.
+* 2026-09-10 11:57 — **B6-1400 verdict: evidence 6/6, self 5/6** (ep12/ep26/ep27/ep67/ep68 right from the first still step; ep13 wrong own note). Step-1600 battery started.
