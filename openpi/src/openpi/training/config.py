@@ -5591,6 +5591,22 @@ _CONFIGS.extend(
             data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 150,
                             "memory_subtask_vocab": V6_TASK1_TAIL_VOCAB},
         ),
+        _v6_lead30_variant(
+            "pi05_yam_mem_v6_task1B6", "pi05_yam_mem_v6_task1B2",
+            loader_path=os.environ.get(
+                "OPENPI_V6_TASK1_B6_PARAMS", "v6/checkpoints/pi05_yam_mem_v6_task1B5/v6_task1B5_20260909_r1/keep_500/params"
+            ),
+            steps=2000, keep=500,
+            # v6.4b: B5 with FULL sentence CE on the moving decision steps again — with the merged tail the same sentence
+            # spans still and motion, so the ×0.1 (anti-motion-cue) weight only left the motion phase under-supervised
+            # (B5-250: flicker to the newest note's tail in 3/6 evidence episodes)
+            manifest="task1v6_episode_manifest_v1tail.json", sidecar="task1v6_v5_subtask_labels_v1tail.json",
+            manifest_sha=V6_TASK1_TAIL_MANIFEST_SHA256, sidecar_sha=V6_TASK1_TAIL_SIDECAR_SHA256,
+            model_overrides={"memory_v5_own_commit_label_content": True, "memory_v6_decision_ce_weight_after_motion": 1.0,
+                             "memory_v5_reference_tokens": V6_TASK1_TAIL_REFERENCE_SENTENCE_TOKENS},
+            data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 150,
+                            "memory_subtask_vocab": V6_TASK1_TAIL_VOCAB},
+        ),
     ]
 )
 
