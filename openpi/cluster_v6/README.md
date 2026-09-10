@@ -345,3 +345,7 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   sentence at its first step). `pi05_yam_mem_v6_task1B5` = B4 recipe (label content, CE ×0.1 after motion, still boost
   ×4 over 150 frames) + 25-sentence reference vocabulary, warm start B4 keep_250 (protected by hand at 18:04). B4
   stopped at ~450; gate v5 #4 batteries B5 on the tail sidecar.
+* 2026-09-09 18:09 — **B4-250 battery complete**: evidence recall 6/6, still-step decisions 0/6 in all 12 runs (as
+  predicted from the label ratio), decisions after motion right in 5/6 evidence episodes (demo19 banana 0/62: the ×0.1
+  weight also weakened the after-motion decision there); own-write recall 3/6 (B3-250 5/6, B3-500 partial 2/4):
+  perception noisy between checkpoints. B4 line closed at ~450 (keep_250 kept); superseded by B5 (merged tail).
