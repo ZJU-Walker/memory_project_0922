@@ -416,3 +416,11 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   then 81/82), self 3/6 but a DIFFERENT set than at 400 (ep12/ep26/ep27 right; demo54 both wrong with own notes
   17/116 exact, right at 400) — own-write perception still oscillates between checkpoints, as in the B2–B5 chain.
   Step-800 battery started 07:03 (CE 0.29 @800).
+* 2026-09-10 08:10 — **B6-800 verdict: evidence 6/6, self 0/6.** Own writes regressed (3/6 at 400 and 600): the model
+  writes 1 of the 3–4 placements, mostly the wrong bin, and the tail then guesses. Note-phase sentence accuracy is
+  141/144 with LABEL notes in the bank but 14–52/140 with its own notes, at every checkpoint — the decoder predicts the
+  placement sentence by reading the bank's newest note back, not from the image. That is the flip side of the v6.2
+  label-content rule: in training the bank always holds the correct notes, so copying the bank is always right; at
+  eval the first wrong own note poisons every later note. Candidate fix (not started): compute the note CE at
+  write steps with the bank read detached (perception-only writes), or mix own-content and label-content bank
+  fills during training.
