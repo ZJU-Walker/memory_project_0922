@@ -428,3 +428,11 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
 * 2026-09-10 10:39 — **B6-1200 verdict: evidence 6/6, self 4/6** (ep12, ep26, ep27, ep67 right from the first still step and held; ep13 own note bin 1 for bin 2, ep68 bin 2 for bin 1). Best self so far; step-1400 battery started.
 * 2026-09-10 11:57 — **B6-1400 verdict: evidence 6/6, self 5/6** (ep12/ep26/ep27/ep67/ep68 right from the first still step; ep13 wrong own note). Step-1600 battery started.
 * 2026-09-10 13:14 — **B6-1600 verdict: evidence 6/6, self 5/6** (ep12/13/26/27/68; ep67 own note "banana in bin 2" for bin 1). ep13 (demo10 tape) passes in self mode for the first time. Step-1800 battery started.
+* 2026-09-10 13:53 — **B6 finished (step 1999) and is SERVED on the H100** (user 13:48: "don't run batteries anymore,
+  directly serve 1999 on the H100"): `serve_1999_hgx1.sh` → GPU 0 of job 17356154, iris-hgx-1 **10.79.12.252:8000**,
+  10 flow steps, `MEM_FRACTION=0.9` (serve_v6_job_v2.sh now takes `MEM_FRACTION`; 0.6 of an H100 = 48 GB is not
+  enough: the B6-1600 server on an iris L40S (job 17364895, 46 GB) died OOM in warmup — L40S cards run batteries, not
+  the server). Battery job 17359368 cancelled after its step-1800 verdict (evidence 6/6, self 5/6); the step-1999
+  battery was dropped. Second broken L40S found: iris9 idx 6 (`CUDA_ERROR_ECC_UNCORRECTABLE`) besides iris10 idx 0.
+  Self-mode first decisions by checkpoint: 200 1/6, 400 3/6, 600 3/6, 800 0/6, 1000 2/6, 1200 4/6, 1400 5/6, 1600 5/6,
+  1800 5/6 (evidence 6/6 from 800 on). Bank-copy diagnosis + read-dropout fix still open (README 08:10).
