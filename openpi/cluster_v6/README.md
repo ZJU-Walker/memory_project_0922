@@ -360,3 +360,11 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   3 episodes (12–19 of ~60 moving steps, e.g. `box in bin 3, lids closed, pick it up` = the newest note) — the ×0.1
   CE weight on moving steps makes that cheap and is no longer needed with a merged tail (same sentence spans still and
   motion). Plan: B6 = B5 + weight 1.0 from B5-500 if the flicker persists there.
+* 2026-09-09 21:49 — **B5-500 robot server** (user 21:21 "prepare the server … use the H200 for deploy"): batteries stopped;
+  `serve_v6_job.sh` B5 ckpt 500 on job 17329416 GPU 0 (H200 GPU-dcaeae50…), 10.79.12.149:8000, log
+  `v6/diagnostics/server_v6_b5_500_20260909b.log`. First launch stalled 11 min in NFS I/O (hgx-2 load 120, the user's
+  robomme `extract_data.py` tar|xz on /iris starved the node's NFS client; workstation read 41 MB/s, hgx-2 0 MB/40 s);
+  relaunched once the extraction finished (146 MB/s). Warm-up 164 s + 24 s. Smoke with sparse demo10 frames: sentences
+  decode, tail sentence `… lids closed, pick it up` held; latency ~330 ms for notes, **~530 ms for the 13-token tail
+  sentence** → recommend `--hz 10` on the client (5 controls = 500 ms ≈ one tail-phase inference). Client
+  `examples/yam/client_memory_v6_task1.py` dry-run OK. The user cancelled job 17315830 at 21:31 (B5 stopped at ~580).
