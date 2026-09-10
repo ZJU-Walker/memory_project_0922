@@ -12,6 +12,6 @@ bash cluster_v6/run_train_hgx1.sh pi05_yam_mem_v6_task1A6 "$A_EXP"
 a_ck="$root/v6/checkpoints/pi05_yam_mem_v6_task1A6/$A_EXP/200/params"
 if [ ! -d "$a_ck" ]; then echo "A6 step-200 checkpoint missing ($a_ck) $(date +%m/%d\ %H:%M); B not launched" | tee -a "$status"; exit 3; fi
 echo "A6 done $(date +%m/%d\ %H:%M): $a_ck; launching B6 $B_EXP" | tee -a "$status"
-export OPENPI_V6_TASK1_A6_PARAMS="$a_ck"
+export OPENPI_V6_TASK1_A6_PARAMS="v6/checkpoints/pi05_yam_mem_v6_task1A6/$A_EXP/200/params"  # project-relative (project_path rejects absolute)
 bash cluster_v6/run_train_hgx1.sh pi05_yam_mem_v6_task1B6 "$B_EXP"
 echo "chain end $(date +%m/%d\ %H:%M)" | tee -a "$status"
