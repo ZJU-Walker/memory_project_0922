@@ -393,3 +393,17 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   `cluster_v6/task1/chain_A6_B6_hgx1.sh` runs both back to back on job 17356154 (2×H100, FSDP 2, batch 8; the user's
   own training there was stopped at 23:20 on their instruction, keep-alive 2668788 kept): A6 `v6_task1A6_20260909_r1`
   → B6 `v6_task1B6_20260909_r3`. Batteries for the new checkpoints go to the H200 with the tailgo sidecar.
+* 2026-09-10 05:00 — **Fresh line status.** A6 needed four launches: 2×H100 cannot hold global batch 8 (three OOMs at
+  step 0: remat floor 54.8 GiB/GPU + activations vs a 75 GiB pool; a 97 % pool starved NCCL), the H200 was taken by the
+  user's own pi05-base training (23:38) and then by the robomme v7 session (03:19). A6 ran at **global batch 4**
+  (`JOB=17356154 GPUS=2 BATCH=4`, 21 s/step): CE 6.27 → 1.19 over 200 steps. B6 `v6_task1B6_20260909_r3` from A6-200,
+  same batch 4 (chain hand-off failed on an absolute loader path — fixed, relaunched by hand 01:49): CE 1.05 → 0.67 (200)
+  → 0.51 (400) → 0.47 (500). **Batteries moved to our own iris-partition job** (user 03:30: "use sc slurm to request a
+  gpu l40 or a40 … use iris not iris-hi"): `battery_B6_sbatch.sh` (one L40S, evidence + self sequentially, per
+  checkpoint, JAX self-test first — iris10 GPU 0 is broken: 27 uncorrected ECC errors, `CUDA_ERROR_UNKNOWN`; job
+  17359297 there cancelled, 17359368 on iris9). **B6-200 verdict:** evidence 3/6 first-still-step decisions (ep12, ep13,
+  ep68), ep26 one step late, ep27/ep67 switch to the tail only at arm motion — but the bank READ is right in 6/6 once
+  the tail fires (ep67: 38/39 tail steps 'banana in bin 1, go'); the remaining defect is the lids-closed → tail switch
+  timing. Self 1/6 (ep68; ep13 right from the 2nd step): own notes are still degenerate at step 200 ('spoon in bin 1'
+  in 4 episodes, inspect exact 5–8/144) — perception needs more B steps, as in the B2–B5 chain. Step 400 battery started
+  04:57.
