@@ -353,3 +353,10 @@ the A2-250 battery under SELF writes: `spoon in bin 2` written at the placement,
   up` on the FIRST tail frame (310, right after the last placement label, still scene), bin read from the bank (3rd of 4
   notes), 82/82 tail steps, still 24/24 — the decision comes from memory at the lid-closing moment. Own writes: own
   note `spoon in bin 1` (evidence exact 39/144, B4-250 had 111) read faithfully → wrong; perception disturbed at 250.
+* 2026-09-09 20:23 — **B5-250 battery complete (merged tail)**: evidence mode 6/6 — the tail sentence with the right bin
+  fires at the FIRST still step in every episode and every still step is right (24/24, 24/24, 20/20, 20/20, 19/19,
+  19/19); own writes 4/6 (demo19 ×2, demo54 ×2 right at the first still step with own notes; demo10 spoon/tape wrong
+  own notes read faithfully). Residual: during the MOTION phase the tail flickers to another object's tail sentence in
+  3 episodes (12–19 of ~60 moving steps, e.g. `box in bin 3, lids closed, pick it up` = the newest note) — the ×0.1
+  CE weight on moving steps makes that cheap and is no longer needed with a merged tail (same sentence spans still and
+  motion). Plan: B6 = B5 + weight 1.0 from B5-500 if the flicker persists there.
