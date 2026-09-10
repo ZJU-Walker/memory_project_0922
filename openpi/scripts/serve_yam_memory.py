@@ -446,7 +446,7 @@ def create_policy(args: Args) -> MemoryPolicy:
         logging.info(
             "v5 sentence bank: delay=%d write_conf=%.2f sentence_len=%d query_prev_sentence=%s (visual bank frozen)",
             int(getattr(train_config.model, "memory_v5_write_delay_steps", 0)),
-            float(train_config.model.memory_v5_write_conf),
+            float(train_config.model.memory_v5_write_conf if args.write_conf is None else args.write_conf),
             int(train_config.model.memory_v5_sentence_len),
             bool(getattr(train_config.model, "memory_v5_query_prev_sentence", False)),
         )
