@@ -66,7 +66,12 @@ class Args:
     """Full model action horizon. Must match the server checkpoint."""
     steps_between_inference: int = 5
     """v6 task1 memory clock: replan (= one memory tick on the server) every 5 controls; validated against
-    the server's memory_stride_frames."""
+    the server's memory_stride_frames. A larger value (e.g. 15) executes more of each chunk before the next
+    inference: fewer server calls, so a slow tail-phase inference no longer stalls the loop, at the price of a
+    coarser memory clock (a placement must stay visible for at least one tick to be written; the tail sentence
+    can be up to one tick late). Needs --allow-tick-mismatch."""
+    allow_tick_mismatch: bool = False
+    """Accept steps_between_inference != the server's training memory tick (memory_stride_frames) with a warning."""
     initial_delay_steps: int = 6
     """Conservative initial latency estimate (6 steps = 200 ms at 30 Hz)."""
     max_async_delay_steps: int = 6
@@ -419,10 +424,11 @@ def validate_v6_metadata(metadata: dict, args: Args) -> None:
         )
     training_stride = metadata.get("memory_stride_frames")
     if training_stride != args.steps_between_inference:
-        raise ValueError(
-            f"server memory_stride_frames is {training_stride!r}, but the client replans every "
-            f"{args.steps_between_inference} steps (task1 v6 trained at 5)"
-        )
+        msg = (f"server memory_stride_frames is {training_stride!r}, but the client replans every "
+               f"{args.steps_between_inference} steps (task1 v6 trained at 5)")
+        if not args.allow_tick_mismatch:
+            raise ValueError(msg + "; pass --allow-tick-mismatch to run with a coarser memory clock")
+        logging.warning("%s -- running with a coarser memory clock (--allow-tick-mismatch)", msg)
     if args.prompt not in PROMPTS:
         raise ValueError(f"prompt {args.prompt!r} is not a training prompt; use one of {PROMPTS}")
 
