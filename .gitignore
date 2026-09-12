@@ -37,3 +37,6 @@ openpi_test_mem/
 v6/
 # top-level link to the frozen v5 artefacts (project_paths.SHARED_DATA_LINKS)
 v5
+# v7 worktree: read-only link to the v6 artefacts and the v7 artefact namespace (never commit)
+v6
+v7/

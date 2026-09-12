@@ -37,7 +37,7 @@ WANDB_DIR = V35_ROOT / "wandb"
 # escape below the link target.
 # "v5": the v6 worktree reads the frozen v5 artefacts (warm-start checkpoints, LeRobot datasets) through a top-level
 # symlink memory_project_v6/v5 -> memory_project_v5/v5 (cluster_v6/README.md §0); v6 never writes there.
-SHARED_DATA_LINKS = ("data", "v5")
+SHARED_DATA_LINKS = ("data", "v5", "v6")
 
 V35_REPO_ID = "yam/bin_memory_0830_0831_v36_subtask"
 V35_DATASET_DIR = LEROBOT_HOME / V35_REPO_ID
@@ -72,6 +72,15 @@ V6_ROOT = pathlib.PurePosixPath("v6")
 V6_ASSETS_ROOT = V6_ROOT / "assets"
 V6_CHECKPOINTS_DIR = V6_ROOT / "checkpoints"
 V6_DIAGNOSTICS_DIR = V6_ROOT / "diagnostics"
+
+# v7 (cluster_v7/README.md): worktree created 2026-09-12 from v6 commit be02522 to add short-term / visual
+# context for phase recognition on top of the v6 bank. Own artifact namespace under `v7/`; the v6 artefacts
+# (LeRobot datasets incl. yam/boba_0911_v1, the boba pi05+KI base checkpoint) are read-only through the
+# sanctioned top-level link `v6` (SHARED_DATA_LINKS), exactly as v6 reads v5 through `v5`.
+V7_ROOT = pathlib.PurePosixPath("v7")
+V7_ASSETS_ROOT = V7_ROOT / "assets"
+V7_CHECKPOINTS_DIR = V7_ROOT / "checkpoints"
+V7_DIAGNOSTICS_DIR = V7_ROOT / "diagnostics"
 
 
 class ProjectRootError(ValueError):
