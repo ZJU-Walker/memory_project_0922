@@ -79,3 +79,49 @@ spurious sentence commits (commit = sentence changed & confidence >= 0.9).
 Implement (a) and (b) in v7 as flags defaulting OFF, run the boba base with them at stride 5, compare per-frame
 subtask accuracy and flip counts on the dev episodes against the plain base; add (c) only if visual ambiguities
 remain. Keep the visual fast-weight bank off. Then train the memory policy on top of the better variant.
+
+## 3. Boba memory line on the 2xH200 (2026-09-12 13:16, user: "launch training in my 2h200 ... start from our already trained base pi05 boba ckpt")
+
+Configs `pi05_yam_mem_v7_bobaA` / `pi05_yam_mem_v7_bobaB` (config.py, block "v7 boba memory line"), built by
+`_v7_boba_mem_variant` on top of the v6.1 A2 recipe (linear delta-rule sentence bank, token-level causal keys whitened
+over the reference vocabulary, context-query pointer read with beta init 10, analytic history prefill, semantic-only
+freeze). Differences to v6 task1, all deliberate:
+
+| knob | v6 task1 | v7 boba | why |
+|---|---|---|---|
+| warm start | beans B9 / task1 A ckpt | boba base 9999 (`v6/checkpoints/pi05_yam_boba0911_base/.../9999/params`) | every `memory* / fact_* / query_* / state_null_embedding / probe_head / ladder_*` leaf fresh, the rest matched (audited loader) |
+| memory stride | 5 frames | 15 frames (2 Hz) | user 12:5x "lets do 2hz" (stride viewer) |
+| window / buckets / fence | 40 / 14,27,40 / 25 | 60 / 20,40,60 / 30 | episodes are 300-415 steps at stride 15; 60 steps = 30 s covers a whole scoop cycle x3; the fence only cuts the gradient (VRAM unchanged) |
+| prefill buffer | 16 | 22 | an episode has at most 21 distinct sentences before a window (kept: the most recent) |
+| full-trajectory mass | 0.25 | 0.05 (`memory_slice_prob` 0.9) | a "full" window is only the first 60 of ~300 steps |
+| simulated RTC delay | 6 | 15 | same budget as the base |
+| state masking | 0.5 | 0 | the v3.4 anti-leak measure removes proprioception on half the decision windows; nothing leaks here and the base never saw it |
+| decision / evidence sets | task1 bins | scoop 2/3 of 3, put the scoop back (x2), second get cup / open bean bin; watch + scoop sentences | telemetry only in generic mode (`v4_decision_ce`); the sentence CE grades every step |
+
+Data: `cluster_v7/boba/boba_episode_manifest_v1.json` + `boba_v5_subtask_labels_v1.json` (schema v1, SHAs pinned in
+config.py) from `scripts/boba_build_v5_manifest_sidecar.py` over the converted `yam/boba_0911_v1` and the converter
+manifest `data/0911_boba_episode_manifest_v1.json` (split copied: 50 train / dev demo11,19,37 / final_test demo13,41,59;
+seed 911). Reference tokens = PaliGemma ids of `sentence.lower().strip() + "\n"` (21 rows).
+
+Stages (chain `cluster_v7/boba/chain_mem_hgx2.sh`, job 17403858 = 2xH200 on iris-hgx-2, FSDP 2, global batch 4 =
+2 windows of 60 steps per GPU, 16 CPUs / 12 workers; the job's 1 GB `train_hs.py` keep-alives stay):
+* **A** `v7_bobaA_20260912_r1`: oracle (label) writes, 500 updates, lr 5e-5 flat after 100 warmup, checkpoint 500 kept
+  (250 transient).
+* **B** `v7_bobaB_20260912_r1`: own writes (retry-until-committed, label content), from A/500, lr 2.5e-5, 3000 updates,
+  saves every 500, keeps 1500 and 3000 (disk: 617 GB free at launch, ~40 GB per checkpoint; the three pending ctx runs
+  were switched to keep only their final checkpoint for the same reason).
+Logs `v7/logs/train_v7_boba{A,B}_20260912_r1{,_status}.log`, `v7/logs/chain_mem_hgx2.{out,log}`.
+
+Runtime caches: the memory path runs `configure_v35_runtime_environment`, which rejects any `v35/cache/*` entry whose
+resolved path leaves the v7 tree (first launch 13:33 died on the symlinked `v35/cache/uv`). `v35/cache/{uv,openpi,
+huggingface}` are therefore REAL directories since 13:36: `uv` empty, `openpi/big_vision` a copy of the tokenizer,
+`openpi/openpi-assets` a link to the v6 copy of pi05_base (not needed by any v7 config; a gs download through it would
+still fail closed), `huggingface/{hub,modules}` copies and `huggingface/datasets/parquet/default-e295320b2b6e3ab9` the
+same link to the `~/.cache` arrow copy v6 uses (217 GB; the hash is the dataset root's, identical for v6 and v7).
+
+Evaluation (next): `scripts/v5_heldout_video.py --config-name pi05_yam_mem_v7_boba{A,B} --params <ckpt>/params
+--episode-index <dev idx> --write-mode {self,oracle} --manifest cluster_v7/boba/boba_episode_manifest_v1.json --sidecar
+cluster_v7/boba/boba_v5_subtask_labels_v1.json` on the dev episodes (LeRobot indices of demo11/19/37 from
+`meta/episode_sources.json`), as in `cluster_v6/task1/run_task1_evals_v2_hgx1.sh`. The phase-context flags of §2 are
+NOT yet ported into the memory path (config.create raises NotImplementedError for `use_memory` + those flags); port the
+winning ctx variant once the ablation on the 2xH100 finishes.

@@ -2272,7 +2272,7 @@ _CONFIGS = [
         ),
         num_train_steps=5_000,
         save_interval=2_500,
-        keep_period=2_500,
+        keep_period=5_000,  # disk (2026-09-12 14:00): only the final 4999 survives; 2500 is transient
         num_workers=12,
     ),
     TrainConfig(
@@ -2323,7 +2323,7 @@ _CONFIGS = [
         ),
         num_train_steps=5_000,
         save_interval=2_500,
-        keep_period=2_500,
+        keep_period=5_000,  # disk (2026-09-12 14:00): only the final 4999 survives; 2500 is transient
         num_workers=12,
     ),
     TrainConfig(
@@ -2377,7 +2377,7 @@ _CONFIGS = [
         ),
         num_train_steps=5_000,
         save_interval=2_500,
-        keep_period=2_500,
+        keep_period=5_000,  # disk (2026-09-12 14:00): only the final 4999 survives; 2500 is transient
         num_workers=12,
     ),
     TrainConfig(
@@ -5983,6 +5983,178 @@ _CONFIGS.extend(
             data_overrides={"memory_v6_still_decision_boost": 4.0, "memory_v6_still_decision_frames": 150,
                             "memory_subtask_vocab": V6_TASK1_TAILGO_VOCAB,
                             "memory_v6_tail_sentences": V6_TASK1_TAILGO_TAIL_SENTENCES},
+        ),
+    ]
+)
+
+
+# ---- v7 boba memory line (2026-09-12 13:16, user: "launch training in my 2xH200 ... start from our already trained base
+# pi05 boba ckpt"; cluster_v7/README.md §3). The v6.1 A2 recipe (linear delta-rule sentence bank, token-level causal
+# keys whitened over the reference vocabulary, context-query pointer read, beta init 10, analytic history prefill) on
+# the 0911 boba data with the labels the base was trained on (21 sentences, cluster_v6/boba/BOBA_LABELS.md v1):
+#   * warm start = the boba pi05+KI base checkpoint 9999 (non-memory; every memory / fact / query / probe leaf fresh);
+#   * memory step = 15 frames (2 Hz, user 12:5x "lets do 2hz"): episodes are 4600-6200 frames = 300-415 steps, so
+#     the window is 60 steps (30 s; buckets 20/40/60), the TBPTT fence 30 steps, and the prefill buffer 22 (an episode
+#     never has more than 21 distinct sentences before a window);
+#   * full-trajectory starts are 5% of the mass (0.25 in v6): a "full" window covers only the first 60 of ~300 steps;
+#   * simulated RTC delay 15 like the base; state masking off (memory_state_mask_prob=0: the v3.4 anti-leak measure
+#     removed proprioception on 50% of the decision windows, which the boba base never saw; nothing leaks here).
+# Stage A (bobaA) = oracle (label) writes, 500 updates; stage B (bobaB) = own writes with retry-until-committed and
+# label content, from A's step-500 checkpoint, half the learning rate.
+V7_BOBA_MANIFEST_SHA256 = "b8a54b30245e5d4cbe3e4fc0e5348280d0feeb334d5a3660d2afb4c4e0d14a7d"
+V7_BOBA_SIDECAR_SHA256 = "d0eaf5aa6246d28f59198b1da583f86825379c9a6a3e62b6965c65486e8218c3"
+V7_BOBA_SENTENCES: tuple[str, ...] = (  # sorted as in the sidecar "sentences" list
+    "first, close boba bin",
+    "first, done",
+    "first, get cup",
+    "first, open boba bin",
+    "first, place cup",
+    "first, press tap to fill cup",
+    "first, put the scoop back",
+    "first, scoop, 1 of 3",
+    "first, scoop, 2 of 3",
+    "first, scoop, 3 of 3",
+    "second, close bean bin",
+    "second, done",
+    "second, get cup",
+    "second, open bean bin",
+    "second, place cup",
+    "second, press tap to fill cup",
+    "second, put the scoop back",
+    "second, scoop, 1 of 1",
+    "watch, bean right bin",
+    "watch, boba middle bin",
+    "watch, sago left bin",
+)
+V7_BOBA_REFERENCE_SENTENCE_TOKENS: tuple[tuple[int, ...], ...] = (  # PaligemmaTokenizer, lower().strip() + newline
+    (4878, 235269, 3387, 192118, 8881, 108),  # first, close boba bin
+    (4878, 235269, 3015, 108),  # first, done
+    (4878, 235269, 947, 7190, 108),  # first, get cup
+    (4878, 235269, 2174, 192118, 8881, 108),  # first, open boba bin
+    (4878, 235269, 2040, 7190, 108),  # first, place cup
+    (4878, 235269, 3379, 9869, 577, 8857, 7190, 108),  # first, press tap to fill cup
+    (4878, 235269, 2507, 573, 65522, 1355, 108),  # first, put the scoop back
+    (4878, 235269, 65522, 235269, 235248, 235274, 576, 235248, 235304, 108),  # first, scoop, 1 of 3
+    (4878, 235269, 65522, 235269, 235248, 235284, 576, 235248, 235304, 108),  # first, scoop, 2 of 3
+    (4878, 235269, 65522, 235269, 235248, 235304, 576, 235248, 235304, 108),  # first, scoop, 3 of 3
+    (9200, 235269, 3387, 24328, 8881, 108),  # second, close bean bin
+    (9200, 235269, 3015, 108),  # second, done
+    (9200, 235269, 947, 7190, 108),  # second, get cup
+    (9200, 235269, 2174, 24328, 8881, 108),  # second, open bean bin
+    (9200, 235269, 2040, 7190, 108),  # second, place cup
+    (9200, 235269, 3379, 9869, 577, 8857, 7190, 108),  # second, press tap to fill cup
+    (9200, 235269, 2507, 573, 65522, 1355, 108),  # second, put the scoop back
+    (9200, 235269, 65522, 235269, 235248, 235274, 576, 235248, 235274, 108),  # second, scoop, 1 of 1
+    (8170, 235269, 24328, 1833, 8881, 108),  # watch, bean right bin
+    (8170, 235269, 192118, 7185, 8881, 108),  # watch, boba middle bin
+    (8170, 235269, 485, 4729, 2731, 8881, 108),  # watch, sago left bin
+)
+# Telemetry sets only in generic mode (the sentence CE grades every step; MemoryV5GenericFields writes at every step):
+# evidence = the sentences whose content is later needed (bin reveal, scoop counts); decision = the sentences that can
+# only be chosen from the count / drink index held in the bank (v4_decision_ce in the logs).
+V7_BOBA_EVIDENCE_SENTENCES: tuple[str, ...] = tuple(q for q in V7_BOBA_SENTENCES if q.startswith("watch, ") or ", scoop, " in q)
+V7_BOBA_DECISION_SENTENCES: tuple[str, ...] = (
+    "first, scoop, 2 of 3",
+    "first, scoop, 3 of 3",
+    "first, put the scoop back",
+    "second, get cup",
+    "second, open bean bin",
+    "second, put the scoop back",
+)
+_V7_NON_MEMORY_LEAF = r"(?!.*(?:memory|fact_|query_compressor|query_conditioner|state_null_embedding|probe_head|ladder_)).+"
+_V7_MEMORY_LEAF = r".*(?:memory|fact_|query_compressor|query_conditioner|state_null_embedding|probe_head|ladder_).*"
+
+
+def _v7_boba_mem_variant(
+    name: str, *, oracle_writes: bool, loader_path: str, steps: int, save_every: int, keep: int, peak_lr: float,
+    matched: tuple[str, ...], fresh: tuple[str, ...], model_overrides: dict | None = None,
+) -> "TrainConfig":
+    by_name = {config.name: config for config in _CONFIGS}
+    base_cfg = by_name["pi05_yam_mem_v6_task1A2"]
+    model = dataclasses.replace(
+        base_cfg.model,
+        simulated_delay=15,
+        memory_seq_steps=60,
+        memory_block_steps=30,
+        memory_v5_oracle_writes=oracle_writes,
+        memory_v5_prev_is_committed=not oracle_writes,
+        memory_v5_own_commit_label_content=not oracle_writes,
+        memory_v5_prefill_max=22,
+        memory_v5_reference_tokens=V7_BOBA_REFERENCE_SENTENCE_TOKENS,
+        memory_state_mask_prob=0.0,
+        **(model_overrides or {}),
+    )
+    data = dataclasses.replace(
+        base_cfg.data,
+        repo_id="yam/boba_0911_v1",
+        base_config=dataclasses.replace(
+            base_cfg.data.base_config,
+            memory_stride_frames=15,
+            memory_slice_prob=0.9,
+            memory_min_slice_steps=14,
+            memory_sequence_buckets=(20, 40, 60),
+            evidence_subtasks=V7_BOBA_EVIDENCE_SENTENCES,
+            memory_required_subtasks=V7_BOBA_DECISION_SENTENCES,
+            memory_critical_prob=0.5,
+            memory_critical_start_pad=75,
+            memory_subtask_vocab=V7_BOBA_SENTENCES,
+            memory_episode_manifest_path=str(_project_paths.project_path("openpi/cluster_v7/boba/boba_episode_manifest_v1.json")),
+            memory_episode_manifest_sha256=V7_BOBA_MANIFEST_SHA256,
+            memory_manifest_split="train",
+            memory_manifest_split_seed=911,
+            memory_v5_subtask_labels_path=str(_project_paths.project_path("openpi/cluster_v7/boba/boba_v5_subtask_labels_v1.json")),
+            memory_v5_subtask_labels_sha256=V7_BOBA_SIDECAR_SHA256,
+            memory_v5_generic_task=True,
+            memory_v6_still_decision_boost=1.0,
+            memory_v6_still_decision_frames=0,
+            memory_v6_tail_sentences=(),
+            lerobot_dataset_root=(
+                os.environ.get("OPENPI_BOBA_LEROBOT_ROOT")
+                or str(_project_paths.project_path("v6/data/lerobot/yam/boba_0911_v1"))
+            ),
+        ),
+        assets=AssetsConfig(
+            assets_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT / "pi05_yam_boba_0911_v1"))
+        ),
+    )
+    return dataclasses.replace(
+        base_cfg,
+        name=name,
+        model=model,
+        data=data,
+        assets_base_dir=str(_project_paths.project_path(_project_paths.V7_ASSETS_ROOT)),
+        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V7_CHECKPOINTS_DIR)),
+        batch_size=4,
+        lr_schedule=_optimizer.CosineDecaySchedule(warmup_steps=100, peak_lr=peak_lr, decay_steps=10_000, decay_lr=peak_lr),
+        weight_loader=weight_loaders.AuditedPartialCheckpointWeightLoader(
+            str(_project_paths.project_path(loader_path)),
+            matched_allowlist=matched,
+            fresh_init_allowlist=fresh,
+            reinit_allowlist=(),
+            ignored_source_allowlist=(),
+            source_cast_dtype="float32",
+        ),
+        num_train_steps=steps,
+        save_interval=save_every,
+        keep_period=keep,
+    )
+
+
+_CONFIGS.extend(
+    [
+        _v7_boba_mem_variant(
+            "pi05_yam_mem_v7_bobaA", oracle_writes=True,
+            loader_path="v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params",
+            matched=(_V7_NON_MEMORY_LEAF,), fresh=(_V7_MEMORY_LEAF,),
+            steps=501, save_every=250, keep=500, peak_lr=5e-5,
+        ),
+        _v7_boba_mem_variant(
+            "pi05_yam_mem_v7_bobaB", oracle_writes=False,
+            loader_path=os.environ.get(
+                "OPENPI_V7_BOBA_A_PARAMS", "v7/checkpoints/pi05_yam_mem_v7_bobaA/v7_bobaA_20260912_r1/500/params"
+            ),
+            matched=(r".+",), fresh=(),
+            steps=3001, save_every=500, keep=1500, peak_lr=2.5e-5,
         ),
     ]
 )
