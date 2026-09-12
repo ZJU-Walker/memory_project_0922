@@ -105,6 +105,21 @@ class DataConfig:
     # (clamped at the episode end): the subtask conditions the *upcoming* action chunk, so it
     # should describe what the robot is about to do rather than what it is doing right now.
     subtask_lookahead: int = 0
+    # v7 phase context (cluster_v7/README.md §2; user 2026-09-12 12:54 "ok do it"). Both default off.
+    # (a) state history: append the discretized joint state of this many earlier frames to the
+    # "State:" prompt ("Past: <s_{t-2k}> | <s_{t-k}>"), `prompt_state_history_stride` frames apart, so
+    # a single observation carries the direction of motion. Fetched through LeRobot delta_timestamps
+    # (clamped to the episode start), split off by SplitStateHistory, normalized with the state stats.
+    prompt_state_history: int = 0
+    prompt_state_history_stride: int = 15
+    # (b) previous sentence: put the subtask label of the frame `prompt_prev_subtask_stride` frames
+    # earlier into the prompt ("Last: <sentence>"), the stride matching the deployment inference
+    # cadence; the model then only has to detect phase transitions. With probability
+    # `prompt_prev_subtask_dropout` (training only) the sentence is replaced by "none" so the model
+    # keeps a vision-only route (first step of an episode, recovery from its own mistakes).
+    prompt_prev_subtask: bool = False
+    prompt_prev_subtask_stride: int = 15
+    prompt_prev_subtask_dropout: float = 0.1
     # Frames between consecutive prediction steps in memory sequence training (one step = one
     # executed action chunk; normally equal to the model's action_horizon). Together with a
     # predict_with_memory model config this enables the sequence fetch in the data loader.
@@ -637,6 +652,24 @@ class LeRobotYamDataConfig(DataConfigFactory):
             structure["subtask"] = "subtask"
         if base_config.prompt_from_episode_meta:
             structure["prompt"] = "prompt"
+        # v7 phase context: carry the loader-side fields through the repack and normalize the past
+        # states exactly like the current one (alias of the "state" stats; Normalize is non-strict).
+        if base_config.prompt_state_history > 0 or base_config.prompt_prev_subtask:
+            if use_memory:
+                raise NotImplementedError(
+                    "v7 phase context (prompt_state_history / prompt_prev_subtask) is implemented for the "
+                    "non-memory path only; the memory sequence path has its own per-step tokenizer."
+                )
+        if base_config.prompt_state_history > 0:
+            structure["observation/state_history"] = "state_history"
+            if base_config.norm_stats is not None and "state" in base_config.norm_stats:
+                base_config = dataclasses.replace(
+                    base_config, norm_stats={**base_config.norm_stats, "state_history": base_config.norm_stats["state"]}
+                )
+        if base_config.prompt_prev_subtask:
+            if not base_config.subtask_from_task:
+                raise ValueError("prompt_prev_subtask needs subtask_from_task (the previous label comes from the task column)")
+            structure["prev_subtask"] = "prev_subtask"
         use_quiz = use_memory and (
             getattr(model_config, "memory_probe_weight", 0) > 0
             or getattr(model_config, "memory_probe_diagnostic", False)
@@ -2143,6 +2176,208 @@ _CONFIGS = [
         num_train_steps=10_000,
         save_interval=5_000,
         keep_period=5_000,
+        num_workers=12,
+    ),
+    TrainConfig(
+        # v7 phase-context ablation on the boba base recipe (cluster_v7/README.md §2). Control: the same 5k continuation with NO prompt context.
+        # Continues the trained boba base for 5k steps (half peak lr, cosine to 5k); the only difference to
+        # the ctx_none control is the prompt. Compared on the dev episodes by per-frame subtask accuracy and
+        # flip count.
+        name="pi05_yam_boba0911_ctx_none",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            predict_subtask=True,
+            simulated_delay=15,
+            # base audit: 69 context + 105 causal = 174 (208 used); the extra prompt text is budgeted below.
+            max_token_len=208,
+        ),
+        data=LeRobotYamDataConfig(
+            repo_id="yam/boba_0911_v1",
+            base_config=DataConfig(
+                prompt_from_episode_meta=True,
+                subtask_from_task=True,
+                subtask_lookahead=0,
+                lerobot_dataset_root=str(_project_paths.project_path("v6/data/lerobot/yam/boba_0911_v1")),
+            ),
+            # The boba norm stats computed for the base run (read-only through the v6 link).
+            assets=AssetsConfig(
+                assets_dir=str(_project_paths.project_path("v6/assets/pi05_yam_boba_0911_v1"))
+            ),
+        ),
+        assets_base_dir=str(_project_paths.project_path(_project_paths.V7_ASSETS_ROOT)),
+        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V7_CHECKPOINTS_DIR)),
+        batch_size=16,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=500, peak_lr=2.5e-5, decay_steps=5_000, decay_lr=2.5e-6
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        # User 2026-09-12 13:05: start from the trained boba base (v6 run r1, step 9999, read through the v6
+        # link), so 5k steps of continued training add only the prompt context; compare against the base
+        # itself and against pi05_yam_boba0911_ctx_none (the same 5k continuation without any context).
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            str(_project_paths.project_path(
+                "v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params"
+            ))
+        ),
+        num_train_steps=5_000,
+        save_interval=2_500,
+        keep_period=2_500,
+        num_workers=12,
+    ),
+    TrainConfig(
+        # v7 phase-context ablation on the boba base recipe (cluster_v7/README.md §2). Variant (a): state history only.
+        # Continues the trained boba base for 5k steps (half peak lr, cosine to 5k); the only difference to
+        # the ctx_none control is the prompt. Compared on the dev episodes by per-frame subtask accuracy and
+        # flip count.
+        name="pi05_yam_boba0911_ctx_state",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            predict_subtask=True,
+            simulated_delay=15,
+            # base audit: 69 context + 105 causal = 174 (208 used); the extra prompt text is budgeted below.
+            max_token_len=320,
+        ),
+        data=LeRobotYamDataConfig(
+            repo_id="yam/boba_0911_v1",
+            base_config=DataConfig(
+                prompt_from_episode_meta=True,
+                subtask_from_task=True,
+                subtask_lookahead=0,
+                # (a) two past states, 15 frames (0.5 s) apart: "Past: s_{t-30} | s_{t-15}" (~+90 tokens).
+                prompt_state_history=2,
+                prompt_state_history_stride=15,
+                lerobot_dataset_root=str(_project_paths.project_path("v6/data/lerobot/yam/boba_0911_v1")),
+            ),
+            # The boba norm stats computed for the base run (read-only through the v6 link).
+            assets=AssetsConfig(
+                assets_dir=str(_project_paths.project_path("v6/assets/pi05_yam_boba_0911_v1"))
+            ),
+        ),
+        assets_base_dir=str(_project_paths.project_path(_project_paths.V7_ASSETS_ROOT)),
+        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V7_CHECKPOINTS_DIR)),
+        batch_size=16,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=500, peak_lr=2.5e-5, decay_steps=5_000, decay_lr=2.5e-6
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        # User 2026-09-12 13:05: start from the trained boba base (v6 run r1, step 9999, read through the v6
+        # link), so 5k steps of continued training add only the prompt context; compare against the base
+        # itself and against pi05_yam_boba0911_ctx_none (the same 5k continuation without any context).
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            str(_project_paths.project_path(
+                "v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params"
+            ))
+        ),
+        num_train_steps=5_000,
+        save_interval=2_500,
+        keep_period=2_500,
+        num_workers=12,
+    ),
+    TrainConfig(
+        # v7 phase-context ablation on the boba base recipe (cluster_v7/README.md §2). Variant (b): previous sentence only.
+        # Continues the trained boba base for 5k steps (half peak lr, cosine to 5k); the only difference to
+        # the ctx_none control is the prompt. Compared on the dev episodes by per-frame subtask accuracy and
+        # flip count.
+        name="pi05_yam_boba0911_ctx_prev",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            predict_subtask=True,
+            simulated_delay=15,
+            # base audit: 69 context + 105 causal = 174 (208 used); the extra prompt text is budgeted below.
+            max_token_len=240,
+        ),
+        data=LeRobotYamDataConfig(
+            repo_id="yam/boba_0911_v1",
+            base_config=DataConfig(
+                prompt_from_episode_meta=True,
+                subtask_from_task=True,
+                subtask_lookahead=0,
+                # (b) the label 15 frames earlier as "Last: <sentence>" (~+16 tokens), 10% replaced by "none".
+                prompt_prev_subtask=True,
+                prompt_prev_subtask_stride=15,
+                prompt_prev_subtask_dropout=0.1,
+                lerobot_dataset_root=str(_project_paths.project_path("v6/data/lerobot/yam/boba_0911_v1")),
+            ),
+            # The boba norm stats computed for the base run (read-only through the v6 link).
+            assets=AssetsConfig(
+                assets_dir=str(_project_paths.project_path("v6/assets/pi05_yam_boba_0911_v1"))
+            ),
+        ),
+        assets_base_dir=str(_project_paths.project_path(_project_paths.V7_ASSETS_ROOT)),
+        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V7_CHECKPOINTS_DIR)),
+        batch_size=16,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=500, peak_lr=2.5e-5, decay_steps=5_000, decay_lr=2.5e-6
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        # User 2026-09-12 13:05: start from the trained boba base (v6 run r1, step 9999, read through the v6
+        # link), so 5k steps of continued training add only the prompt context; compare against the base
+        # itself and against pi05_yam_boba0911_ctx_none (the same 5k continuation without any context).
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            str(_project_paths.project_path(
+                "v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params"
+            ))
+        ),
+        num_train_steps=5_000,
+        save_interval=2_500,
+        keep_period=2_500,
+        num_workers=12,
+    ),
+    TrainConfig(
+        # v7 phase-context ablation on the boba base recipe (cluster_v7/README.md §2). Variants (a)+(b).
+        # Continues the trained boba base for 5k steps (half peak lr, cosine to 5k); the only difference to
+        # the ctx_none control is the prompt. Compared on the dev episodes by per-frame subtask accuracy and
+        # flip count.
+        name="pi05_yam_boba0911_ctx_both",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            predict_subtask=True,
+            simulated_delay=15,
+            # base audit: 69 context + 105 causal = 174 (208 used); the extra prompt text is budgeted below.
+            max_token_len=352,
+        ),
+        data=LeRobotYamDataConfig(
+            repo_id="yam/boba_0911_v1",
+            base_config=DataConfig(
+                prompt_from_episode_meta=True,
+                subtask_from_task=True,
+                subtask_lookahead=0,
+                # (a) two past states, 15 frames (0.5 s) apart: "Past: s_{t-30} | s_{t-15}" (~+90 tokens).
+                prompt_state_history=2,
+                prompt_state_history_stride=15,
+                # (b) the label 15 frames earlier as "Last: <sentence>" (~+16 tokens), 10% replaced by "none".
+                prompt_prev_subtask=True,
+                prompt_prev_subtask_stride=15,
+                prompt_prev_subtask_dropout=0.1,
+                lerobot_dataset_root=str(_project_paths.project_path("v6/data/lerobot/yam/boba_0911_v1")),
+            ),
+            # The boba norm stats computed for the base run (read-only through the v6 link).
+            assets=AssetsConfig(
+                assets_dir=str(_project_paths.project_path("v6/assets/pi05_yam_boba_0911_v1"))
+            ),
+        ),
+        assets_base_dir=str(_project_paths.project_path(_project_paths.V7_ASSETS_ROOT)),
+        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V7_CHECKPOINTS_DIR)),
+        batch_size=16,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=500, peak_lr=2.5e-5, decay_steps=5_000, decay_lr=2.5e-6
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        # User 2026-09-12 13:05: start from the trained boba base (v6 run r1, step 9999, read through the v6
+        # link), so 5k steps of continued training add only the prompt context; compare against the base
+        # itself and against pi05_yam_boba0911_ctx_none (the same 5k continuation without any context).
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            str(_project_paths.project_path(
+                "v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params"
+            ))
+        ),
+        num_train_steps=5_000,
+        save_interval=2_500,
+        keep_period=2_500,
         num_workers=12,
     ),
     TrainConfig(

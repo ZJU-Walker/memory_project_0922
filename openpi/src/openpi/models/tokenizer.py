@@ -156,10 +156,47 @@ class FASTSubtaskTokenizer(FASTTokenizer):
     the token ids are untouched and the span is exact for any prompt.
     """
 
-    def _state_span_mask(self, prefix: str, state_str: str, prefix_tokens: list[int]) -> np.ndarray:
-        """Token-level mask over ``prefix_tokens`` (bos included) marking the state span."""
-        state_end = len(prefix.encode("utf-8")) - len(b";\n")
-        state_start = state_end - len(state_str.encode("utf-8"))
+    # v7 phase context (cluster_v7/README.md §2): the prefix may additionally carry the discretized state of
+    # earlier frames ("Past: <s_{t-2k}> | <s_{t-k}>", oldest first) and the previous step's sentence
+    # ("Last: <sentence>"). Both flags default off, in which case the prefix is byte-identical to v6's
+    # "Task: {prompt}, State: {state};\n".
+    HISTORY_KEY = "Past"
+    PREV_KEY = "Last"
+
+    @staticmethod
+    def _discretize(state: np.ndarray) -> np.ndarray:
+        # Convention: state gets discretized into 256 discrete bins (assumed range after normalization: [-1, 1])
+        return np.digitize(np.asarray(state), bins=np.linspace(-1, 1, 256 + 1)[:-1]) - 1
+
+    def _build_prefix(
+        self,
+        prompt: str,
+        state: np.ndarray,
+        state_history: np.ndarray | None = None,
+        prev_subtask: str | None = None,
+    ) -> tuple[str, list[tuple[int, int]]]:
+        """The ar=0 prefix string and the utf-8 byte spans of every state-digit run in it (the current
+        state first, then each past state, oldest first). The spans feed `_state_span_mask`."""
+        cleaned_text = prompt.lower().strip().replace("_", " ")
+        state_str = " ".join(map(str, self._discretize(state)))
+        prefix = f"Task: {cleaned_text}, State: "
+        spans = [(len(prefix.encode("utf-8")), len(prefix.encode("utf-8")) + len(state_str.encode("utf-8")))]
+        prefix += state_str
+        if state_history is not None and len(state_history):
+            prefix += f", {self.HISTORY_KEY}: "
+            for i, past in enumerate(np.asarray(state_history)):
+                if i:
+                    prefix += " | "
+                past_str = " ".join(map(str, self._discretize(past)))
+                start = len(prefix.encode("utf-8"))
+                spans.append((start, start + len(past_str.encode("utf-8"))))
+                prefix += past_str
+        if prev_subtask is not None:
+            prefix += f", {self.PREV_KEY}: " + prev_subtask.lower().strip().replace("_", " ")
+        return prefix + ";\n", spans
+
+    def _state_span_mask(self, prefix: str, spans: list[tuple[int, int]], prefix_tokens: list[int]) -> np.ndarray:
+        """Token-level mask over ``prefix_tokens`` (bos included) marking every state-digit span."""
         proto = self._paligemma_tokenizer.encode(prefix, out_type="immutable_proto")
         pieces = list(proto.pieces)
         if [p.id for p in pieces] != list(prefix_tokens[1:]):
@@ -167,7 +204,7 @@ class FASTSubtaskTokenizer(FASTTokenizer):
             # state-null substitution and the instruction-only conditioner would silently see
             # the real state again.
             raise ValueError("sentencepiece proto tokenization diverged from encode(); cannot locate the state span.")
-        overlaps = [p.begin < state_end and p.end > state_start for p in pieces]
+        overlaps = [any(p.begin < end and p.end > start for start, end in spans) for p in pieces]
         return np.asarray([False, *overlaps], dtype=bool)  # False for the bos token
 
     def tokenize(  # type: ignore[override]
@@ -177,16 +214,13 @@ class FASTSubtaskTokenizer(FASTTokenizer):
         subtask: str | None,
         actions: np.ndarray | None,
         *,
+        state_history: np.ndarray | None = None,
+        prev_subtask: str | None = None,
         return_state_mask: bool = False,
     ) -> tuple[np.ndarray, ...]:
-        cleaned_text = prompt.lower().strip().replace("_", " ")
-
-        # Convention: state gets discretized into 256 discrete bins (assumed range after normalization: [-1, 1])
-        discretized_state = np.digitize(state, bins=np.linspace(-1, 1, 256 + 1)[:-1]) - 1
-        state_str = " ".join(map(str, discretized_state))
-        prefix = f"Task: {cleaned_text}, State: {state_str};\n"
+        prefix, spans = self._build_prefix(prompt, state, state_history, prev_subtask)
         prefix_tokens = self._paligemma_tokenizer.encode(prefix, add_bos=True)
-        state_span = self._state_span_mask(prefix, state_str, prefix_tokens) if return_state_mask else None
+        state_span = self._state_span_mask(prefix, spans, prefix_tokens) if return_state_mask else None
 
         # Subtask segment, terminated by "\n" (the stop signal when generating the subtask).
         subtask_tokens = []
@@ -286,12 +320,9 @@ class FASTSubtaskTokenizer(FASTTokenizer):
         Returns (context_tokens[max_len], context_mask, causal_tokens[causal_len], causal_mask,
         causal_fast_mask), plus context_state_mask[max_len] when ``return_state_mask``.
         """
-        cleaned_text = prompt.lower().strip().replace("_", " ")
-        discretized_state = np.digitize(state, bins=np.linspace(-1, 1, 256 + 1)[:-1]) - 1
-        state_str = " ".join(map(str, discretized_state))
-        context_str = f"Task: {cleaned_text}, State: {state_str};\n"
+        context_str, spans = self._build_prefix(prompt, state)
         context = self._paligemma_tokenizer.encode(context_str, add_bos=True)
-        state_span = self._state_span_mask(context_str, state_str, context) if return_state_mask else None
+        state_span = self._state_span_mask(context_str, spans, context) if return_state_mask else None
         if len(context) > self._max_len:
             logging.warning(f"Context length ({len(context)}) exceeds max length ({self._max_len}), truncating.")
             context = context[: self._max_len]

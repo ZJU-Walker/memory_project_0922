@@ -223,11 +223,23 @@ def create_torch_dataset(
         if data_config.subtask_from_task and data_config.subtask_lookahead > 0:
             # Deliver the *future* task_index: the subtask label that conditions this frame's chunk.
             delta_timestamps["task_index"] = [data_config.subtask_lookahead / dataset_meta.fps]
+        # v7 phase context (non-memory path). LeRobot clamps offsets before the episode start to
+        # frame 0, so the first frames repeat themselves (zero motion) / carry their own label.
+        if data_config.prompt_state_history > 0:
+            hist, hs = data_config.prompt_state_history, data_config.prompt_state_history_stride
+            delta_timestamps["state"] = [-(k * hs) / dataset_meta.fps for k in range(hist, 0, -1)] + [0.0]
+        if data_config.prompt_prev_subtask:
+            if not data_config.subtask_from_task:
+                raise ValueError("prompt_prev_subtask needs subtask_from_task")
+            if data_config.subtask_lookahead:
+                raise ValueError("prompt_prev_subtask and subtask_lookahead cannot be combined")
     dataset = lerobot_dataset.LeRobotDataset(
         data_config.repo_id,
         root=dataset_root,
         delta_timestamps=delta_timestamps,
     )
+    if not use_memory and data_config.prompt_state_history > 0:
+        dataset = TransformedDataset(dataset, [_transforms.SplitStateHistory(data_config.prompt_state_history)])
 
     if data_config.prompt_from_task:
         dataset = TransformedDataset(dataset, [_transforms.PromptFromLeRobotTask(dataset_meta.tasks)])
@@ -257,12 +269,26 @@ def create_torch_dataset(
                 dataset,
                 [
                     _transforms.SubtaskFromV5Sidecar(
-                        _load_v5_sentences_without_memory(data_config, dataset, dataset_meta)
+                        _load_v5_sentences_without_memory(data_config, dataset, dataset_meta),
+                        prev_stride=(
+                            data_config.prompt_prev_subtask_stride if data_config.prompt_prev_subtask else 0
+                        ),
+                        prev_dropout=data_config.prompt_prev_subtask_dropout,
                     )
                 ],
             )
         else:
-            dataset = TransformedDataset(dataset, [_transforms.SubtaskFromLeRobotTask(dataset_meta.tasks)])
+            subtask_transforms: list[_transforms.DataTransformFn] = [_transforms.SubtaskFromLeRobotTask(dataset_meta.tasks)]
+            if data_config.prompt_prev_subtask:
+                subtask_transforms.append(
+                    _transforms.PrevSubtaskFromTable(
+                        _episode_task_table(dataset),
+                        dataset_meta.tasks,
+                        stride=data_config.prompt_prev_subtask_stride,
+                        dropout=data_config.prompt_prev_subtask_dropout,
+                    )
+                )
+            dataset = TransformedDataset(dataset, subtask_transforms)
 
     if use_memory:
         info = _episode_info_table(dataset, dataset_meta, data_config)
@@ -1304,6 +1330,16 @@ def _load_v4_fact_labels(
     table = np.stack(rows, axis=0)
     logging.info("v4 fact labels: %d episodes x %d slots from %s", table.shape[0], table.shape[1], path.name)
     return table
+
+
+def _episode_task_table(dataset: Dataset) -> tuple[np.ndarray, ...]:
+    """Per-episode int arrays of the task-column index of every frame (one read of two int columns)."""
+    cols = _unwrap_lerobot(dataset).hf_dataset.with_format(None)
+    task = np.asarray(cols["task_index"], dtype=np.int64)
+    episode = np.asarray(cols["episode_index"], dtype=np.int64)
+    starts = np.nonzero(np.append(True, episode[1:] != episode[:-1]))[0]
+    ends = np.append(starts[1:], len(episode))
+    return tuple(task[a:b] for a, b in zip(starts, ends, strict=True))
 
 
 def _episode_info_table(

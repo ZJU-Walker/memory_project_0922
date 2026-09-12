@@ -73,6 +73,12 @@ class YamInputs(transforms.DataTransformFn):
         if "subtask" in data:
             inputs["subtask"] = data["subtask"]
 
+        # v7 phase context (consumed by the tokenizer): past states [H, D] and the previous sentence.
+        if "observation/state_history" in data:
+            inputs["state_history"] = data["observation/state_history"]
+        if "prev_subtask" in data:
+            inputs["prev_subtask"] = data["prev_subtask"]
+
         # Memory sequence-training extras pass through.
         for key in (
             "seq_step_mask",

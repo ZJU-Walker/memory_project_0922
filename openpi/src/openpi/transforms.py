@@ -322,9 +322,16 @@ class TokenizeFASTSubtaskInputs(DataTransformFn):
         if (subtask := data.pop("subtask", None)) is not None and not isinstance(subtask, str):
             subtask = subtask.item()
 
+        # v7 phase context: optional past states / previous sentence (popped so no strings reach the batch).
+        state_history = data.pop("state_history", None)
+        if (prev_subtask := data.pop("prev_subtask", None)) is not None and not isinstance(prev_subtask, str):
+            prev_subtask = prev_subtask.item()
+
         # Actions stay in the dict: they are still the flow matching target of the action expert.
         state, actions = data["state"], data.get("actions")
-        tokens, token_mask, ar_mask, loss_mask, fast_mask = self.tokenizer.tokenize(prompt, state, subtask, actions)
+        tokens, token_mask, ar_mask, loss_mask, fast_mask = self.tokenizer.tokenize(
+            prompt, state, subtask, actions, state_history=state_history, prev_subtask=prev_subtask
+        )
         return {
             **data,
             "tokenized_prompt": tokens,
@@ -1286,6 +1293,33 @@ class SubtaskFromLeRobotTask(DataTransformFn):
 
 
 @dataclasses.dataclass(frozen=True)
+class PrevSubtaskFromTable(DataTransformFn):
+    """v7 phase context (cluster_v7/README.md §2): "prev_subtask" = the task-column label `stride`
+    frames before this frame (clamped to the episode start), looked up in the per-episode task
+    tables (data_loader._episode_task_table) rather than through delta_timestamps, because LeRobot's
+    __getitem__ needs a scalar task_index. With probability `dropout` (training only) the sentence
+    is replaced by `null` so the model keeps a vision-only route for the first step of an episode
+    and after its own mistakes at deployment. Runs on the raw item (needs episode_index/frame_index)."""
+
+    episode_tasks: tuple  # per episode: int array of task indices per frame
+    tasks: dict[int, str]
+    stride: int
+    dropout: float = 0.0
+    null: str = "none"
+
+    def __call__(self, data: DataDict) -> DataDict:
+        episode = int(np.asarray(data["episode_index"]).item())
+        frame = int(np.asarray(data["frame_index"]).item())
+        table = self.episode_tasks[episode]
+        prev_index = int(table[max(0, min(frame, len(table) - 1) - self.stride)])
+        if (prev := self.tasks.get(prev_index)) is None:
+            raise ValueError(f"task_index={prev_index} not found in task mapping: {self.tasks}")
+        if self.dropout > 0 and np.random.rand() < self.dropout:
+            prev = self.null
+        return {**data, "prev_subtask": prev}
+
+
+@dataclasses.dataclass(frozen=True)
 class SubtaskFromV5Sidecar(DataTransformFn):
     """Per-frame subtask string from the authenticated v5 sentence sidecar.
 
@@ -1304,6 +1338,11 @@ class SubtaskFromV5Sidecar(DataTransformFn):
 
     # One object-dtype array of per-frame sentences per episode (data_loader._load_v5_subtask_labels).
     episode_sentences: tuple
+    # v7 phase context: > 0 also emits "prev_subtask" = the sentence `prev_stride` frames earlier
+    # (clamped to the episode start), with the same dropout rule as SubtaskFromLeRobotTask.
+    prev_stride: int = 0
+    prev_dropout: float = 0.0
+    prev_null: str = "none"
 
     def __call__(self, data: DataDict) -> DataDict:
         if "episode_index" not in data or "frame_index" not in data:
@@ -1315,14 +1354,38 @@ class SubtaskFromV5Sidecar(DataTransformFn):
             )
         table = self.episode_sentences[episode]
         subtasks = []
-        for raw_frame in np.atleast_1d(np.asarray(data["frame_index"])):
-            frame = int(raw_frame)
+        frames = [int(f) for f in np.atleast_1d(np.asarray(data["frame_index"]))]
+        for frame in frames:
             if not 0 <= frame < len(table):
                 raise ValueError(
                     f"frame {frame} is outside episode {episode} ({len(table)} frames) in the v5 sentence sidecar."
                 )
             subtasks.append(str(table[frame]))
-        return {**data, "subtask": subtasks if len(subtasks) > 1 else subtasks[0]}
+        out = {**data, "subtask": subtasks if len(subtasks) > 1 else subtasks[0]}
+        if self.prev_stride > 0:
+            if len(frames) != 1:
+                raise ValueError("prev_stride is a per-frame (non-memory) option")
+            prev = str(table[max(0, frames[0] - self.prev_stride)])
+            if self.prev_dropout > 0 and np.random.rand() < self.prev_dropout:
+                prev = self.prev_null
+            out["prev_subtask"] = prev
+        return out
+
+
+@dataclasses.dataclass(frozen=True)
+class SplitStateHistory(DataTransformFn):
+    """v7 phase context: the loader fetches "state" as [H+1, D] (delta_timestamps of H past frames,
+    oldest first, then the current frame; LeRobot clamps offsets before the episode start to frame 0).
+    Split it into the current "state" [D] and "state_history" [H, D] so every downstream transform
+    keeps seeing a single-frame state. Runs on the raw item, before the repack."""
+
+    history: int
+
+    def __call__(self, data: DataDict) -> DataDict:
+        state = np.asarray(data["state"])
+        if state.ndim != 2 or state.shape[0] != self.history + 1:
+            raise ValueError(f"expected state [{self.history + 1}, D] from the loader, got {state.shape}")
+        return {**data, "state": state[-1], "state_history": state[:-1]}
 
 
 @dataclasses.dataclass(frozen=True)

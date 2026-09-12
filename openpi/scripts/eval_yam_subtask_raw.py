@@ -61,6 +61,12 @@ class Args:
     # (e.g. <raw_demo>/subtask_labels_v7tgt.json), a list of {"task"|"sentence", "start", "end"}
     # segments with inclusive bounds. Pass "auto" to take <raw_demo>/subtask_labels_v7tgt.json.
     gt_labels: str | None = None
+    # v7 phase context. The state history is derived from the config (prompt_state_history /
+    # prompt_state_history_stride) and taken from the raw joint arrays. The previous sentence
+    # ("Last:") is either the ground-truth label `prompt_prev_subtask_stride` frames earlier
+    # (prev_mode="gt", an upper bound; needs --gt-labels) or the model's own previous prediction
+    # (prev_mode="own", the deployment condition; runs frame by frame, batch size 1).
+    prev_mode: str = "own"
 
 
 def _read_video_frames(path: pathlib.Path, stride: int) -> tuple[list[np.ndarray], int]:
@@ -154,6 +160,23 @@ def main(args: Args) -> None:
     unnormalize = _transforms.Unnormalize({"actions": norm_stats["actions"]}, use_quantiles=data_config.use_quantile_norm)
     arm_mask = np.asarray(_transforms.make_bool_mask(6, -1, 6, -1))
 
+    hist_n, hist_s = data_config.prompt_state_history, data_config.prompt_state_history_stride
+    use_prev = data_config.prompt_prev_subtask
+    prev_s = data_config.prompt_prev_subtask_stride
+    if hist_n > 0 and "state_history" not in norm_stats:
+        norm_stats = {**norm_stats, "state_history": norm_stats["state"]}
+        normalize = _transforms.Normalize(norm_stats, use_quantiles=data_config.use_quantile_norm)
+    if use_prev and args.prev_mode not in ("gt", "own"):
+        raise ValueError("--prev-mode must be 'gt' or 'own'")
+    if use_prev and args.prev_mode == "gt" and gt_table is None:
+        raise ValueError("--prev-mode gt needs --gt-labels")
+    if use_prev and args.prev_mode == "own":
+        args.batch_size = 1  # sequential: each frame's prompt carries the previous prediction
+    if hist_n > 0 or use_prev:
+        print(f"phase context: state history {hist_n} x {hist_s} frames, prev sentence "
+              f"{'off' if not use_prev else args.prev_mode + ' @ ' + str(prev_s) + ' frames'}", flush=True)
+    prev_pred: dict[int, str] = {}  # raw frame -> the model's prediction there (own mode)
+
     def build_item(t: int) -> dict:
         """Model inputs for raw frame t (inference-style: no actions anywhere)."""
         item = {
@@ -162,6 +185,15 @@ def main(args: Args) -> None:
             "observation/right_wrist_image": right[t // args.stride],
             "observation/state": state_raw[t],
         }
+        if hist_n > 0:  # oldest first, clamped to frame 0 like the LeRobot loader
+            item["observation/state_history"] = np.stack([state_raw[max(0, t - k * hist_s)] for k in range(hist_n, 0, -1)])
+        if use_prev:
+            if args.prev_mode == "gt":
+                item["prev_subtask"] = np.asarray(str(gt_table[max(0, t - prev_s)]))
+            else:
+                # the prediction made at the evaluated frame closest to t - prev_s (or "none" before the first one)
+                earlier = [f for f in prev_pred if f <= t - prev_s]
+                item["prev_subtask"] = np.asarray(prev_pred[max(earlier)] if earlier else "none")
         if args.prompt is not None:
             item["prompt"] = np.asarray(args.prompt)
         for tf in input_transforms:
@@ -204,6 +236,7 @@ def main(args: Args) -> None:
         actions = np.asarray(actions)
         for row, t in enumerate(chunk_ts):
             preds.append(pg.decode(out_tokens[row, n0[row] : out_n[row]].tolist()).strip())
+            prev_pred[t] = preds[-1]
             gt_joints.append(actions_raw[t])  # the teleop control command at frame t
             delta = unnormalize({"actions": actions[row, :, :14]})["actions"]
             pred_joints.append(delta[0] + np.where(arm_mask, state_raw[t], 0.0))  # AbsoluteActions
@@ -218,6 +251,10 @@ def main(args: Args) -> None:
         exact = [p == g for p, g in zip(preds, gts, strict=True)]
         print(f"\nexact-match subtask: {sum(exact)}/{len(exact)} evaluated frames "
               f"({100.0 * sum(exact) / max(1, len(exact)):.1f}%)")
+        pred_changes = sum(a != b for a, b in zip(preds, preds[1:], strict=False))
+        gt_changes = sum(a != b for a, b in zip(gts, gts[1:], strict=False))
+        print(f"sentence changes: pred {pred_changes} vs gt {gt_changes} "
+              f"(spurious flips = {max(0, pred_changes - gt_changes)})")
         wrong = {}
         for pred, gt, ok in zip(preds, gts, exact, strict=True):
             if not ok:
