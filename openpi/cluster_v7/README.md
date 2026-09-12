@@ -120,6 +120,13 @@ global batch 4 on FSDP 4 (`cluster_v7/boba/chain_mem_hgx2_4gpu.sh`, one 60-step 
 `v7/logs/chain_mem_hgx2_4gpu.{out,log}`. Batch 8 (two windows per GPU, the r1 VRAM footprint) would fit too but
 would not shorten an update; the point of the switch was wall-clock.
 
+**r2 -> r3 (16:21 / 16:22).** r2 measured only 22 s/update on 4 GPUs at batch 4 (r1: 28 s on 2): the 60-step bank
+recurrence is sequential, so one window per GPU under-uses the card. User 16:25 ("batch 8, half the updates"): r3 =
+global batch 8 (two windows per GPU, the r1 footprint, ~28 s/update, twice the samples) with HALF the updates -- stage A
+251 (checkpoint 250), stage B 1501 (keep 500/1000/1500), the same sample counts as 500 / 3000 at batch 4; lr schedules
+unchanged (warmup 100). Exps `v7_bobaA_20260912_r3` / `v7_bobaB_20260912_r3`, the same chain script with BATCH=8 and
+A_STEP=250 defaults, log `v7/logs/chain_mem_hgx2_4gpu_r3.out`. The r2 step (17403682.2) was cancelled with scancel.
+
 Runtime caches: the memory path runs `configure_v35_runtime_environment`, which rejects any `v35/cache/*` entry whose
 resolved path leaves the v7 tree (first launch 13:33 died on the symlinked `v35/cache/uv`). `v35/cache/{uv,openpi,
 huggingface}` are therefore REAL directories since 13:36: `uv` empty, `openpi/big_vision` a copy of the tokenizer,

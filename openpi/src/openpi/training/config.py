@@ -6124,7 +6124,7 @@ def _v7_boba_mem_variant(
         data=data,
         assets_base_dir=str(_project_paths.project_path(_project_paths.V7_ASSETS_ROOT)),
         checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V7_CHECKPOINTS_DIR)),
-        batch_size=4,
+        batch_size=8,
         lr_schedule=_optimizer.CosineDecaySchedule(warmup_steps=100, peak_lr=peak_lr, decay_steps=10_000, decay_lr=peak_lr),
         weight_loader=weight_loaders.AuditedPartialCheckpointWeightLoader(
             str(_project_paths.project_path(loader_path)),
@@ -6146,15 +6146,19 @@ _CONFIGS.extend(
             "pi05_yam_mem_v7_bobaA", oracle_writes=True,
             loader_path="v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params",
             matched=(_V7_NON_MEMORY_LEAF,), fresh=(_V7_MEMORY_LEAF,),
-            steps=501, save_every=250, keep=500, peak_lr=5e-5,
+            # r3 (user 2026-09-12 16:25, 4xH200): global batch 8 = two windows per GPU and HALF the updates -- the
+            # sequential 60-step recurrence gave only 28 -> 22 s/update from 2 -> 4 GPUs at batch 4, while batch 8
+            # costs ~28 s/update for twice the samples. Same sample count as 500 updates at batch 4; checkpoint 250.
+            steps=251, save_every=250, keep=250, peak_lr=5e-5,
         ),
         _v7_boba_mem_variant(
             "pi05_yam_mem_v7_bobaB", oracle_writes=False,
             loader_path=os.environ.get(
-                "OPENPI_V7_BOBA_A_PARAMS", "v7/checkpoints/pi05_yam_mem_v7_bobaA/v7_bobaA_20260912_r1/500/params"
+                "OPENPI_V7_BOBA_A_PARAMS", "v7/checkpoints/pi05_yam_mem_v7_bobaA/v7_bobaA_20260912_r3/250/params"
             ),
             matched=(r".+",), fresh=(),
-            steps=3001, save_every=500, keep=1500, peak_lr=2.5e-5,
+            # r3: 1500 updates at batch 8 (= 3000 at batch 4); checkpoints 500 / 1000 / 1500 kept for the dev battery.
+            steps=1501, save_every=500, keep=500, peak_lr=2.5e-5,
         ),
     ]
 )
