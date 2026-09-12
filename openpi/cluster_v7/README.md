@@ -112,6 +112,14 @@ Stages (chain `cluster_v7/boba/chain_mem_hgx2.sh`, job 17403858 = 2xH200 on iris
   were switched to keep only their final checkpoint for the same reason).
 Logs `v7/logs/train_v7_boba{A,B}_20260912_r1{,_status}.log`, `v7/logs/chain_mem_hgx2.{out,log}`.
 
+**r1 -> r2 (15:56 / 15:58).** The user cancelled the 2xH200 job 17403858 at 15:56 to get the 4xH200 job 17403682 ("lets switch
+to 4h200 version to make training faster"); stage A r1 died at update 235 (28 s/update on 2 GPUs; CE 2.67 -> 1.07 and
+decision exact-match 96 -> 98 % by update 200; no checkpoint yet, the first save was at 250). r2 = the same recipe and
+global batch 4 on FSDP 4 (`cluster_v7/boba/chain_mem_hgx2_4gpu.sh`, one 60-step window per GPU, CPUS 24), exps
+`v7_bobaA_20260912_r2` / `v7_bobaB_20260912_r2`, logs `v7/logs/train_v7_boba{A,B}_20260912_r2*.log`,
+`v7/logs/chain_mem_hgx2_4gpu.{out,log}`. Batch 8 (two windows per GPU, the r1 VRAM footprint) would fit too but
+would not shorten an update; the point of the switch was wall-clock.
+
 Runtime caches: the memory path runs `configure_v35_runtime_environment`, which rejects any `v35/cache/*` entry whose
 resolved path leaves the v7 tree (first launch 13:33 died on the symlinked `v35/cache/uv`). `v35/cache/{uv,openpi,
 huggingface}` are therefore REAL directories since 13:36: `uv` empty, `openpi/big_vision` a copy of the tokenizer,
