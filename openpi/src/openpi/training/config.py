@@ -2089,6 +2089,63 @@ _CONFIGS = [
         num_workers=12,
     ),
     TrainConfig(
+        # NON-MEMORY pi05 + knowledge-insulation BASE for the 0911 boba task (user 2026-09-12 00:48: "train a base
+        # pi05 checkpoint using knowledge insulation, subtask and fast action loss supervise vlm and flow loss for
+        # action expert"). Exactly the pi05_yam_beans0905_base recipe above, on the boba LeRobot dataset whose
+        # per-frame task column already IS the 21-sentence v1 vocabulary (cluster_v6/boba/BOBA_LABELS.md), so the
+        # loader takes the plain SubtaskFromLeRobotTask path (no sidecar, nothing to pin). Prompt per episode from
+        # meta/episode_prompts.json ("make a boba tea, then a red bean tea", manifest 0911_boba_episode_manifest_v1).
+        name="pi05_yam_boba0911_base",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            predict_subtask=True,
+            # RTC train-time action-prefix conditioning (user 2026-09-12 02:13: "for pi05 train use RTC ... set delay
+            # to at most 15"): pi0.py samples the simulated inference delay uniformly from {0..15} per sample
+            # (inclusive maximum), i.e. up to 500 ms at 30 Hz, the same budget as beans A10/B10 and the beans base.
+            simulated_delay=15,
+            # scripts/v33_audit_token_lengths.py over all 259188 frames (2026-09-12 06:43, log
+            # v6/logs/audit_tokens_boba_v1.log): max context ("Task: ..., State: ...;\n") 69 tokens, max causal
+            # ("{subtask}\nAction: <FAST>|<eos>") 105. The non-memory path packs both into this one buffer, so it
+            # needs >= 174; 208 leaves 34 spare (beans: 260 -> 272). Too small truncates FAST tokens silently.
+            max_token_len=208,
+        ),
+        data=LeRobotYamDataConfig(
+            repo_id="yam/boba_0911_v1",
+            base_config=DataConfig(
+                prompt_from_episode_meta=True,
+                subtask_from_task=True,
+                subtask_lookahead=0,
+                # 56 episodes / 259188 frames at 30 Hz (~250 GB) in the v6-private LeRobot root
+                # (cluster_v6/boba/convert_boba_hgx1.sh); OPENPI_BOBA_LEROBOT_ROOT overrides for a node-local copy.
+                lerobot_dataset_root=(
+                    os.environ.get("OPENPI_BOBA_LEROBOT_ROOT")
+                    or str(_project_paths.project_path("v6/data/lerobot/yam/boba_0911_v1"))
+                ),
+            ),
+            # Norm stats: cluster_v6/boba/compute_norm_stats_hgx1.sh writes them under
+            # v6/assets/pi05_yam_boba0911_base/<repo_id> and copies them here.
+            assets=AssetsConfig(
+                assets_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT / "pi05_yam_boba_0911_v1"))
+            ),
+        ),
+        assets_base_dir=str(_project_paths.project_path(_project_paths.V6_ASSETS_ROOT)),
+        checkpoint_base_dir=str(_project_paths.project_path(_project_paths.V6_CHECKPOINTS_DIR)),
+        batch_size=16,
+        # User 2026-09-12 02:00: "train till 10000, keep every 5000" -> 10k steps on the free 2xH100 job, checkpoints
+        # 5000 and 10000 kept. The cosine decay is shortened to the run length so the final checkpoint sits at the
+        # end of the schedule (the beans base decayed over its full 30k).
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1_000, peak_lr=5e-5, decay_steps=10_000, decay_lr=5e-5
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=10_000,
+        save_interval=5_000,
+        keep_period=5_000,
+        num_workers=12,
+    ),
+    TrainConfig(
         # Plain (memory-free) pi05 fine-tune config for the two-task 0816 dataset (30 banana +
         # 30 grey-box episodes, per-episode instructions from meta/episode_prompts.json, 5-phase
         # subtask labels). Primarily used to compute the norm stats consumed by
