@@ -80,6 +80,28 @@ Implement (a) and (b) in v7 as flags defaulting OFF, run the boba base with them
 subtask accuracy and flip counts on the dev episodes against the plain base; add (c) only if visual ambiguities
 remain. Keep the visual fast-weight bank off. Then train the memory policy on top of the better variant.
 
+### Results (2026-09-12 17:58, `cluster_v7/boba/run_ctx_evals_hgx1.sh`, dev demos 11/19/37 at stride 15, ckpt 4999)
+
+Exact-match of the decoded sentence per evaluated frame, the model feeding its OWN previous sentence (deployment
+condition); "flips" = predicted sentence changes beyond the 20 true transitions per episode, summed over the 3 demos.
+
+| variant | demo11 | demo19 | demo37 | spurious flips | with ground-truth previous sentence |
+|---|---|---|---|---|---|
+| ctx_none (control) | 99.4 | 99.4 | 98.9 | 3 | – |
+| ctx_prev | 99.4 | 99.1 | 99.3 | 0 | identical (99.4 / 99.1 / 99.3) |
+| ctx_state | 99.1 | 98.1 | 98.9 | 7 | – |
+| ctx_both | 99.4 | 99.1 | 98.6 | 0 | identical |
+
+Every remaining error is a single frame at a segment boundary (`first, get cup` -> `watch, bean right bin` at the
+frame the last lid closes, `second, get cup` -> `first, done` at the first frame of drink 2, `scoop 2 of 3` -> `1 of 3`
+at the scoop boundary), so the dev demos are at ceiling for all variants; the base itself scored 98.1 / 98.4 / 98.9.
+What the previous sentence buys is the removal of the mid-segment flips (3 -> 0, ctx_prev and ctx_both) and it does
+not depend on being fed correct history (own == ground truth). The state history alone adds boundary errors and
+flips. **Decision: ctx_prev is the variant to carry; ctx_state is dropped.** The memory model already carries the
+previous sentence (bank pointer read + `memory_v5_query_prev_sentence`), so nothing needs porting for the memory line;
+ctx_prev/4999 is the cheap non-memory candidate for a robot comparison against the base. Full logs, overlay videos and
+joint plots: `v7/diagnostics/ctx_eval_<exp>_4999/` and `openpi/scripts/eval_results/`.
+
 ## 3. Boba memory line on the 2xH200 (2026-09-12 13:16, user: "launch training in my 2h200 ... start from our already trained base pi05 boba ckpt")
 
 Configs `pi05_yam_mem_v7_bobaA` / `pi05_yam_mem_v7_bobaB` (config.py, block "v7 boba memory line"), built by
