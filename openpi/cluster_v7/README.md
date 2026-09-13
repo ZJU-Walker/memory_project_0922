@@ -286,3 +286,27 @@ pooled previous sentence), so the prefix memory tokens cannot tell "2 of 3" from
 pointer channel carries the digit token-level. The separation loss is therefore optional polish, not a fix; the blocker
 is the trigger (see the two-phase label proposal in `scratchpad`/this session: `first, scoop, k of 3` = bin->cup,
 `first, pour, k of 3` = cup->bin, cut at the builder's pour onset rj4 > 0.15).
+
+## 4. Two-phase scoop labels, run boba2B r1 (2026-09-13 15:20, GPUs 0,1 of 17403682)
+
+Labels: `cluster_v7/boba/boba_v5_subtask_labels_v2.json` (sha256 7b589e3a…29cb, 25 sentences) = the v1 sidecar with every
+`<drink>, scoop, k of n` cut at the builder's pour onset (rj4 > 0.15 after a dig) into `scoop, k of n` (spoon arrives at
+the bin -> tilt onset) and `pour, k of n` (tilt onset -> next bin arrival); 224 + 224 phases over 56 episodes, no
+fallbacks, shortest phase 25 frames (demo2 second pour). Builder `scripts/boba_build_v2_twophase_sidecar.py`; sheets and a
+first-drink video for demo11/demo37 were shown to the user (15:00) and approved (15:11, "your segment is good").
+Why: every transition is now "memory says bin-phase, camera shows cup" or the reverse, so the trigger is a loud visual
+change; the count still comes from the bank (last number) plus one (§3 B/500 analysis, 14:41-15:10 discussion).
+
+Config `pi05_yam_mem_v7_boba2B`: own write timing + label content STRAIGHT FROM THE BOBA BASE 9999 (no stage A -- user
+15:16; justified because an empty bank injects exactly zero and the context pointer copies without training, so step 0
+is the 99 % base and its own sentence changes already land near the label transitions), matched non-memory / fresh
+memory params, lr 5e-5 (warmup 100), prefill_max 26, evidence = watch + scoop + pour, decision sentences unchanged,
+2001 updates at batch 4 (two windows per GPU, FSDP 2, ~28 s/update expected), checkpoints every 500 (~19:15, 23:10, 03:00,
+07:00). `pi05_yam_mem_v7_boba2A` (oracle writes) exists as a fallback, not launched. Launcher
+`cluster_v7/boba/run_mem_2gpu_v2.sh` (GRES=4, CUDA_VISIBLE_DEVICES=0,1), exp `v7_boba2B_20260913_r1`, logs
+`v7/logs/train_v7_boba2B_20260913_r1{,_status}.log`, `run_mem_2gpu_v2.log`. Batteries: `SIDECAR=.../boba_v5_subtask_labels_v2.json
+JOB=17405067 GPU=0 GRES=1 cluster_v7/boba/run_mem_evals.sh pi05_yam_mem_v7_boba2B v7_boba2B_20260913_r1 <step>` on the test
+job (GPUs 0,1 are full while training). What to look for: self-write decision steps well above the r3 plateau (61-68 %),
+the third scoop announced on its own, 8 first-drink writes per episode (open, 3 scoop, 3 pour, put back) with none skipped.
+At 15:20 a 4-GPU `pi05_trossen_pack...` process (132 GB per card, not a job step) was on the node and disappeared as our
+step started; GPUs 2,3 hold only the keep-alive.
