@@ -183,5 +183,12 @@ if len(sys.argv) > 1 and pathlib.Path(sys.argv[1]).exists():
 
 data = {"generated": dt.datetime.now().isoformat(timespec="seconds"), "runs": runs, "gpu": gpu, "logs": logs}
 pathlib.Path(__file__).with_name("dash_data.json").write_text(json.dumps(data))
+import base64
 template = pathlib.Path(__file__).with_name("template.html").read_text()
-sys.stdout.write(template.replace("/*__DATA__*/", "const DATA = " + json.dumps(data) + ";"))
+page = template.replace("/*__DATA__*/", "const DATA = " + json.dumps(data) + ";")
+# the copy the page publishes when the Refresh button asks the session for fresh data: same page, no nested copy, a marker
+copy = page.replace("/*__SELF__*/", "const SELF_B64 = null;") + "\n<!-- refresh-request -->\n"
+doc = ("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body>\n"
+       + copy + "\n</body></html>\n")
+self_b64 = base64.b64encode(doc.encode("utf-8")).decode("ascii")
+sys.stdout.write(page.replace("/*__SELF__*/", "const SELF_B64 = \"" + self_b64 + "\";"))

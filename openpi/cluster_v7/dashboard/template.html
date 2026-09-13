@@ -111,6 +111,7 @@ footer{margin-top:36px;font-size:12px;color:var(--muted)}
 
 <script>
 /*__DATA__*/
+/*__SELF__*/
 function render(DATA){
 const R = DATA.runs, $ = s => document.querySelector(s);
 ['#tiles','#memcharts','#ctxcharts','#morecharts'].forEach(id=>{ $(id).innerHTML=''; });
@@ -189,7 +190,7 @@ else if(sA.state==='running'){
     (spStep? `, about ${spStep.toFixed(0)} s per update (batch 8), done at about <span class="mono">${hhmm(localIso(etaA))}</span>` : ', measuring the step time') +
     `. Stage B (${B.total-1} updates, own writes) starts automatically from the stage-A checkpoint.` +
     (lastMem? ` Latest losses (update ${lastMem.step}): CE ${fmt(lastMem.ce,2)}, flow ${fmt(lastMem.flow,4)}, decision sentences ${fmt(lastMem.dexact,0)}% exact.` : '');
-  if(stale>10){ statusCls='warn'; statusHtml += ` <span class="pill warn">no progress line for ${stale.toFixed(0)} min (a compile of a new window shape takes 5–15 min)</span>`; }
+  if(stale>3){ statusCls='warn'; statusHtml += ` <span class="pill warn">training log quiet for ${stale.toFixed(0)} min (an XLA compile of a new window shape takes 5–15 min; the first run had three)</span>`; }
 } else if(sA.state==='finished' && sB.state==='queued'){ statusHtml = `<b>Stage A finished</b>; stage B is about to start.`; }
 else { statusCls='bad'; statusHtml = `<b>Memory run: ${sA.state}</b>. Check v7/logs/train_${A.exp}.log.`; }
 const gpuH200 = DATA.gpu.h200||[], gpuH100 = DATA.gpu.h100||[];
@@ -213,6 +214,7 @@ $('#runs').innerHTML = `<thead><tr><th>run</th><th>GPUs</th><th>progress (update
 
 // ---------- tiles ----------
 const tiles = [
+  {k:'log last written', v:`<span class="mono">${lastT? hhmm(lastProg.t):'–'}</span>`, d: stale!=null? `${stale.toFixed(0)} min before this data was built` : 'no progress line yet'},
   {k:'stage', v:`<span class="pill ${sB.state==='running'?'warn':sA.state==='running'?'warn':sA.state==='finished'?'ok':'bad'}">${sB.state==='running'?'B running':sA.state==='running'?'A running':sA.state}</span>`, d: lastT? `last progress line ${hhmm(lastProg.t)}` : 'not started'},
   {k:'progress', v:`<span class="mono">${sB.state!=='queued'? sB.stepNow+' / '+(B.total-1) : sA.stepNow+' / '+(A.total-1)}</span>`, d:`<div class="bar"><i style="width:${(sB.state!=='queued'? 100*sB.stepNow/(B.total-1) : 100*sA.stepNow/(A.total-1)).toFixed(1)}%"></i></div>`},
   {k:'time per update', v: spStep? `<span class="mono">${spStep.toFixed(1)} s</span>` : '–', d: spStep? `median of the last ${recent.length} updates; batch 8 = 8 windows of 60 steps` : 'measuring'},
@@ -309,14 +311,33 @@ render(DATA);
 (async () => {
   const state = document.querySelector('#logstate');
   const builtAt = String(DATA.generated||'').slice(11,16);
-  let live = false; let dbRef = null;
+  let live = false; let dbRef = null; let artRef = null;
+  (async () => { try { if(window.claude && typeof window.claude.use === 'function'){ artRef = await window.claude.use('artifact'); } } catch(e) {} })();
   const btn = document.querySelector('#refreshbtn');
+  const stamp = () => new Date().toTimeString().slice(0,8);
+  const ageText = d => { const at = String(d.generated||'').slice(11,16); const mins = Math.max(0, Math.round((Date.now() - new Date(d.generated).getTime())/60000)); return `data as of ${at} (${mins} min ago)`; };
+  try { const flag = sessionStorage.getItem('boba-reloaded'); if(flag){ sessionStorage.removeItem('boba-reloaded'); state.textContent = `Reloaded at ${stamp()}: newest published ${ageText(DATA)}. The training session republishes every 5 minutes; for second-by-second data use the workstation page (ssh -L 8020:localhost:8020 iris-ws-18, then http://localhost:8020).`; } } catch(e) {}
   btn.addEventListener('click', async () => {
     btn.disabled = true; btn.textContent = 'Refreshing…';
     try {
-      if(dbRef){ const snap = await dbRef.get(); if(snap.exists){ render(snap.data()); const at = String(snap.data().generated||'').slice(11,16); state.textContent = `Refreshed from the live data pushed at ${at}. The training session pushes new data every 5 minutes; the button pulls the latest push.`; } }
-      else { const ok = await (async()=>{ try{ const r=await fetch('data.json',{cache:'no-store'}); if(!r.ok) return false; render(await r.json()); return true; }catch(e){ return false; } })(); if(!ok){ location.reload(); return; } state.textContent = 'Refreshed from the workstation server just now.'; }
-    } catch(e) { console.error(e); location.reload(); return; }
+      const local = await (async()=>{ try{ const r=await fetch('data.json',{cache:'no-store'}); if(!r.ok) return null; return await r.json(); }catch(e){ return null; } })();
+      if(local){ render(local); state.textContent = `Refreshed at ${stamp()} from the workstation server: logs re-read ${String(local.generated||'').slice(11,19)}.`; }
+      else if(artRef && typeof SELF_B64 === 'string' && SELF_B64){
+        // Ask the training session for fresh data: publish a byte-identical copy of this page carrying a request
+        // marker. The session watches this artifact, sees the republish, re-reads the logs, pushes the data to the
+        // live feed and republishes the full page (about a minute).
+        try {
+          const src = decodeURIComponent(escape(atob(SELF_B64))).replace('<!-- refresh-request -->', `<!-- refresh-request ${new Date().toISOString()} -->`);
+          await artRef.publish(src);
+          state.textContent = `Refresh requested at ${stamp()}: Claude is re-reading the logs now; this page updates by itself in about a minute (live feed) or on the next reload.`;
+        } catch(e) {
+          if(dbRef){ const snap = await dbRef.get(); if(snap.exists){ const d = snap.data(); render(d); state.textContent = `Could not signal the session (${e && e.code ? e.code : 'error'}); refreshed at ${stamp()} from the live feed: ${ageText(d)}.`; } }
+          else state.textContent = `Could not signal the session (${e && e.code ? e.code : 'error'}).`;
+        }
+      }
+      else if(dbRef){ const snap = await dbRef.get(); if(snap.exists){ const d = snap.data(); render(d); state.textContent = `Refreshed at ${stamp()} from the live feed: ${ageText(d)}. New data arrives every 5 minutes from the training session; a run in an XLA compile shows no new update for 5–15 min.`; } }
+      else { try{ sessionStorage.setItem('boba-reloaded','1'); }catch(e){} location.reload(); return; }
+    } catch(e) { console.error(e); try{ sessionStorage.setItem('boba-reloaded','1'); }catch(e2){} location.reload(); return; }
     btn.disabled = false; btn.textContent = 'Refresh';
   });
   const tick = () => {
