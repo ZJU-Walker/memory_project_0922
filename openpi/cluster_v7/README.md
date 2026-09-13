@@ -180,3 +180,55 @@ cluster_v7/boba/boba_v5_subtask_labels_v1.json` on the dev episodes (LeRobot ind
 `meta/episode_sources.json`), as in `cluster_v6/task1/run_task1_evals_v2_hgx1.sh`. The phase-context flags of §2 are
 NOT yet ported into the memory path (config.create raises NotImplementedError for `use_memory` + those flags); port the
 winning ctx variant once the ablation on the 2xH100 finishes.
+
+### Stage B/500 dev battery (23:14–23:41, same script and dev episodes; `v7/diagnostics/videos_v7_bobaB_20260912_r3_500/`)
+
+Training at B/500: ce 0.668, flow 0.0034, decision-exact 98.8 % on training windows, 32 commits per window. Rollouts:
+
+| write mode (B/500) | decision steps exact (demo11 / 19 / 37) | total | all steps exact | writes (21 true) |
+|---|---|---|---|---|
+| self | 42/66 · 54/65 · 36/64 | 132/195 = 68 % (A/250: 56 %) | 755/921 = 82 % (A/250: 82 %) | 33 · 28 · 32 |
+| self_nodup (new, see below) | 40/66 · 54/65 · 28/64 | 122/195 = 63 % | 741/921 = 80 % | 18 · 18 · 18 |
+| self_stable (new, see below) | 43/66 · 50/65 · 39/64 | 132/195 = 68 % | 754/921 = 82 % | 17 · 18 · 18 |
+| oracle (labels) | 61/66 · 58/65 · 54/64 | 173/195 = 89 % (A/250: 86 %) | 815/921 = 88 % (A/250: 91 %) | 21 · 21 · 21 |
+
+Non-memory ctx_prev decodes 99 % of the same frames (§2). Error taxonomy over the decision steps (pred equal to the
+label of a neighbouring step within 3 steps = timing; same sentence with another count = count): A/250 self 27 timing +
+59 content, B/500 self 23 timing + 40 content, B/500 oracle 16 timing + 6 content. So B moved the self-write content
+errors from 59 to 40 and left everything else where it was.
+
+**What actually fails (per-step traces, `ep*_self*.json`).** (1) *Third-scoop decision.* In demo11 and demo37 the model
+goes `1 of 3` -> `2 of 3` on its own but never produces `3 of 3`: it says `2 of 3` through the whole third scoop and
+`put the scoop back` (15 decision steps each) until the visually unambiguous `close boba bin` resyncs it. demo19 gets
+the count right (1 content error). (2) *Stale re-commit.* Mid-way through scoop 2 the model flips back to `scoop 1 of 3`
+for 1–5 steps at confidence 0.98–1.00 (demo37 step 85, demo11 step 98); in self mode that is committed, so the self banks
+hold 28–33 entries with only 18–19 distinct sentences. (3) *Empty-bank start.* For the first 2–6 steps of every episode
+the model predicts `first, place cup` / `first, get cup` / `first, press tap` / `second, get cup` (also in oracle mode,
+where it is not written); in self mode those are committed before `watch, sago left bin`, and `watch, sago left bin`
+itself is missing from two of the three self banks. (4) The oracle numbers overstate the model: at a transition the
+oracle writes the new label and the read query (`memory_v5_query_prev_sentence`) then carries it, so the model only has
+to copy the previous sentence; oracle-mode errors are almost all 1–3 late steps at segment starts.
+
+**Inference-time rules do not help (two new `--write-mode`s in `scripts/v5_heldout_video.py`, default unchanged).**
+`self_nodup` refuses to commit a sentence already in the bank (every boba sentence occurs once per episode): removes
+(2) -- banks of exactly 18 -- but the count still stops at `2 of 3` (demo11 40/66, demo37 28/64), so (2) was a symptom,
+not the cause. `self_stable` = nodup + commit only a sentence produced on two consecutive steps: does not remove (3)
+(the start predictions persist for 3–4 steps: `first, get cup` committed at step 6, `second, get cup` at step 18) and
+costs one step per transition; 132/195, identical to plain self.
+
+**The bank read is inactive.** In every rollout the read query's best key cosine is 0.14 (A/250) / 0.20 (B/500) at
+every step, decisions included, and the semantic read RMS is 0.010–0.017; the training log agrees (step 500:
+`v5_qk_cos_sum/v5_qk_count` = 0.12 at decision steps, `v4_sem_raw_read_rms_sum` = 0.013 per step). With the previous
+sentence handed to the decoder as the query and the labels carrying the count (`scoop, k of 3`), the 98.8 %
+training decision accuracy needs no bank: previous sentence + vision suffice, exactly the leak `cluster_v5/BEANS_LABELS.md`
+removed for the beans task ("x is stated once"). The self-write failure is therefore a vision + previous-sentence failure
+on the third scoop of unseen episodes, not a memory-read failure, and the memory policy at 750 updates is simply a
+weaker ctx_prev (5000 updates, 99 %).
+
+**Consequences.** (a) B/1000 (~02:30) and B/1500 (~06:15) get the same battery; the trend 56 -> 68 % self says more
+updates help, but the oracle/ctx_prev ceiling for this label design is the previous-sentence channel, not the bank.
+(b) If the bank is the thing under test, the labels or the query must stop carrying the count: state `3` once (at
+`open boba bin`, as the beans v2 labels do) so `scoop k` must be counted from memory, and/or drop
+`memory_v5_query_prev_sentence` so the read has to fetch the previous sentence itself; both are data/config changes on
+top of the same base. (c) The empty-bank start needs windows that begin at frame 0 (5 % today; raise `slice_prob`'s
+complement or add a frame-0 bucket) or a warm-up rule in deployment. Decision on (b)/(c) is the user's.

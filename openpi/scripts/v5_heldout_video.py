@@ -178,7 +178,7 @@ def main() -> None:
     parser.add_argument("--episode-index", type=int, required=True, help="LeRobot episode index (manifest episode_index)")
     parser.add_argument("--write-retry", action="store_true",
                         help="retry-until-committed change detector (prev = last COMMITTED sentence); default = the config's memory_v5_prev_is_committed")
-    parser.add_argument("--write-mode", choices=("self", "oracle", "oracle_evidence"), default="self",
+    parser.add_argument("--write-mode", choices=("self", "self_nodup", "self_stable", "oracle", "oracle_evidence"), default="self",
                         help="self: own decoded sentences; oracle: every label change; oracle_evidence: labels only for the "
                              "frames BEFORE the closing segment (the notes), own sentences from the closing segment on -- the "
                              "recall test: with correct notes in the bank, does the model restate the target's note and decide?")
@@ -270,6 +270,7 @@ def main() -> None:
     pending = (np.zeros((1, sentence_len), dtype=np.int32), np.zeros(sentence_len, dtype=bool), False)
     bank: list[str] = []
     bank_keys: list[np.ndarray] = []
+    last_cand_text = None  # self_stable: the previous step's candidate sentence (debounce)
     records: list[StepRecord] = []
     frozen = None  # --intervention freeze: the first step's (observation, state_token_mask)
     last_still = None  # --intervention freeze_decision: the last pre-decision step's (observation, state_token_mask)
@@ -377,6 +378,17 @@ def main() -> None:
                 cur = flipped.astype(np.int32)
             changed = bool(np.any(cur != prev_tokens)) and bool(span.any())
             commit = changed and confident and args.intervention != "blank"
+            # self_nodup (2026-09-12 23:25, B/500 battery): every boba sentence occurs once per episode, so a
+            # candidate that is already in the bank is a transient regression to an old sentence (the
+            # self-write count drift: 'scoop 1 of 3' re-committed in the middle of scoop 2); do not commit it.
+            cand_text = _decode_text(sp, cur[0][span]) if span.any() else ""
+            if commit and args.write_mode in ("self_nodup", "self_stable") and cand_text in bank:
+                commit = False
+            # self_stable = self_nodup + debounce: commit only a sentence produced on two consecutive steps (the
+            # empty-bank start flickers 'first, place cup' / 'press tap' for single steps before 'watch, sago').
+            if commit and args.write_mode == "self_stable" and cand_text != last_cand_text:
+                commit = False
+            last_cand_text = cand_text
             sem_state, applied, key = write(model, jnp.asarray(cur), jnp.asarray(span[None]), sem_state, jnp.asarray([commit]))
             applied = bool(np.asarray(applied)[0])
             if applied or not prev_is_committed:
