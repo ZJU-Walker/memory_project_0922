@@ -156,6 +156,24 @@ huggingface}` are therefore REAL directories since 13:36: `uv` empty, `openpi/bi
 still fail closed), `huggingface/{hub,modules}` copies and `huggingface/datasets/parquet/default-e295320b2b6e3ab9` the
 same link to the `~/.cache` arrow copy v6 uses (217 GB; the hash is the dataset root's, identical for v6 and v7).
 
+### Stage A/250 dev battery (19:08, `cluster_v7/boba/run_mem_evals.sh` on the test job 17405067; `v7/diagnostics/videos_v7_bobaA_20260912_r3_250/`)
+
+| write mode | decision steps exact (demo11 / 19 / 37) | all steps exact | writes per episode (20 true transitions) |
+|---|---|---|---|
+| self (own sentences) | 37/66 · 38/65 · 34/64 | 754/921 = 82 % | 24 · 24 · 30 |
+| oracle (labels) | 59/66 · 57/65 · 52/64 | 835/921 = 91 % | 21 · 21 · 21 |
+
+For comparison the non-memory policies decode 98.6–99.4 % of the same frames (§2). Confusions: (1) **count drift under
+own writes** (`3 of 3` -> `2 of 3` 45 frames, `2 of 3` -> `1 of 3` 10): a wrong own sentence is committed and the count
+lags one scoop for the rest of the drink; with oracle writes these fall to 9 frames. (2) **early transitions** in both
+modes (`first, done` -> `second, get cup` 14, `watch, bean right bin` -> `first, get cup` 13, `second, place cup` ->
+`press tap` 7–17, `open bin` -> `scoop 1` 3–7): the model announces the next phase 1–4 steps (0.5–2 s) before the label
+switches, i.e. before the human's cue. (3) **empty-bank start** (`watch, sago left bin` -> `first, press tap` 8): the
+first steps of an episode, where the bank is empty (only 5 % of training windows start at frame 0). Stage B trains on
+own writes and should remove (1); (2) and (3) are training-signal questions (250 updates so far) -- if the B
+checkpoints (500/1000/1500) do not close the gap to the ctx_prev policy, the candidates are more stage-A updates, the
+`Last:` text field in the memory path (the proven ctx_prev channel), or a weaker pointer read.
+
 Evaluation (next): `scripts/v5_heldout_video.py --config-name pi05_yam_mem_v7_boba{A,B} --params <ckpt>/params
 --episode-index <dev idx> --write-mode {self,oracle} --manifest cluster_v7/boba/boba_episode_manifest_v1.json --sidecar
 cluster_v7/boba/boba_v5_subtask_labels_v1.json` on the dev episodes (LeRobot indices of demo11/19/37 from
