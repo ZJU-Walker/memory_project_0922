@@ -111,7 +111,6 @@ footer{margin-top:36px;font-size:12px;color:var(--muted)}
 
 <script>
 /*__DATA__*/
-/*__SELF__*/
 function render(DATA){
 const R = DATA.runs, $ = s => document.querySelector(s);
 ['#tiles','#memcharts','#ctxcharts','#morecharts'].forEach(id=>{ $(id).innerHTML=''; });
@@ -311,8 +310,7 @@ render(DATA);
 (async () => {
   const state = document.querySelector('#logstate');
   const builtAt = String(DATA.generated||'').slice(11,16);
-  let live = false; let dbRef = null; let artRef = null;
-  (async () => { try { if(window.claude && typeof window.claude.use === 'function'){ artRef = await window.claude.use('artifact'); } } catch(e) {} })();
+  let live = false; let dbRef = null;
   const btn = document.querySelector('#refreshbtn');
   const stamp = () => new Date().toTimeString().slice(0,8);
   const ageText = d => { const at = String(d.generated||'').slice(11,16); const mins = Math.max(0, Math.round((Date.now() - new Date(d.generated).getTime())/60000)); return `data as of ${at} (${mins} min ago)`; };
@@ -322,19 +320,6 @@ render(DATA);
     try {
       const local = await (async()=>{ try{ const r=await fetch('data.json',{cache:'no-store'}); if(!r.ok) return null; return await r.json(); }catch(e){ return null; } })();
       if(local){ render(local); state.textContent = `Refreshed at ${stamp()} from the workstation server: logs re-read ${String(local.generated||'').slice(11,19)}.`; }
-      else if(artRef && typeof SELF_B64 === 'string' && SELF_B64){
-        // Ask the training session for fresh data: publish a byte-identical copy of this page carrying a request
-        // marker. The session watches this artifact, sees the republish, re-reads the logs, pushes the data to the
-        // live feed and republishes the full page (about a minute).
-        try {
-          const src = decodeURIComponent(escape(atob(SELF_B64))).replace('<!-- refresh-request -->', `<!-- refresh-request ${new Date().toISOString()} -->`);
-          await artRef.publish(src);
-          state.textContent = `Refresh requested at ${stamp()}: Claude is re-reading the logs now; this page updates by itself in about a minute (live feed) or on the next reload.`;
-        } catch(e) {
-          if(dbRef){ const snap = await dbRef.get(); if(snap.exists){ const d = snap.data(); render(d); state.textContent = `Could not signal the session (${e && e.code ? e.code : 'error'}); refreshed at ${stamp()} from the live feed: ${ageText(d)}.`; } }
-          else state.textContent = `Could not signal the session (${e && e.code ? e.code : 'error'}).`;
-        }
-      }
       else if(dbRef){ const snap = await dbRef.get(); if(snap.exists){ const d = snap.data(); render(d); state.textContent = `Refreshed at ${stamp()} from the live feed: ${ageText(d)}. New data arrives every 5 minutes from the training session; a run in an XLA compile shows no new update for 5–15 min.`; } }
       else { try{ sessionStorage.setItem('boba-reloaded','1'); }catch(e){} location.reload(); return; }
     } catch(e) { console.error(e); try{ sessionStorage.setItem('boba-reloaded','1'); }catch(e2){} location.reload(); return; }

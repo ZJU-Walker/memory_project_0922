@@ -1,3 +1,3 @@
-{"sampled": "2026-09-12T17:13:14", "h200": [
-{"gpu":0,"used_mib":136053,"total_mib":143771,"util":98},{"gpu":1,"used_mib":136043,"total_mib":143771,"util":98},{"gpu":2,"used_mib":136043,"total_mib":143771,"util":97},{"gpu":3,"used_mib":136043,"total_mib":143771,"util":99}], "h100": [
-{"gpu":0,"used_mib":77553,"total_mib":81559,"util":96},{"gpu":1,"used_mib":77545,"total_mib":81559,"util":98}], "disk_free_gb": 904, "jobs": "17403682:RUNNING:iris-hgx-2:gres/gpu:4:4-22:43:20 17356154:RUNNING:iris-hgx-1:gres/gpu:2:2-04:19:42 17405067:RUNNING:iris-hgx-1:gres/gpu:1:2-23:07:01 "}
+{"sampled": "2026-09-12T17:15:49", "h200": [
+{"gpu":0,"used_mib":136053,"total_mib":143771,"util":97},{"gpu":1,"used_mib":136043,"total_mib":143771,"util":97},{"gpu":2,"used_mib":136043,"total_mib":143771,"util":96},{"gpu":3,"used_mib":136043,"total_mib":143771,"util":96}], "h100": [
+{"gpu":0,"used_mib":77553,"total_mib":81559,"util":98},{"gpu":1,"used_mib":77545,"total_mib":81559,"util":99}], "disk_free_gb": 904, "jobs": "17403682:RUNNING:iris-hgx-2:gres/gpu:4:4-22:40:46 17356154:RUNNING:iris-hgx-1:gres/gpu:2:2-04:17:08 17405067:RUNNING:iris-hgx-1:gres/gpu:1:2-23:04:27 "}
