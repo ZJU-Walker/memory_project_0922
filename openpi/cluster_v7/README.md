@@ -276,3 +276,13 @@ which is what a fragile visual cue looks like, not a memory read. Verdict for th
 text baseline. Nothing more to learn from more updates; the next move is one of (a) separation loss on, (b) dropout of
 the previous-sentence shift + pointer bonus in training, (c) labels with the count changing at the pour -- see the
 B/500 section. Job 17403682's four H200 are idle since 06:18 (1 GB keep-alive only).
+
+**Correction (09-13 15:05) on the "0.93 similarity".** With `memory_v6_token_writes` the bank is written token by token
+(key = context before the token, value = the token); the count digit sits under the key "first, scoop, " and the delta
+rule overwrites its value newest-wins, so "2" vs "3" are distinct values under an intentionally shared key. The
+`v5_separation_*` diagnostics (0.93 / 0.92) are computed on the v5 POOLED keys/values, which are no longer what is
+written. The pooling survives only in the prefix read query (`memory_v5_query_prev_sentence` shifts the queries by the
+pooled previous sentence), so the prefix memory tokens cannot tell "2 of 3" from "3 of 3" -- a redundancy, since the
+pointer channel carries the digit token-level. The separation loss is therefore optional polish, not a fix; the blocker
+is the trigger (see the two-phase label proposal in `scratchpad`/this session: `first, scoop, k of 3` = bin->cup,
+`first, pour, k of 3` = cup->bin, cut at the builder's pour onset rj4 > 0.15).
