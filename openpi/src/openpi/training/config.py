@@ -6061,6 +6061,28 @@ V7_BOBA_DECISION_SENTENCES: tuple[str, ...] = (
     "second, open bean bin",
     "second, put the scoop back",
 )
+# v7 two-phase scoop labels (2026-09-13; cluster_v7/README.md §3 "B/500 analysis" + the 14:52-15:10 discussion): every
+# `<drink>, scoop, k of n` segment is cut at the pour onset (builder detector rj4 > 0.15 after a dig) into
+# `scoop, k` (spoon arrives at the bin -> tilt) and `pour, k` (tilt -> next bin arrival), so every transition is
+# "memory says bin-phase, camera shows cup" or the reverse; built by scripts/boba_build_v2_twophase_sidecar.py.
+V7_BOBA2_SIDECAR_SHA256 = "7b589e3a8c5ebe7a571332c433528cdd97c768d47420deb0976bcbaa03ad29cb"
+V7_BOBA2_SENTENCES: tuple[str, ...] = tuple(sorted(V7_BOBA_SENTENCES + (
+    "first, pour, 1 of 3", "first, pour, 2 of 3", "first, pour, 3 of 3", "second, pour, 1 of 1",
+)))
+_V7_BOBA2_POUR_TOKENS: dict[str, tuple[int, ...]] = {  # PaligemmaTokenizer, lower().strip() + newline (15:17)
+    "first, pour, 1 of 3": (4878, 235269, 1982, 235269, 235248, 235274, 576, 235248, 235304, 108),
+    "first, pour, 2 of 3": (4878, 235269, 1982, 235269, 235248, 235284, 576, 235248, 235304, 108),
+    "first, pour, 3 of 3": (4878, 235269, 1982, 235269, 235248, 235304, 576, 235248, 235304, 108),
+    "second, pour, 1 of 1": (9200, 235269, 1982, 235269, 235248, 235274, 576, 235248, 235274, 108),
+}
+V7_BOBA2_REFERENCE_SENTENCE_TOKENS: tuple[tuple[int, ...], ...] = tuple(
+    _V7_BOBA2_POUR_TOKENS[q] if q in _V7_BOBA2_POUR_TOKENS else V7_BOBA_REFERENCE_SENTENCE_TOKENS[V7_BOBA_SENTENCES.index(q)]
+    for q in V7_BOBA2_SENTENCES
+)
+V7_BOBA2_EVIDENCE_SENTENCES: tuple[str, ...] = tuple(
+    q for q in V7_BOBA2_SENTENCES if q.startswith("watch, ") or ", scoop, " in q or ", pour, " in q
+)
+V7_BOBA2_DECISION_SENTENCES: tuple[str, ...] = V7_BOBA_DECISION_SENTENCES  # the bin arrivals + the drink switch
 _V7_NON_MEMORY_LEAF = r"(?!.*(?:memory|fact_|query_compressor|query_conditioner|state_null_embedding|probe_head|ladder_)).+"
 _V7_MEMORY_LEAF = r".*(?:memory|fact_|query_compressor|query_conditioner|state_null_embedding|probe_head|ladder_).*"
 
@@ -6068,6 +6090,10 @@ _V7_MEMORY_LEAF = r".*(?:memory|fact_|query_compressor|query_conditioner|state_n
 def _v7_boba_mem_variant(
     name: str, *, oracle_writes: bool, loader_path: str, steps: int, save_every: int, keep: int, peak_lr: float,
     matched: tuple[str, ...], fresh: tuple[str, ...], model_overrides: dict | None = None,
+    sidecar_name: str = "boba_v5_subtask_labels_v1.json", sidecar_sha256: str = V7_BOBA_SIDECAR_SHA256,
+    sentences: tuple[str, ...] = V7_BOBA_SENTENCES, reference_tokens: tuple[tuple[int, ...], ...] = V7_BOBA_REFERENCE_SENTENCE_TOKENS,
+    evidence: tuple[str, ...] = V7_BOBA_EVIDENCE_SENTENCES, decision: tuple[str, ...] = V7_BOBA_DECISION_SENTENCES,
+    prefill_max: int = 22,
 ) -> "TrainConfig":
     by_name = {config.name: config for config in _CONFIGS}
     base_cfg = by_name["pi05_yam_mem_v6_task1A2"]
@@ -6079,8 +6105,8 @@ def _v7_boba_mem_variant(
         memory_v5_oracle_writes=oracle_writes,
         memory_v5_prev_is_committed=not oracle_writes,
         memory_v5_own_commit_label_content=not oracle_writes,
-        memory_v5_prefill_max=22,
-        memory_v5_reference_tokens=V7_BOBA_REFERENCE_SENTENCE_TOKENS,
+        memory_v5_prefill_max=prefill_max,
+        memory_v5_reference_tokens=reference_tokens,
         memory_state_mask_prob=0.0,
         **(model_overrides or {}),
     )
@@ -6093,17 +6119,17 @@ def _v7_boba_mem_variant(
             memory_slice_prob=0.9,
             memory_min_slice_steps=14,
             memory_sequence_buckets=(20, 40, 60),
-            evidence_subtasks=V7_BOBA_EVIDENCE_SENTENCES,
-            memory_required_subtasks=V7_BOBA_DECISION_SENTENCES,
+            evidence_subtasks=evidence,
+            memory_required_subtasks=decision,
             memory_critical_prob=0.5,
             memory_critical_start_pad=75,
-            memory_subtask_vocab=V7_BOBA_SENTENCES,
+            memory_subtask_vocab=sentences,
             memory_episode_manifest_path=str(_project_paths.project_path("openpi/cluster_v7/boba/boba_episode_manifest_v1.json")),
             memory_episode_manifest_sha256=V7_BOBA_MANIFEST_SHA256,
             memory_manifest_split="train",
             memory_manifest_split_seed=911,
-            memory_v5_subtask_labels_path=str(_project_paths.project_path("openpi/cluster_v7/boba/boba_v5_subtask_labels_v1.json")),
-            memory_v5_subtask_labels_sha256=V7_BOBA_SIDECAR_SHA256,
+            memory_v5_subtask_labels_path=str(_project_paths.project_path(f"openpi/cluster_v7/boba/{sidecar_name}")),
+            memory_v5_subtask_labels_sha256=sidecar_sha256,
             memory_v5_generic_task=True,
             memory_v6_still_decision_boost=1.0,
             memory_v6_still_decision_frames=0,
@@ -6159,6 +6185,32 @@ _CONFIGS.extend(
             matched=(r".+",), fresh=(),
             # r3: 1500 updates at batch 8 (= 3000 at batch 4); checkpoints 500 / 1000 / 1500 kept for the dev battery.
             steps=1501, save_every=500, keep=500, peak_lr=2.5e-5,
+        ),
+    ]
+)
+_V7_BOBA2 = dict(
+    sidecar_name="boba_v5_subtask_labels_v2.json", sidecar_sha256=V7_BOBA2_SIDECAR_SHA256, sentences=V7_BOBA2_SENTENCES,
+    reference_tokens=V7_BOBA2_REFERENCE_SENTENCE_TOKENS, evidence=V7_BOBA2_EVIDENCE_SENTENCES,
+    decision=V7_BOBA2_DECISION_SENTENCES, prefill_max=26,  # 25 sentences per episode; the v1 bank needed 22 for 21
+)
+_CONFIGS.extend(
+    [
+        # Two-phase labels, own write timing + label content STRAIGHT FROM THE BOBA BASE (user 15:16 "skip stage A"):
+        # an empty bank injects exactly zero and the context pointer copies without training, so at step 0 the model is
+        # the 99 % base and its own sentence changes already land near the label transitions. 2xH200 (GPUs 0,1 of
+        # 17403682), batch 4 = two windows per GPU, ~28 s/update; 2000 updates = 8000 samples, checkpoints every 500.
+        _v7_boba_mem_variant(
+            "pi05_yam_mem_v7_boba2B", oracle_writes=False,
+            loader_path="v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params",
+            matched=(_V7_NON_MEMORY_LEAF,), fresh=(_V7_MEMORY_LEAF,),
+            steps=2001, save_every=500, keep=500, peak_lr=5e-5, **_V7_BOBA2,
+        ),
+        # Fallback with oracle writes (stage-A style) on the same labels, not launched.
+        _v7_boba_mem_variant(
+            "pi05_yam_mem_v7_boba2A", oracle_writes=True,
+            loader_path="v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params",
+            matched=(_V7_NON_MEMORY_LEAF,), fresh=(_V7_MEMORY_LEAF,),
+            steps=501, save_every=250, keep=250, peak_lr=5e-5, **_V7_BOBA2,
         ),
     ]
 )

@@ -14,7 +14,7 @@ source cluster_v7/env.sh >/dev/null 2>&1
 export HOME=/iris/u/kewalk XLA_PYTHON_CLIENT_PREALLOCATE=false
 ck="$root/v7/checkpoints/$config/$exp/$step/params"
 manifest="$root/openpi/cluster_v7/boba/boba_episode_manifest_v1.json"
-sidecar="$root/openpi/cluster_v7/boba/boba_v5_subtask_labels_v1.json"
+sidecar="${SIDECAR:-$root/openpi/cluster_v7/boba/boba_v5_subtask_labels_v1.json}"  # two-phase runs: SIDECAR=.../boba_v5_subtask_labels_v2.json
 out="$root/v7/diagnostics/videos_${exp}_${step}"; mkdir -p "$out"
 dev="${DEV:-9 17 34}"
 run() { srun --jobid="$JOB" --overlap --nodes=1 --ntasks=1 --cpus-per-task=4 --gres=gpu:"${GRES:-1}" env CUDA_VISIBLE_DEVICES="$GPU" "$@"; }  # run ON iris-hgx-1

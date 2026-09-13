@@ -1,0 +1,7429 @@
+{
+  "content_sha256": "ceb65b8a67190f27c823bcafdbb1dcaabe420bf107e8278e4fbb1e2f104b38d8",
+  "dataset_version": "0911_boba_v2twophase",
+  "episodes": {
+    "0911_boba/demo1": {
+      "class": "boba3_bean1",
+      "group": "demo1",
+      "num_frames": 5746,
+      "segments": [
+        {
+          "end": 185,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 302,
+          "sentence": "watch, boba middle bin",
+          "start": 186
+        },
+        {
+          "end": 502,
+          "sentence": "watch, bean right bin",
+          "start": 303
+        },
+        {
+          "end": 704,
+          "sentence": "first, get cup",
+          "start": 503
+        },
+        {
+          "end": 1111,
+          "sentence": "first, open boba bin",
+          "start": 705
+        },
+        {
+          "end": 1436,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 1112
+        },
+        {
+          "end": 1603,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1437
+        },
+        {
+          "end": 1778,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1604
+        },
+        {
+          "end": 1898,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1779
+        },
+        {
+          "end": 2060,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1899
+        },
+        {
+          "end": 2120,
+          "sentence": "first, pour, 3 of 3",
+          "start": 2061
+        },
+        {
+          "end": 2192,
+          "sentence": "first, put the scoop back",
+          "start": 2121
+        },
+        {
+          "end": 2363,
+          "sentence": "first, close boba bin",
+          "start": 2193
+        },
+        {
+          "end": 2793,
+          "sentence": "first, place cup",
+          "start": 2364
+        },
+        {
+          "end": 3381,
+          "sentence": "first, press tap to fill cup",
+          "start": 2794
+        },
+        {
+          "end": 3659,
+          "sentence": "first, done",
+          "start": 3382
+        },
+        {
+          "end": 3879,
+          "sentence": "second, get cup",
+          "start": 3660
+        },
+        {
+          "end": 4189,
+          "sentence": "second, open bean bin",
+          "start": 3880
+        },
+        {
+          "end": 4429,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 4190
+        },
+        {
+          "end": 4481,
+          "sentence": "second, pour, 1 of 1",
+          "start": 4430
+        },
+        {
+          "end": 4529,
+          "sentence": "second, put the scoop back",
+          "start": 4482
+        },
+        {
+          "end": 4683,
+          "sentence": "second, close bean bin",
+          "start": 4530
+        },
+        {
+          "end": 4991,
+          "sentence": "second, place cup",
+          "start": 4684
+        },
+        {
+          "end": 5612,
+          "sentence": "second, press tap to fill cup",
+          "start": 4992
+        },
+        {
+          "end": 5745,
+          "sentence": "second, done",
+          "start": 5613
+        }
+      ]
+    },
+    "0911_boba/demo10": {
+      "class": "boba3_bean1",
+      "group": "demo10",
+      "num_frames": 5254,
+      "segments": [
+        {
+          "end": 158,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 257,
+          "sentence": "watch, boba middle bin",
+          "start": 159
+        },
+        {
+          "end": 417,
+          "sentence": "watch, bean right bin",
+          "start": 258
+        },
+        {
+          "end": 585,
+          "sentence": "first, get cup",
+          "start": 418
+        },
+        {
+          "end": 881,
+          "sentence": "first, open boba bin",
+          "start": 586
+        },
+        {
+          "end": 1128,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 882
+        },
+        {
+          "end": 1258,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1129
+        },
+        {
+          "end": 1363,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1259
+        },
+        {
+          "end": 1519,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1364
+        },
+        {
+          "end": 1650,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1520
+        },
+        {
+          "end": 1771,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1651
+        },
+        {
+          "end": 1838,
+          "sentence": "first, put the scoop back",
+          "start": 1772
+        },
+        {
+          "end": 2054,
+          "sentence": "first, close boba bin",
+          "start": 1839
+        },
+        {
+          "end": 2432,
+          "sentence": "first, place cup",
+          "start": 2055
+        },
+        {
+          "end": 3105,
+          "sentence": "first, press tap to fill cup",
+          "start": 2433
+        },
+        {
+          "end": 3374,
+          "sentence": "first, done",
+          "start": 3106
+        },
+        {
+          "end": 3538,
+          "sentence": "second, get cup",
+          "start": 3375
+        },
+        {
+          "end": 3835,
+          "sentence": "second, open bean bin",
+          "start": 3539
+        },
+        {
+          "end": 4069,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3836
+        },
+        {
+          "end": 4124,
+          "sentence": "second, pour, 1 of 1",
+          "start": 4070
+        },
+        {
+          "end": 4175,
+          "sentence": "second, put the scoop back",
+          "start": 4125
+        },
+        {
+          "end": 4328,
+          "sentence": "second, close bean bin",
+          "start": 4176
+        },
+        {
+          "end": 4675,
+          "sentence": "second, place cup",
+          "start": 4329
+        },
+        {
+          "end": 5156,
+          "sentence": "second, press tap to fill cup",
+          "start": 4676
+        },
+        {
+          "end": 5253,
+          "sentence": "second, done",
+          "start": 5157
+        }
+      ]
+    },
+    "0911_boba/demo11": {
+      "class": "boba3_bean1",
+      "group": "demo11",
+      "num_frames": 4805,
+      "segments": [
+        {
+          "end": 113,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 194,
+          "sentence": "watch, boba middle bin",
+          "start": 114
+        },
+        {
+          "end": 339,
+          "sentence": "watch, bean right bin",
+          "start": 195
+        },
+        {
+          "end": 526,
+          "sentence": "first, get cup",
+          "start": 340
+        },
+        {
+          "end": 873,
+          "sentence": "first, open boba bin",
+          "start": 527
+        },
+        {
+          "end": 1101,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 874
+        },
+        {
+          "end": 1278,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1102
+        },
+        {
+          "end": 1409,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1279
+        },
+        {
+          "end": 1509,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1410
+        },
+        {
+          "end": 1615,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1510
+        },
+        {
+          "end": 1735,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1616
+        },
+        {
+          "end": 1795,
+          "sentence": "first, put the scoop back",
+          "start": 1736
+        },
+        {
+          "end": 1976,
+          "sentence": "first, close boba bin",
+          "start": 1796
+        },
+        {
+          "end": 2289,
+          "sentence": "first, place cup",
+          "start": 1977
+        },
+        {
+          "end": 2694,
+          "sentence": "first, press tap to fill cup",
+          "start": 2290
+        },
+        {
+          "end": 2891,
+          "sentence": "first, done",
+          "start": 2695
+        },
+        {
+          "end": 3060,
+          "sentence": "second, get cup",
+          "start": 2892
+        },
+        {
+          "end": 3341,
+          "sentence": "second, open bean bin",
+          "start": 3061
+        },
+        {
+          "end": 3570,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3342
+        },
+        {
+          "end": 3616,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3571
+        },
+        {
+          "end": 3658,
+          "sentence": "second, put the scoop back",
+          "start": 3617
+        },
+        {
+          "end": 3802,
+          "sentence": "second, close bean bin",
+          "start": 3659
+        },
+        {
+          "end": 4200,
+          "sentence": "second, place cup",
+          "start": 3803
+        },
+        {
+          "end": 4702,
+          "sentence": "second, press tap to fill cup",
+          "start": 4201
+        },
+        {
+          "end": 4804,
+          "sentence": "second, done",
+          "start": 4703
+        }
+      ]
+    },
+    "0911_boba/demo12": {
+      "class": "boba3_bean1",
+      "group": "demo12",
+      "num_frames": 4318,
+      "segments": [
+        {
+          "end": 125,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 200,
+          "sentence": "watch, boba middle bin",
+          "start": 126
+        },
+        {
+          "end": 353,
+          "sentence": "watch, bean right bin",
+          "start": 201
+        },
+        {
+          "end": 499,
+          "sentence": "first, get cup",
+          "start": 354
+        },
+        {
+          "end": 773,
+          "sentence": "first, open boba bin",
+          "start": 500
+        },
+        {
+          "end": 941,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 774
+        },
+        {
+          "end": 1030,
+          "sentence": "first, pour, 1 of 3",
+          "start": 942
+        },
+        {
+          "end": 1139,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1031
+        },
+        {
+          "end": 1223,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1140
+        },
+        {
+          "end": 1336,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1224
+        },
+        {
+          "end": 1386,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1337
+        },
+        {
+          "end": 1426,
+          "sentence": "first, put the scoop back",
+          "start": 1387
+        },
+        {
+          "end": 1567,
+          "sentence": "first, close boba bin",
+          "start": 1427
+        },
+        {
+          "end": 2152,
+          "sentence": "first, place cup",
+          "start": 1568
+        },
+        {
+          "end": 2518,
+          "sentence": "first, press tap to fill cup",
+          "start": 2153
+        },
+        {
+          "end": 2691,
+          "sentence": "first, done",
+          "start": 2519
+        },
+        {
+          "end": 2832,
+          "sentence": "second, get cup",
+          "start": 2692
+        },
+        {
+          "end": 3046,
+          "sentence": "second, open bean bin",
+          "start": 2833
+        },
+        {
+          "end": 3209,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3047
+        },
+        {
+          "end": 3258,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3210
+        },
+        {
+          "end": 3289,
+          "sentence": "second, put the scoop back",
+          "start": 3259
+        },
+        {
+          "end": 3420,
+          "sentence": "second, close bean bin",
+          "start": 3290
+        },
+        {
+          "end": 3707,
+          "sentence": "second, place cup",
+          "start": 3421
+        },
+        {
+          "end": 4228,
+          "sentence": "second, press tap to fill cup",
+          "start": 3708
+        },
+        {
+          "end": 4317,
+          "sentence": "second, done",
+          "start": 4229
+        }
+      ]
+    },
+    "0911_boba/demo13": {
+      "class": "boba3_bean1",
+      "group": "demo13",
+      "num_frames": 4327,
+      "segments": [
+        {
+          "end": 110,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 188,
+          "sentence": "watch, boba middle bin",
+          "start": 111
+        },
+        {
+          "end": 324,
+          "sentence": "watch, bean right bin",
+          "start": 189
+        },
+        {
+          "end": 467,
+          "sentence": "first, get cup",
+          "start": 325
+        },
+        {
+          "end": 750,
+          "sentence": "first, open boba bin",
+          "start": 468
+        },
+        {
+          "end": 961,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 751
+        },
+        {
+          "end": 1069,
+          "sentence": "first, pour, 1 of 3",
+          "start": 962
+        },
+        {
+          "end": 1158,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1070
+        },
+        {
+          "end": 1256,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1159
+        },
+        {
+          "end": 1370,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1257
+        },
+        {
+          "end": 1430,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1371
+        },
+        {
+          "end": 1475,
+          "sentence": "first, put the scoop back",
+          "start": 1431
+        },
+        {
+          "end": 1665,
+          "sentence": "first, close boba bin",
+          "start": 1476
+        },
+        {
+          "end": 2009,
+          "sentence": "first, place cup",
+          "start": 1666
+        },
+        {
+          "end": 2407,
+          "sentence": "first, press tap to fill cup",
+          "start": 2010
+        },
+        {
+          "end": 2611,
+          "sentence": "first, done",
+          "start": 2408
+        },
+        {
+          "end": 2774,
+          "sentence": "second, get cup",
+          "start": 2612
+        },
+        {
+          "end": 2996,
+          "sentence": "second, open bean bin",
+          "start": 2775
+        },
+        {
+          "end": 3183,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2997
+        },
+        {
+          "end": 3234,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3184
+        },
+        {
+          "end": 3276,
+          "sentence": "second, put the scoop back",
+          "start": 3235
+        },
+        {
+          "end": 3411,
+          "sentence": "second, close bean bin",
+          "start": 3277
+        },
+        {
+          "end": 3717,
+          "sentence": "second, place cup",
+          "start": 3412
+        },
+        {
+          "end": 4218,
+          "sentence": "second, press tap to fill cup",
+          "start": 3718
+        },
+        {
+          "end": 4326,
+          "sentence": "second, done",
+          "start": 4219
+        }
+      ]
+    },
+    "0911_boba/demo14": {
+      "class": "boba3_bean1",
+      "group": "demo14",
+      "num_frames": 5091,
+      "segments": [
+        {
+          "end": 116,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 221,
+          "sentence": "watch, boba middle bin",
+          "start": 117
+        },
+        {
+          "end": 406,
+          "sentence": "watch, bean right bin",
+          "start": 222
+        },
+        {
+          "end": 563,
+          "sentence": "first, get cup",
+          "start": 407
+        },
+        {
+          "end": 849,
+          "sentence": "first, open boba bin",
+          "start": 564
+        },
+        {
+          "end": 1057,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 850
+        },
+        {
+          "end": 1254,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1058
+        },
+        {
+          "end": 1359,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1255
+        },
+        {
+          "end": 1497,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1360
+        },
+        {
+          "end": 1610,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1498
+        },
+        {
+          "end": 1690,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1611
+        },
+        {
+          "end": 1736,
+          "sentence": "first, put the scoop back",
+          "start": 1691
+        },
+        {
+          "end": 1891,
+          "sentence": "first, close boba bin",
+          "start": 1737
+        },
+        {
+          "end": 2203,
+          "sentence": "first, place cup",
+          "start": 1892
+        },
+        {
+          "end": 2836,
+          "sentence": "first, press tap to fill cup",
+          "start": 2204
+        },
+        {
+          "end": 3131,
+          "sentence": "first, done",
+          "start": 2837
+        },
+        {
+          "end": 3330,
+          "sentence": "second, get cup",
+          "start": 3132
+        },
+        {
+          "end": 3589,
+          "sentence": "second, open bean bin",
+          "start": 3331
+        },
+        {
+          "end": 3776,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3590
+        },
+        {
+          "end": 3832,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3777
+        },
+        {
+          "end": 3875,
+          "sentence": "second, put the scoop back",
+          "start": 3833
+        },
+        {
+          "end": 4037,
+          "sentence": "second, close bean bin",
+          "start": 3876
+        },
+        {
+          "end": 4332,
+          "sentence": "second, place cup",
+          "start": 4038
+        },
+        {
+          "end": 4989,
+          "sentence": "second, press tap to fill cup",
+          "start": 4333
+        },
+        {
+          "end": 5090,
+          "sentence": "second, done",
+          "start": 4990
+        }
+      ]
+    },
+    "0911_boba/demo15": {
+      "class": "boba3_bean1",
+      "group": "demo15",
+      "num_frames": 4273,
+      "segments": [
+        {
+          "end": 143,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 227,
+          "sentence": "watch, boba middle bin",
+          "start": 144
+        },
+        {
+          "end": 384,
+          "sentence": "watch, bean right bin",
+          "start": 228
+        },
+        {
+          "end": 531,
+          "sentence": "first, get cup",
+          "start": 385
+        },
+        {
+          "end": 770,
+          "sentence": "first, open boba bin",
+          "start": 532
+        },
+        {
+          "end": 962,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 771
+        },
+        {
+          "end": 1057,
+          "sentence": "first, pour, 1 of 3",
+          "start": 963
+        },
+        {
+          "end": 1225,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1058
+        },
+        {
+          "end": 1342,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1226
+        },
+        {
+          "end": 1482,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1343
+        },
+        {
+          "end": 1559,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1483
+        },
+        {
+          "end": 1608,
+          "sentence": "first, put the scoop back",
+          "start": 1560
+        },
+        {
+          "end": 1746,
+          "sentence": "first, close boba bin",
+          "start": 1609
+        },
+        {
+          "end": 2026,
+          "sentence": "first, place cup",
+          "start": 1747
+        },
+        {
+          "end": 2373,
+          "sentence": "first, press tap to fill cup",
+          "start": 2027
+        },
+        {
+          "end": 2543,
+          "sentence": "first, done",
+          "start": 2374
+        },
+        {
+          "end": 2704,
+          "sentence": "second, get cup",
+          "start": 2544
+        },
+        {
+          "end": 2942,
+          "sentence": "second, open bean bin",
+          "start": 2705
+        },
+        {
+          "end": 3118,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2943
+        },
+        {
+          "end": 3178,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3119
+        },
+        {
+          "end": 3220,
+          "sentence": "second, put the scoop back",
+          "start": 3179
+        },
+        {
+          "end": 3343,
+          "sentence": "second, close bean bin",
+          "start": 3221
+        },
+        {
+          "end": 3699,
+          "sentence": "second, place cup",
+          "start": 3344
+        },
+        {
+          "end": 4181,
+          "sentence": "second, press tap to fill cup",
+          "start": 3700
+        },
+        {
+          "end": 4272,
+          "sentence": "second, done",
+          "start": 4182
+        }
+      ]
+    },
+    "0911_boba/demo16": {
+      "class": "boba3_bean1",
+      "group": "demo16",
+      "num_frames": 4663,
+      "segments": [
+        {
+          "end": 119,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 209,
+          "sentence": "watch, boba middle bin",
+          "start": 120
+        },
+        {
+          "end": 406,
+          "sentence": "watch, bean right bin",
+          "start": 210
+        },
+        {
+          "end": 534,
+          "sentence": "first, get cup",
+          "start": 407
+        },
+        {
+          "end": 782,
+          "sentence": "first, open boba bin",
+          "start": 535
+        },
+        {
+          "end": 991,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 783
+        },
+        {
+          "end": 1075,
+          "sentence": "first, pour, 1 of 3",
+          "start": 992
+        },
+        {
+          "end": 1206,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1076
+        },
+        {
+          "end": 1380,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1207
+        },
+        {
+          "end": 1503,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1381
+        },
+        {
+          "end": 1624,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1504
+        },
+        {
+          "end": 1683,
+          "sentence": "first, put the scoop back",
+          "start": 1625
+        },
+        {
+          "end": 1830,
+          "sentence": "first, close boba bin",
+          "start": 1684
+        },
+        {
+          "end": 2195,
+          "sentence": "first, place cup",
+          "start": 1831
+        },
+        {
+          "end": 2679,
+          "sentence": "first, press tap to fill cup",
+          "start": 2196
+        },
+        {
+          "end": 2880,
+          "sentence": "first, done",
+          "start": 2680
+        },
+        {
+          "end": 3039,
+          "sentence": "second, get cup",
+          "start": 2881
+        },
+        {
+          "end": 3285,
+          "sentence": "second, open bean bin",
+          "start": 3040
+        },
+        {
+          "end": 3425,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3286
+        },
+        {
+          "end": 3579,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3426
+        },
+        {
+          "end": 3643,
+          "sentence": "second, put the scoop back",
+          "start": 3580
+        },
+        {
+          "end": 3781,
+          "sentence": "second, close bean bin",
+          "start": 3644
+        },
+        {
+          "end": 4131,
+          "sentence": "second, place cup",
+          "start": 3782
+        },
+        {
+          "end": 4560,
+          "sentence": "second, press tap to fill cup",
+          "start": 4132
+        },
+        {
+          "end": 4662,
+          "sentence": "second, done",
+          "start": 4561
+        }
+      ]
+    },
+    "0911_boba/demo17": {
+      "class": "boba3_bean1",
+      "group": "demo17",
+      "num_frames": 4852,
+      "segments": [
+        {
+          "end": 125,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 218,
+          "sentence": "watch, boba middle bin",
+          "start": 126
+        },
+        {
+          "end": 393,
+          "sentence": "watch, bean right bin",
+          "start": 219
+        },
+        {
+          "end": 538,
+          "sentence": "first, get cup",
+          "start": 394
+        },
+        {
+          "end": 857,
+          "sentence": "first, open boba bin",
+          "start": 539
+        },
+        {
+          "end": 1068,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 858
+        },
+        {
+          "end": 1225,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1069
+        },
+        {
+          "end": 1350,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1226
+        },
+        {
+          "end": 1500,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1351
+        },
+        {
+          "end": 1627,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1501
+        },
+        {
+          "end": 1750,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1628
+        },
+        {
+          "end": 1792,
+          "sentence": "first, put the scoop back",
+          "start": 1751
+        },
+        {
+          "end": 1950,
+          "sentence": "first, close boba bin",
+          "start": 1793
+        },
+        {
+          "end": 2283,
+          "sentence": "first, place cup",
+          "start": 1951
+        },
+        {
+          "end": 2745,
+          "sentence": "first, press tap to fill cup",
+          "start": 2284
+        },
+        {
+          "end": 2924,
+          "sentence": "first, done",
+          "start": 2746
+        },
+        {
+          "end": 3154,
+          "sentence": "second, get cup",
+          "start": 2925
+        },
+        {
+          "end": 3455,
+          "sentence": "second, open bean bin",
+          "start": 3155
+        },
+        {
+          "end": 3664,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3456
+        },
+        {
+          "end": 3713,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3665
+        },
+        {
+          "end": 3755,
+          "sentence": "second, put the scoop back",
+          "start": 3714
+        },
+        {
+          "end": 3894,
+          "sentence": "second, close bean bin",
+          "start": 3756
+        },
+        {
+          "end": 4263,
+          "sentence": "second, place cup",
+          "start": 3895
+        },
+        {
+          "end": 4748,
+          "sentence": "second, press tap to fill cup",
+          "start": 4264
+        },
+        {
+          "end": 4851,
+          "sentence": "second, done",
+          "start": 4749
+        }
+      ]
+    },
+    "0911_boba/demo18": {
+      "class": "boba3_bean1",
+      "group": "demo18",
+      "num_frames": 4701,
+      "segments": [
+        {
+          "end": 125,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 212,
+          "sentence": "watch, boba middle bin",
+          "start": 126
+        },
+        {
+          "end": 351,
+          "sentence": "watch, bean right bin",
+          "start": 213
+        },
+        {
+          "end": 505,
+          "sentence": "first, get cup",
+          "start": 352
+        },
+        {
+          "end": 751,
+          "sentence": "first, open boba bin",
+          "start": 506
+        },
+        {
+          "end": 916,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 752
+        },
+        {
+          "end": 1063,
+          "sentence": "first, pour, 1 of 3",
+          "start": 917
+        },
+        {
+          "end": 1168,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1064
+        },
+        {
+          "end": 1367,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1169
+        },
+        {
+          "end": 1472,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1368
+        },
+        {
+          "end": 1631,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1473
+        },
+        {
+          "end": 1695,
+          "sentence": "first, put the scoop back",
+          "start": 1632
+        },
+        {
+          "end": 1867,
+          "sentence": "first, close boba bin",
+          "start": 1696
+        },
+        {
+          "end": 2201,
+          "sentence": "first, place cup",
+          "start": 1868
+        },
+        {
+          "end": 2612,
+          "sentence": "first, press tap to fill cup",
+          "start": 2202
+        },
+        {
+          "end": 2873,
+          "sentence": "first, done",
+          "start": 2613
+        },
+        {
+          "end": 3047,
+          "sentence": "second, get cup",
+          "start": 2874
+        },
+        {
+          "end": 3264,
+          "sentence": "second, open bean bin",
+          "start": 3048
+        },
+        {
+          "end": 3431,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3265
+        },
+        {
+          "end": 3478,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3432
+        },
+        {
+          "end": 3512,
+          "sentence": "second, put the scoop back",
+          "start": 3479
+        },
+        {
+          "end": 3642,
+          "sentence": "second, close bean bin",
+          "start": 3513
+        },
+        {
+          "end": 3998,
+          "sentence": "second, place cup",
+          "start": 3643
+        },
+        {
+          "end": 4569,
+          "sentence": "second, press tap to fill cup",
+          "start": 3999
+        },
+        {
+          "end": 4700,
+          "sentence": "second, done",
+          "start": 4570
+        }
+      ]
+    },
+    "0911_boba/demo19": {
+      "class": "boba3_bean1",
+      "group": "demo19",
+      "num_frames": 4752,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 218,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 389,
+          "sentence": "watch, bean right bin",
+          "start": 219
+        },
+        {
+          "end": 538,
+          "sentence": "first, get cup",
+          "start": 390
+        },
+        {
+          "end": 820,
+          "sentence": "first, open boba bin",
+          "start": 539
+        },
+        {
+          "end": 1035,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 821
+        },
+        {
+          "end": 1154,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1036
+        },
+        {
+          "end": 1288,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1155
+        },
+        {
+          "end": 1378,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1289
+        },
+        {
+          "end": 1499,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1379
+        },
+        {
+          "end": 1629,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1500
+        },
+        {
+          "end": 1681,
+          "sentence": "first, put the scoop back",
+          "start": 1630
+        },
+        {
+          "end": 1835,
+          "sentence": "first, close boba bin",
+          "start": 1682
+        },
+        {
+          "end": 2173,
+          "sentence": "first, place cup",
+          "start": 1836
+        },
+        {
+          "end": 2560,
+          "sentence": "first, press tap to fill cup",
+          "start": 2174
+        },
+        {
+          "end": 2784,
+          "sentence": "first, done",
+          "start": 2561
+        },
+        {
+          "end": 2922,
+          "sentence": "second, get cup",
+          "start": 2785
+        },
+        {
+          "end": 3166,
+          "sentence": "second, open bean bin",
+          "start": 2923
+        },
+        {
+          "end": 3340,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3167
+        },
+        {
+          "end": 3432,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3341
+        },
+        {
+          "end": 3471,
+          "sentence": "second, put the scoop back",
+          "start": 3433
+        },
+        {
+          "end": 3652,
+          "sentence": "second, close bean bin",
+          "start": 3472
+        },
+        {
+          "end": 4038,
+          "sentence": "second, place cup",
+          "start": 3653
+        },
+        {
+          "end": 4635,
+          "sentence": "second, press tap to fill cup",
+          "start": 4039
+        },
+        {
+          "end": 4751,
+          "sentence": "second, done",
+          "start": 4636
+        }
+      ]
+    },
+    "0911_boba/demo2": {
+      "class": "boba3_bean1",
+      "group": "demo2",
+      "num_frames": 5198,
+      "segments": [
+        {
+          "end": 143,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 281,
+          "sentence": "watch, boba middle bin",
+          "start": 144
+        },
+        {
+          "end": 489,
+          "sentence": "watch, bean right bin",
+          "start": 282
+        },
+        {
+          "end": 651,
+          "sentence": "first, get cup",
+          "start": 490
+        },
+        {
+          "end": 990,
+          "sentence": "first, open boba bin",
+          "start": 652
+        },
+        {
+          "end": 1226,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 991
+        },
+        {
+          "end": 1363,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1227
+        },
+        {
+          "end": 1539,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1364
+        },
+        {
+          "end": 1671,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1540
+        },
+        {
+          "end": 1834,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1672
+        },
+        {
+          "end": 1908,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1835
+        },
+        {
+          "end": 1966,
+          "sentence": "first, put the scoop back",
+          "start": 1909
+        },
+        {
+          "end": 2139,
+          "sentence": "first, close boba bin",
+          "start": 1967
+        },
+        {
+          "end": 2533,
+          "sentence": "first, place cup",
+          "start": 2140
+        },
+        {
+          "end": 2991,
+          "sentence": "first, press tap to fill cup",
+          "start": 2534
+        },
+        {
+          "end": 3237,
+          "sentence": "first, done",
+          "start": 2992
+        },
+        {
+          "end": 3445,
+          "sentence": "second, get cup",
+          "start": 3238
+        },
+        {
+          "end": 3722,
+          "sentence": "second, open bean bin",
+          "start": 3446
+        },
+        {
+          "end": 3943,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3723
+        },
+        {
+          "end": 3968,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3944
+        },
+        {
+          "end": 4013,
+          "sentence": "second, put the scoop back",
+          "start": 3969
+        },
+        {
+          "end": 4166,
+          "sentence": "second, close bean bin",
+          "start": 4014
+        },
+        {
+          "end": 4482,
+          "sentence": "second, place cup",
+          "start": 4167
+        },
+        {
+          "end": 5088,
+          "sentence": "second, press tap to fill cup",
+          "start": 4483
+        },
+        {
+          "end": 5197,
+          "sentence": "second, done",
+          "start": 5089
+        }
+      ]
+    },
+    "0911_boba/demo21": {
+      "class": "boba3_bean1",
+      "group": "demo21",
+      "num_frames": 4586,
+      "segments": [
+        {
+          "end": 131,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 218,
+          "sentence": "watch, boba middle bin",
+          "start": 132
+        },
+        {
+          "end": 375,
+          "sentence": "watch, bean right bin",
+          "start": 219
+        },
+        {
+          "end": 535,
+          "sentence": "first, get cup",
+          "start": 376
+        },
+        {
+          "end": 796,
+          "sentence": "first, open boba bin",
+          "start": 536
+        },
+        {
+          "end": 968,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 797
+        },
+        {
+          "end": 1094,
+          "sentence": "first, pour, 1 of 3",
+          "start": 969
+        },
+        {
+          "end": 1210,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1095
+        },
+        {
+          "end": 1375,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1211
+        },
+        {
+          "end": 1499,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1376
+        },
+        {
+          "end": 1544,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1500
+        },
+        {
+          "end": 1590,
+          "sentence": "first, put the scoop back",
+          "start": 1545
+        },
+        {
+          "end": 1728,
+          "sentence": "first, close boba bin",
+          "start": 1591
+        },
+        {
+          "end": 2022,
+          "sentence": "first, place cup",
+          "start": 1729
+        },
+        {
+          "end": 2426,
+          "sentence": "first, press tap to fill cup",
+          "start": 2023
+        },
+        {
+          "end": 2760,
+          "sentence": "first, done",
+          "start": 2427
+        },
+        {
+          "end": 2912,
+          "sentence": "second, get cup",
+          "start": 2761
+        },
+        {
+          "end": 3168,
+          "sentence": "second, open bean bin",
+          "start": 2913
+        },
+        {
+          "end": 3315,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3169
+        },
+        {
+          "end": 3366,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3316
+        },
+        {
+          "end": 3403,
+          "sentence": "second, put the scoop back",
+          "start": 3367
+        },
+        {
+          "end": 3560,
+          "sentence": "second, close bean bin",
+          "start": 3404
+        },
+        {
+          "end": 4076,
+          "sentence": "second, place cup",
+          "start": 3561
+        },
+        {
+          "end": 4474,
+          "sentence": "second, press tap to fill cup",
+          "start": 4077
+        },
+        {
+          "end": 4585,
+          "sentence": "second, done",
+          "start": 4475
+        }
+      ]
+    },
+    "0911_boba/demo22": {
+      "class": "boba3_bean1",
+      "group": "demo22",
+      "num_frames": 4720,
+      "segments": [
+        {
+          "end": 161,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 248,
+          "sentence": "watch, boba middle bin",
+          "start": 162
+        },
+        {
+          "end": 411,
+          "sentence": "watch, bean right bin",
+          "start": 249
+        },
+        {
+          "end": 564,
+          "sentence": "first, get cup",
+          "start": 412
+        },
+        {
+          "end": 851,
+          "sentence": "first, open boba bin",
+          "start": 565
+        },
+        {
+          "end": 1051,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 852
+        },
+        {
+          "end": 1160,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1052
+        },
+        {
+          "end": 1346,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1161
+        },
+        {
+          "end": 1427,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1347
+        },
+        {
+          "end": 1533,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1428
+        },
+        {
+          "end": 1599,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1534
+        },
+        {
+          "end": 1641,
+          "sentence": "first, put the scoop back",
+          "start": 1600
+        },
+        {
+          "end": 1775,
+          "sentence": "first, close boba bin",
+          "start": 1642
+        },
+        {
+          "end": 2052,
+          "sentence": "first, place cup",
+          "start": 1776
+        },
+        {
+          "end": 2709,
+          "sentence": "first, press tap to fill cup",
+          "start": 2053
+        },
+        {
+          "end": 2905,
+          "sentence": "first, done",
+          "start": 2710
+        },
+        {
+          "end": 3071,
+          "sentence": "second, get cup",
+          "start": 2906
+        },
+        {
+          "end": 3305,
+          "sentence": "second, open bean bin",
+          "start": 3072
+        },
+        {
+          "end": 3495,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3306
+        },
+        {
+          "end": 3560,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3496
+        },
+        {
+          "end": 3595,
+          "sentence": "second, put the scoop back",
+          "start": 3561
+        },
+        {
+          "end": 3725,
+          "sentence": "second, close bean bin",
+          "start": 3596
+        },
+        {
+          "end": 4086,
+          "sentence": "second, place cup",
+          "start": 3726
+        },
+        {
+          "end": 4618,
+          "sentence": "second, press tap to fill cup",
+          "start": 4087
+        },
+        {
+          "end": 4719,
+          "sentence": "second, done",
+          "start": 4619
+        }
+      ]
+    },
+    "0911_boba/demo23": {
+      "class": "boba3_bean1",
+      "group": "demo23",
+      "num_frames": 4635,
+      "segments": [
+        {
+          "end": 155,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 239,
+          "sentence": "watch, boba middle bin",
+          "start": 156
+        },
+        {
+          "end": 423,
+          "sentence": "watch, bean right bin",
+          "start": 240
+        },
+        {
+          "end": 587,
+          "sentence": "first, get cup",
+          "start": 424
+        },
+        {
+          "end": 875,
+          "sentence": "first, open boba bin",
+          "start": 588
+        },
+        {
+          "end": 1130,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 876
+        },
+        {
+          "end": 1222,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1131
+        },
+        {
+          "end": 1371,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1223
+        },
+        {
+          "end": 1499,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1372
+        },
+        {
+          "end": 1653,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1500
+        },
+        {
+          "end": 1708,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1654
+        },
+        {
+          "end": 1759,
+          "sentence": "first, put the scoop back",
+          "start": 1709
+        },
+        {
+          "end": 1905,
+          "sentence": "first, close boba bin",
+          "start": 1760
+        },
+        {
+          "end": 2190,
+          "sentence": "first, place cup",
+          "start": 1906
+        },
+        {
+          "end": 2620,
+          "sentence": "first, press tap to fill cup",
+          "start": 2191
+        },
+        {
+          "end": 2851,
+          "sentence": "first, done",
+          "start": 2621
+        },
+        {
+          "end": 3025,
+          "sentence": "second, get cup",
+          "start": 2852
+        },
+        {
+          "end": 3301,
+          "sentence": "second, open bean bin",
+          "start": 3026
+        },
+        {
+          "end": 3498,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3302
+        },
+        {
+          "end": 3544,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3499
+        },
+        {
+          "end": 3588,
+          "sentence": "second, put the scoop back",
+          "start": 3545
+        },
+        {
+          "end": 3738,
+          "sentence": "second, close bean bin",
+          "start": 3589
+        },
+        {
+          "end": 4043,
+          "sentence": "second, place cup",
+          "start": 3739
+        },
+        {
+          "end": 4547,
+          "sentence": "second, press tap to fill cup",
+          "start": 4044
+        },
+        {
+          "end": 4634,
+          "sentence": "second, done",
+          "start": 4548
+        }
+      ]
+    },
+    "0911_boba/demo24": {
+      "class": "boba3_bean1",
+      "group": "demo24",
+      "num_frames": 4706,
+      "segments": [
+        {
+          "end": 137,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 245,
+          "sentence": "watch, boba middle bin",
+          "start": 138
+        },
+        {
+          "end": 458,
+          "sentence": "watch, bean right bin",
+          "start": 246
+        },
+        {
+          "end": 609,
+          "sentence": "first, get cup",
+          "start": 459
+        },
+        {
+          "end": 923,
+          "sentence": "first, open boba bin",
+          "start": 610
+        },
+        {
+          "end": 1123,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 924
+        },
+        {
+          "end": 1204,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1124
+        },
+        {
+          "end": 1299,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1205
+        },
+        {
+          "end": 1392,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1300
+        },
+        {
+          "end": 1597,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1393
+        },
+        {
+          "end": 1641,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1598
+        },
+        {
+          "end": 1682,
+          "sentence": "first, put the scoop back",
+          "start": 1642
+        },
+        {
+          "end": 1871,
+          "sentence": "first, close boba bin",
+          "start": 1683
+        },
+        {
+          "end": 2173,
+          "sentence": "first, place cup",
+          "start": 1872
+        },
+        {
+          "end": 2652,
+          "sentence": "first, press tap to fill cup",
+          "start": 2174
+        },
+        {
+          "end": 2869,
+          "sentence": "first, done",
+          "start": 2653
+        },
+        {
+          "end": 3019,
+          "sentence": "second, get cup",
+          "start": 2870
+        },
+        {
+          "end": 3270,
+          "sentence": "second, open bean bin",
+          "start": 3020
+        },
+        {
+          "end": 3449,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3271
+        },
+        {
+          "end": 3496,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3450
+        },
+        {
+          "end": 3535,
+          "sentence": "second, put the scoop back",
+          "start": 3497
+        },
+        {
+          "end": 3790,
+          "sentence": "second, close bean bin",
+          "start": 3536
+        },
+        {
+          "end": 4096,
+          "sentence": "second, place cup",
+          "start": 3791
+        },
+        {
+          "end": 4588,
+          "sentence": "second, press tap to fill cup",
+          "start": 4097
+        },
+        {
+          "end": 4705,
+          "sentence": "second, done",
+          "start": 4589
+        }
+      ]
+    },
+    "0911_boba/demo25": {
+      "class": "boba3_bean1",
+      "group": "demo25",
+      "num_frames": 4550,
+      "segments": [
+        {
+          "end": 128,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 245,
+          "sentence": "watch, boba middle bin",
+          "start": 129
+        },
+        {
+          "end": 425,
+          "sentence": "watch, bean right bin",
+          "start": 246
+        },
+        {
+          "end": 577,
+          "sentence": "first, get cup",
+          "start": 426
+        },
+        {
+          "end": 834,
+          "sentence": "first, open boba bin",
+          "start": 578
+        },
+        {
+          "end": 1030,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 835
+        },
+        {
+          "end": 1161,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1031
+        },
+        {
+          "end": 1261,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1162
+        },
+        {
+          "end": 1393,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1262
+        },
+        {
+          "end": 1501,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1394
+        },
+        {
+          "end": 1642,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1502
+        },
+        {
+          "end": 1695,
+          "sentence": "first, put the scoop back",
+          "start": 1643
+        },
+        {
+          "end": 1853,
+          "sentence": "first, close boba bin",
+          "start": 1696
+        },
+        {
+          "end": 2146,
+          "sentence": "first, place cup",
+          "start": 1854
+        },
+        {
+          "end": 2514,
+          "sentence": "first, press tap to fill cup",
+          "start": 2147
+        },
+        {
+          "end": 2732,
+          "sentence": "first, done",
+          "start": 2515
+        },
+        {
+          "end": 2922,
+          "sentence": "second, get cup",
+          "start": 2733
+        },
+        {
+          "end": 3183,
+          "sentence": "second, open bean bin",
+          "start": 2923
+        },
+        {
+          "end": 3367,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3184
+        },
+        {
+          "end": 3418,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3368
+        },
+        {
+          "end": 3456,
+          "sentence": "second, put the scoop back",
+          "start": 3419
+        },
+        {
+          "end": 3622,
+          "sentence": "second, close bean bin",
+          "start": 3457
+        },
+        {
+          "end": 3945,
+          "sentence": "second, place cup",
+          "start": 3623
+        },
+        {
+          "end": 4437,
+          "sentence": "second, press tap to fill cup",
+          "start": 3946
+        },
+        {
+          "end": 4549,
+          "sentence": "second, done",
+          "start": 4438
+        }
+      ]
+    },
+    "0911_boba/demo26": {
+      "class": "boba3_bean1",
+      "group": "demo26",
+      "num_frames": 4659,
+      "segments": [
+        {
+          "end": 137,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 221,
+          "sentence": "watch, boba middle bin",
+          "start": 138
+        },
+        {
+          "end": 396,
+          "sentence": "watch, bean right bin",
+          "start": 222
+        },
+        {
+          "end": 535,
+          "sentence": "first, get cup",
+          "start": 397
+        },
+        {
+          "end": 787,
+          "sentence": "first, open boba bin",
+          "start": 536
+        },
+        {
+          "end": 980,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 788
+        },
+        {
+          "end": 1118,
+          "sentence": "first, pour, 1 of 3",
+          "start": 981
+        },
+        {
+          "end": 1219,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1119
+        },
+        {
+          "end": 1341,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1220
+        },
+        {
+          "end": 1455,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1342
+        },
+        {
+          "end": 1564,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1456
+        },
+        {
+          "end": 1611,
+          "sentence": "first, put the scoop back",
+          "start": 1565
+        },
+        {
+          "end": 1791,
+          "sentence": "first, close boba bin",
+          "start": 1612
+        },
+        {
+          "end": 2130,
+          "sentence": "first, place cup",
+          "start": 1792
+        },
+        {
+          "end": 2506,
+          "sentence": "first, press tap to fill cup",
+          "start": 2131
+        },
+        {
+          "end": 2739,
+          "sentence": "first, done",
+          "start": 2507
+        },
+        {
+          "end": 2895,
+          "sentence": "second, get cup",
+          "start": 2740
+        },
+        {
+          "end": 3149,
+          "sentence": "second, open bean bin",
+          "start": 2896
+        },
+        {
+          "end": 3336,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3150
+        },
+        {
+          "end": 3389,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3337
+        },
+        {
+          "end": 3430,
+          "sentence": "second, put the scoop back",
+          "start": 3390
+        },
+        {
+          "end": 3602,
+          "sentence": "second, close bean bin",
+          "start": 3431
+        },
+        {
+          "end": 3936,
+          "sentence": "second, place cup",
+          "start": 3603
+        },
+        {
+          "end": 4567,
+          "sentence": "second, press tap to fill cup",
+          "start": 3937
+        },
+        {
+          "end": 4658,
+          "sentence": "second, done",
+          "start": 4568
+        }
+      ]
+    },
+    "0911_boba/demo27": {
+      "class": "boba3_bean1",
+      "group": "demo27",
+      "num_frames": 4393,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 245,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 406,
+          "sentence": "watch, bean right bin",
+          "start": 246
+        },
+        {
+          "end": 552,
+          "sentence": "first, get cup",
+          "start": 407
+        },
+        {
+          "end": 832,
+          "sentence": "first, open boba bin",
+          "start": 553
+        },
+        {
+          "end": 999,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 833
+        },
+        {
+          "end": 1118,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1000
+        },
+        {
+          "end": 1211,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1119
+        },
+        {
+          "end": 1330,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1212
+        },
+        {
+          "end": 1434,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1331
+        },
+        {
+          "end": 1494,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1435
+        },
+        {
+          "end": 1542,
+          "sentence": "first, put the scoop back",
+          "start": 1495
+        },
+        {
+          "end": 1884,
+          "sentence": "first, close boba bin",
+          "start": 1543
+        },
+        {
+          "end": 2208,
+          "sentence": "first, place cup",
+          "start": 1885
+        },
+        {
+          "end": 2621,
+          "sentence": "first, press tap to fill cup",
+          "start": 2209
+        },
+        {
+          "end": 2788,
+          "sentence": "first, done",
+          "start": 2622
+        },
+        {
+          "end": 2924,
+          "sentence": "second, get cup",
+          "start": 2789
+        },
+        {
+          "end": 3160,
+          "sentence": "second, open bean bin",
+          "start": 2925
+        },
+        {
+          "end": 3323,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3161
+        },
+        {
+          "end": 3374,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3324
+        },
+        {
+          "end": 3424,
+          "sentence": "second, put the scoop back",
+          "start": 3375
+        },
+        {
+          "end": 3563,
+          "sentence": "second, close bean bin",
+          "start": 3425
+        },
+        {
+          "end": 3872,
+          "sentence": "second, place cup",
+          "start": 3564
+        },
+        {
+          "end": 4300,
+          "sentence": "second, press tap to fill cup",
+          "start": 3873
+        },
+        {
+          "end": 4392,
+          "sentence": "second, done",
+          "start": 4301
+        }
+      ]
+    },
+    "0911_boba/demo28": {
+      "class": "boba3_bean1",
+      "group": "demo28",
+      "num_frames": 4120,
+      "segments": [
+        {
+          "end": 119,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 212,
+          "sentence": "watch, boba middle bin",
+          "start": 120
+        },
+        {
+          "end": 347,
+          "sentence": "watch, bean right bin",
+          "start": 213
+        },
+        {
+          "end": 504,
+          "sentence": "first, get cup",
+          "start": 348
+        },
+        {
+          "end": 783,
+          "sentence": "first, open boba bin",
+          "start": 505
+        },
+        {
+          "end": 990,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 784
+        },
+        {
+          "end": 1088,
+          "sentence": "first, pour, 1 of 3",
+          "start": 991
+        },
+        {
+          "end": 1214,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1089
+        },
+        {
+          "end": 1358,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1215
+        },
+        {
+          "end": 1475,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1359
+        },
+        {
+          "end": 1539,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1476
+        },
+        {
+          "end": 1575,
+          "sentence": "first, put the scoop back",
+          "start": 1540
+        },
+        {
+          "end": 1714,
+          "sentence": "first, close boba bin",
+          "start": 1576
+        },
+        {
+          "end": 2043,
+          "sentence": "first, place cup",
+          "start": 1715
+        },
+        {
+          "end": 2391,
+          "sentence": "first, press tap to fill cup",
+          "start": 2044
+        },
+        {
+          "end": 2597,
+          "sentence": "first, done",
+          "start": 2392
+        },
+        {
+          "end": 2742,
+          "sentence": "second, get cup",
+          "start": 2598
+        },
+        {
+          "end": 2983,
+          "sentence": "second, open bean bin",
+          "start": 2743
+        },
+        {
+          "end": 3172,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2984
+        },
+        {
+          "end": 3222,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3173
+        },
+        {
+          "end": 3261,
+          "sentence": "second, put the scoop back",
+          "start": 3223
+        },
+        {
+          "end": 3379,
+          "sentence": "second, close bean bin",
+          "start": 3262
+        },
+        {
+          "end": 3658,
+          "sentence": "second, place cup",
+          "start": 3380
+        },
+        {
+          "end": 4044,
+          "sentence": "second, press tap to fill cup",
+          "start": 3659
+        },
+        {
+          "end": 4119,
+          "sentence": "second, done",
+          "start": 4045
+        }
+      ]
+    },
+    "0911_boba/demo29": {
+      "class": "boba3_bean1",
+      "group": "demo29",
+      "num_frames": 4778,
+      "segments": [
+        {
+          "end": 146,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 224,
+          "sentence": "watch, boba middle bin",
+          "start": 147
+        },
+        {
+          "end": 428,
+          "sentence": "watch, bean right bin",
+          "start": 225
+        },
+        {
+          "end": 581,
+          "sentence": "first, get cup",
+          "start": 429
+        },
+        {
+          "end": 878,
+          "sentence": "first, open boba bin",
+          "start": 582
+        },
+        {
+          "end": 1094,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 879
+        },
+        {
+          "end": 1219,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1095
+        },
+        {
+          "end": 1338,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1220
+        },
+        {
+          "end": 1466,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1339
+        },
+        {
+          "end": 1648,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1467
+        },
+        {
+          "end": 1746,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1649
+        },
+        {
+          "end": 1800,
+          "sentence": "first, put the scoop back",
+          "start": 1747
+        },
+        {
+          "end": 1978,
+          "sentence": "first, close boba bin",
+          "start": 1801
+        },
+        {
+          "end": 2613,
+          "sentence": "first, place cup",
+          "start": 1979
+        },
+        {
+          "end": 3000,
+          "sentence": "first, press tap to fill cup",
+          "start": 2614
+        },
+        {
+          "end": 3202,
+          "sentence": "first, done",
+          "start": 3001
+        },
+        {
+          "end": 3363,
+          "sentence": "second, get cup",
+          "start": 3203
+        },
+        {
+          "end": 3600,
+          "sentence": "second, open bean bin",
+          "start": 3364
+        },
+        {
+          "end": 3770,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3601
+        },
+        {
+          "end": 3823,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3771
+        },
+        {
+          "end": 3859,
+          "sentence": "second, put the scoop back",
+          "start": 3824
+        },
+        {
+          "end": 3994,
+          "sentence": "second, close bean bin",
+          "start": 3860
+        },
+        {
+          "end": 4294,
+          "sentence": "second, place cup",
+          "start": 3995
+        },
+        {
+          "end": 4672,
+          "sentence": "second, press tap to fill cup",
+          "start": 4295
+        },
+        {
+          "end": 4777,
+          "sentence": "second, done",
+          "start": 4673
+        }
+      ]
+    },
+    "0911_boba/demo3": {
+      "class": "boba3_bean1",
+      "group": "demo3",
+      "num_frames": 5200,
+      "segments": [
+        {
+          "end": 155,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 284,
+          "sentence": "watch, boba middle bin",
+          "start": 156
+        },
+        {
+          "end": 470,
+          "sentence": "watch, bean right bin",
+          "start": 285
+        },
+        {
+          "end": 654,
+          "sentence": "first, get cup",
+          "start": 471
+        },
+        {
+          "end": 955,
+          "sentence": "first, open boba bin",
+          "start": 655
+        },
+        {
+          "end": 1207,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 956
+        },
+        {
+          "end": 1308,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1208
+        },
+        {
+          "end": 1447,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1309
+        },
+        {
+          "end": 1578,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1448
+        },
+        {
+          "end": 1793,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1579
+        },
+        {
+          "end": 1869,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1794
+        },
+        {
+          "end": 1919,
+          "sentence": "first, put the scoop back",
+          "start": 1870
+        },
+        {
+          "end": 2125,
+          "sentence": "first, close boba bin",
+          "start": 1920
+        },
+        {
+          "end": 2452,
+          "sentence": "first, place cup",
+          "start": 2126
+        },
+        {
+          "end": 2894,
+          "sentence": "first, press tap to fill cup",
+          "start": 2453
+        },
+        {
+          "end": 3323,
+          "sentence": "first, done",
+          "start": 2895
+        },
+        {
+          "end": 3503,
+          "sentence": "second, get cup",
+          "start": 3324
+        },
+        {
+          "end": 3756,
+          "sentence": "second, open bean bin",
+          "start": 3504
+        },
+        {
+          "end": 3977,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3757
+        },
+        {
+          "end": 4029,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3978
+        },
+        {
+          "end": 4081,
+          "sentence": "second, put the scoop back",
+          "start": 4030
+        },
+        {
+          "end": 4242,
+          "sentence": "second, close bean bin",
+          "start": 4082
+        },
+        {
+          "end": 4617,
+          "sentence": "second, place cup",
+          "start": 4243
+        },
+        {
+          "end": 5092,
+          "sentence": "second, press tap to fill cup",
+          "start": 4618
+        },
+        {
+          "end": 5199,
+          "sentence": "second, done",
+          "start": 5093
+        }
+      ]
+    },
+    "0911_boba/demo30": {
+      "class": "boba3_bean1",
+      "group": "demo30",
+      "num_frames": 4508,
+      "segments": [
+        {
+          "end": 122,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 221,
+          "sentence": "watch, boba middle bin",
+          "start": 123
+        },
+        {
+          "end": 398,
+          "sentence": "watch, bean right bin",
+          "start": 222
+        },
+        {
+          "end": 545,
+          "sentence": "first, get cup",
+          "start": 399
+        },
+        {
+          "end": 870,
+          "sentence": "first, open boba bin",
+          "start": 546
+        },
+        {
+          "end": 1084,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 871
+        },
+        {
+          "end": 1214,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1085
+        },
+        {
+          "end": 1319,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1215
+        },
+        {
+          "end": 1428,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1320
+        },
+        {
+          "end": 1550,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1429
+        },
+        {
+          "end": 1604,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1551
+        },
+        {
+          "end": 1664,
+          "sentence": "first, put the scoop back",
+          "start": 1605
+        },
+        {
+          "end": 1814,
+          "sentence": "first, close boba bin",
+          "start": 1665
+        },
+        {
+          "end": 2140,
+          "sentence": "first, place cup",
+          "start": 1815
+        },
+        {
+          "end": 2514,
+          "sentence": "first, press tap to fill cup",
+          "start": 2141
+        },
+        {
+          "end": 2726,
+          "sentence": "first, done",
+          "start": 2515
+        },
+        {
+          "end": 2923,
+          "sentence": "second, get cup",
+          "start": 2727
+        },
+        {
+          "end": 3184,
+          "sentence": "second, open bean bin",
+          "start": 2924
+        },
+        {
+          "end": 3367,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3185
+        },
+        {
+          "end": 3422,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3368
+        },
+        {
+          "end": 3463,
+          "sentence": "second, put the scoop back",
+          "start": 3423
+        },
+        {
+          "end": 3597,
+          "sentence": "second, close bean bin",
+          "start": 3464
+        },
+        {
+          "end": 3940,
+          "sentence": "second, place cup",
+          "start": 3598
+        },
+        {
+          "end": 4424,
+          "sentence": "second, press tap to fill cup",
+          "start": 3941
+        },
+        {
+          "end": 4507,
+          "sentence": "second, done",
+          "start": 4425
+        }
+      ]
+    },
+    "0911_boba/demo31": {
+      "class": "boba3_bean1",
+      "group": "demo31",
+      "num_frames": 4627,
+      "segments": [
+        {
+          "end": 134,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 233,
+          "sentence": "watch, boba middle bin",
+          "start": 135
+        },
+        {
+          "end": 399,
+          "sentence": "watch, bean right bin",
+          "start": 234
+        },
+        {
+          "end": 552,
+          "sentence": "first, get cup",
+          "start": 400
+        },
+        {
+          "end": 826,
+          "sentence": "first, open boba bin",
+          "start": 553
+        },
+        {
+          "end": 1051,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 827
+        },
+        {
+          "end": 1151,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1052
+        },
+        {
+          "end": 1286,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1152
+        },
+        {
+          "end": 1396,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1287
+        },
+        {
+          "end": 1575,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1397
+        },
+        {
+          "end": 1678,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1576
+        },
+        {
+          "end": 1743,
+          "sentence": "first, put the scoop back",
+          "start": 1679
+        },
+        {
+          "end": 1874,
+          "sentence": "first, close boba bin",
+          "start": 1744
+        },
+        {
+          "end": 2155,
+          "sentence": "first, place cup",
+          "start": 1875
+        },
+        {
+          "end": 2637,
+          "sentence": "first, press tap to fill cup",
+          "start": 2156
+        },
+        {
+          "end": 2831,
+          "sentence": "first, done",
+          "start": 2638
+        },
+        {
+          "end": 3000,
+          "sentence": "second, get cup",
+          "start": 2832
+        },
+        {
+          "end": 3245,
+          "sentence": "second, open bean bin",
+          "start": 3001
+        },
+        {
+          "end": 3441,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3246
+        },
+        {
+          "end": 3489,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3442
+        },
+        {
+          "end": 3537,
+          "sentence": "second, put the scoop back",
+          "start": 3490
+        },
+        {
+          "end": 3676,
+          "sentence": "second, close bean bin",
+          "start": 3538
+        },
+        {
+          "end": 3994,
+          "sentence": "second, place cup",
+          "start": 3677
+        },
+        {
+          "end": 4473,
+          "sentence": "second, press tap to fill cup",
+          "start": 3995
+        },
+        {
+          "end": 4626,
+          "sentence": "second, done",
+          "start": 4474
+        }
+      ]
+    },
+    "0911_boba/demo32": {
+      "class": "boba3_bean1",
+      "group": "demo32",
+      "num_frames": 4580,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 233,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 411,
+          "sentence": "watch, bean right bin",
+          "start": 234
+        },
+        {
+          "end": 579,
+          "sentence": "first, get cup",
+          "start": 412
+        },
+        {
+          "end": 837,
+          "sentence": "first, open boba bin",
+          "start": 580
+        },
+        {
+          "end": 1026,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 838
+        },
+        {
+          "end": 1114,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1027
+        },
+        {
+          "end": 1244,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1115
+        },
+        {
+          "end": 1341,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1245
+        },
+        {
+          "end": 1444,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1342
+        },
+        {
+          "end": 1502,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1445
+        },
+        {
+          "end": 1552,
+          "sentence": "first, put the scoop back",
+          "start": 1503
+        },
+        {
+          "end": 1725,
+          "sentence": "first, close boba bin",
+          "start": 1553
+        },
+        {
+          "end": 2083,
+          "sentence": "first, place cup",
+          "start": 1726
+        },
+        {
+          "end": 2688,
+          "sentence": "first, press tap to fill cup",
+          "start": 2084
+        },
+        {
+          "end": 2898,
+          "sentence": "first, done",
+          "start": 2689
+        },
+        {
+          "end": 3059,
+          "sentence": "second, get cup",
+          "start": 2899
+        },
+        {
+          "end": 3315,
+          "sentence": "second, open bean bin",
+          "start": 3060
+        },
+        {
+          "end": 3463,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3316
+        },
+        {
+          "end": 3536,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3464
+        },
+        {
+          "end": 3578,
+          "sentence": "second, put the scoop back",
+          "start": 3537
+        },
+        {
+          "end": 3708,
+          "sentence": "second, close bean bin",
+          "start": 3579
+        },
+        {
+          "end": 4031,
+          "sentence": "second, place cup",
+          "start": 3709
+        },
+        {
+          "end": 4487,
+          "sentence": "second, press tap to fill cup",
+          "start": 4032
+        },
+        {
+          "end": 4579,
+          "sentence": "second, done",
+          "start": 4488
+        }
+      ]
+    },
+    "0911_boba/demo33": {
+      "class": "boba3_bean1",
+      "group": "demo33",
+      "num_frames": 4213,
+      "segments": [
+        {
+          "end": 98,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 176,
+          "sentence": "watch, boba middle bin",
+          "start": 99
+        },
+        {
+          "end": 353,
+          "sentence": "watch, bean right bin",
+          "start": 177
+        },
+        {
+          "end": 491,
+          "sentence": "first, get cup",
+          "start": 354
+        },
+        {
+          "end": 725,
+          "sentence": "first, open boba bin",
+          "start": 492
+        },
+        {
+          "end": 912,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 726
+        },
+        {
+          "end": 1022,
+          "sentence": "first, pour, 1 of 3",
+          "start": 913
+        },
+        {
+          "end": 1125,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1023
+        },
+        {
+          "end": 1233,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1126
+        },
+        {
+          "end": 1313,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1234
+        },
+        {
+          "end": 1394,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1314
+        },
+        {
+          "end": 1436,
+          "sentence": "first, put the scoop back",
+          "start": 1395
+        },
+        {
+          "end": 1580,
+          "sentence": "first, close boba bin",
+          "start": 1437
+        },
+        {
+          "end": 1910,
+          "sentence": "first, place cup",
+          "start": 1581
+        },
+        {
+          "end": 2314,
+          "sentence": "first, press tap to fill cup",
+          "start": 1911
+        },
+        {
+          "end": 2515,
+          "sentence": "first, done",
+          "start": 2315
+        },
+        {
+          "end": 2681,
+          "sentence": "second, get cup",
+          "start": 2516
+        },
+        {
+          "end": 2917,
+          "sentence": "second, open bean bin",
+          "start": 2682
+        },
+        {
+          "end": 3109,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2918
+        },
+        {
+          "end": 3170,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3110
+        },
+        {
+          "end": 3208,
+          "sentence": "second, put the scoop back",
+          "start": 3171
+        },
+        {
+          "end": 3344,
+          "sentence": "second, close bean bin",
+          "start": 3209
+        },
+        {
+          "end": 3658,
+          "sentence": "second, place cup",
+          "start": 3345
+        },
+        {
+          "end": 4093,
+          "sentence": "second, press tap to fill cup",
+          "start": 3659
+        },
+        {
+          "end": 4212,
+          "sentence": "second, done",
+          "start": 4094
+        }
+      ]
+    },
+    "0911_boba/demo34": {
+      "class": "boba3_bean1",
+      "group": "demo34",
+      "num_frames": 4674,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 245,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 491,
+          "sentence": "watch, bean right bin",
+          "start": 246
+        },
+        {
+          "end": 637,
+          "sentence": "first, get cup",
+          "start": 492
+        },
+        {
+          "end": 900,
+          "sentence": "first, open boba bin",
+          "start": 638
+        },
+        {
+          "end": 1053,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 901
+        },
+        {
+          "end": 1210,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1054
+        },
+        {
+          "end": 1352,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1211
+        },
+        {
+          "end": 1485,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1353
+        },
+        {
+          "end": 1630,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1486
+        },
+        {
+          "end": 1741,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1631
+        },
+        {
+          "end": 1804,
+          "sentence": "first, put the scoop back",
+          "start": 1742
+        },
+        {
+          "end": 1937,
+          "sentence": "first, close boba bin",
+          "start": 1805
+        },
+        {
+          "end": 2229,
+          "sentence": "first, place cup",
+          "start": 1938
+        },
+        {
+          "end": 2660,
+          "sentence": "first, press tap to fill cup",
+          "start": 2230
+        },
+        {
+          "end": 2897,
+          "sentence": "first, done",
+          "start": 2661
+        },
+        {
+          "end": 3059,
+          "sentence": "second, get cup",
+          "start": 2898
+        },
+        {
+          "end": 3288,
+          "sentence": "second, open bean bin",
+          "start": 3060
+        },
+        {
+          "end": 3494,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3289
+        },
+        {
+          "end": 3539,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3495
+        },
+        {
+          "end": 3571,
+          "sentence": "second, put the scoop back",
+          "start": 3540
+        },
+        {
+          "end": 3685,
+          "sentence": "second, close bean bin",
+          "start": 3572
+        },
+        {
+          "end": 3995,
+          "sentence": "second, place cup",
+          "start": 3686
+        },
+        {
+          "end": 4566,
+          "sentence": "second, press tap to fill cup",
+          "start": 3996
+        },
+        {
+          "end": 4673,
+          "sentence": "second, done",
+          "start": 4567
+        }
+      ]
+    },
+    "0911_boba/demo35": {
+      "class": "boba3_bean1",
+      "group": "demo35",
+      "num_frames": 4960,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 272,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 438,
+          "sentence": "watch, bean right bin",
+          "start": 273
+        },
+        {
+          "end": 587,
+          "sentence": "first, get cup",
+          "start": 439
+        },
+        {
+          "end": 858,
+          "sentence": "first, open boba bin",
+          "start": 588
+        },
+        {
+          "end": 1139,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 859
+        },
+        {
+          "end": 1289,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1140
+        },
+        {
+          "end": 1428,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1290
+        },
+        {
+          "end": 1606,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1429
+        },
+        {
+          "end": 1743,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1607
+        },
+        {
+          "end": 1811,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1744
+        },
+        {
+          "end": 1863,
+          "sentence": "first, put the scoop back",
+          "start": 1812
+        },
+        {
+          "end": 1996,
+          "sentence": "first, close boba bin",
+          "start": 1864
+        },
+        {
+          "end": 2341,
+          "sentence": "first, place cup",
+          "start": 1997
+        },
+        {
+          "end": 3058,
+          "sentence": "first, press tap to fill cup",
+          "start": 2342
+        },
+        {
+          "end": 3266,
+          "sentence": "first, done",
+          "start": 3059
+        },
+        {
+          "end": 3449,
+          "sentence": "second, get cup",
+          "start": 3267
+        },
+        {
+          "end": 3694,
+          "sentence": "second, open bean bin",
+          "start": 3450
+        },
+        {
+          "end": 3893,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3695
+        },
+        {
+          "end": 3944,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3894
+        },
+        {
+          "end": 3988,
+          "sentence": "second, put the scoop back",
+          "start": 3945
+        },
+        {
+          "end": 4110,
+          "sentence": "second, close bean bin",
+          "start": 3989
+        },
+        {
+          "end": 4399,
+          "sentence": "second, place cup",
+          "start": 4111
+        },
+        {
+          "end": 4862,
+          "sentence": "second, press tap to fill cup",
+          "start": 4400
+        },
+        {
+          "end": 4959,
+          "sentence": "second, done",
+          "start": 4863
+        }
+      ]
+    },
+    "0911_boba/demo36": {
+      "class": "boba3_bean1",
+      "group": "demo36",
+      "num_frames": 4853,
+      "segments": [
+        {
+          "end": 167,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 284,
+          "sentence": "watch, boba middle bin",
+          "start": 168
+        },
+        {
+          "end": 476,
+          "sentence": "watch, bean right bin",
+          "start": 285
+        },
+        {
+          "end": 624,
+          "sentence": "first, get cup",
+          "start": 477
+        },
+        {
+          "end": 906,
+          "sentence": "first, open boba bin",
+          "start": 625
+        },
+        {
+          "end": 1148,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 907
+        },
+        {
+          "end": 1288,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1149
+        },
+        {
+          "end": 1400,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1289
+        },
+        {
+          "end": 1565,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1401
+        },
+        {
+          "end": 1697,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1566
+        },
+        {
+          "end": 1880,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1698
+        },
+        {
+          "end": 1952,
+          "sentence": "first, put the scoop back",
+          "start": 1881
+        },
+        {
+          "end": 2106,
+          "sentence": "first, close boba bin",
+          "start": 1953
+        },
+        {
+          "end": 2424,
+          "sentence": "first, place cup",
+          "start": 2107
+        },
+        {
+          "end": 2792,
+          "sentence": "first, press tap to fill cup",
+          "start": 2425
+        },
+        {
+          "end": 2981,
+          "sentence": "first, done",
+          "start": 2793
+        },
+        {
+          "end": 3131,
+          "sentence": "second, get cup",
+          "start": 2982
+        },
+        {
+          "end": 3345,
+          "sentence": "second, open bean bin",
+          "start": 3132
+        },
+        {
+          "end": 3526,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3346
+        },
+        {
+          "end": 3579,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3527
+        },
+        {
+          "end": 3611,
+          "sentence": "second, put the scoop back",
+          "start": 3580
+        },
+        {
+          "end": 3811,
+          "sentence": "second, close bean bin",
+          "start": 3612
+        },
+        {
+          "end": 4088,
+          "sentence": "second, place cup",
+          "start": 3812
+        },
+        {
+          "end": 4765,
+          "sentence": "second, press tap to fill cup",
+          "start": 4089
+        },
+        {
+          "end": 4852,
+          "sentence": "second, done",
+          "start": 4766
+        }
+      ]
+    },
+    "0911_boba/demo37": {
+      "class": "boba3_bean1",
+      "group": "demo37",
+      "num_frames": 4232,
+      "segments": [
+        {
+          "end": 134,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 239,
+          "sentence": "watch, boba middle bin",
+          "start": 135
+        },
+        {
+          "end": 374,
+          "sentence": "watch, bean right bin",
+          "start": 240
+        },
+        {
+          "end": 535,
+          "sentence": "first, get cup",
+          "start": 375
+        },
+        {
+          "end": 800,
+          "sentence": "first, open boba bin",
+          "start": 536
+        },
+        {
+          "end": 960,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 801
+        },
+        {
+          "end": 1089,
+          "sentence": "first, pour, 1 of 3",
+          "start": 961
+        },
+        {
+          "end": 1251,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1090
+        },
+        {
+          "end": 1354,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1252
+        },
+        {
+          "end": 1474,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1355
+        },
+        {
+          "end": 1552,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1475
+        },
+        {
+          "end": 1594,
+          "sentence": "first, put the scoop back",
+          "start": 1553
+        },
+        {
+          "end": 1717,
+          "sentence": "first, close boba bin",
+          "start": 1595
+        },
+        {
+          "end": 1998,
+          "sentence": "first, place cup",
+          "start": 1718
+        },
+        {
+          "end": 2446,
+          "sentence": "first, press tap to fill cup",
+          "start": 1999
+        },
+        {
+          "end": 2602,
+          "sentence": "first, done",
+          "start": 2447
+        },
+        {
+          "end": 2758,
+          "sentence": "second, get cup",
+          "start": 2603
+        },
+        {
+          "end": 3008,
+          "sentence": "second, open bean bin",
+          "start": 2759
+        },
+        {
+          "end": 3200,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3009
+        },
+        {
+          "end": 3250,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3201
+        },
+        {
+          "end": 3291,
+          "sentence": "second, put the scoop back",
+          "start": 3251
+        },
+        {
+          "end": 3421,
+          "sentence": "second, close bean bin",
+          "start": 3292
+        },
+        {
+          "end": 3709,
+          "sentence": "second, place cup",
+          "start": 3422
+        },
+        {
+          "end": 4141,
+          "sentence": "second, press tap to fill cup",
+          "start": 3710
+        },
+        {
+          "end": 4231,
+          "sentence": "second, done",
+          "start": 4142
+        }
+      ]
+    },
+    "0911_boba/demo38": {
+      "class": "boba3_bean1",
+      "group": "demo38",
+      "num_frames": 4320,
+      "segments": [
+        {
+          "end": 137,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 248,
+          "sentence": "watch, boba middle bin",
+          "start": 138
+        },
+        {
+          "end": 404,
+          "sentence": "watch, bean right bin",
+          "start": 249
+        },
+        {
+          "end": 556,
+          "sentence": "first, get cup",
+          "start": 405
+        },
+        {
+          "end": 842,
+          "sentence": "first, open boba bin",
+          "start": 557
+        },
+        {
+          "end": 1074,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 843
+        },
+        {
+          "end": 1168,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1075
+        },
+        {
+          "end": 1311,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1169
+        },
+        {
+          "end": 1408,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1312
+        },
+        {
+          "end": 1579,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1409
+        },
+        {
+          "end": 1627,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1580
+        },
+        {
+          "end": 1671,
+          "sentence": "first, put the scoop back",
+          "start": 1628
+        },
+        {
+          "end": 1828,
+          "sentence": "first, close boba bin",
+          "start": 1672
+        },
+        {
+          "end": 2174,
+          "sentence": "first, place cup",
+          "start": 1829
+        },
+        {
+          "end": 2539,
+          "sentence": "first, press tap to fill cup",
+          "start": 2175
+        },
+        {
+          "end": 2742,
+          "sentence": "first, done",
+          "start": 2540
+        },
+        {
+          "end": 2875,
+          "sentence": "second, get cup",
+          "start": 2743
+        },
+        {
+          "end": 3108,
+          "sentence": "second, open bean bin",
+          "start": 2876
+        },
+        {
+          "end": 3295,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3109
+        },
+        {
+          "end": 3339,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3296
+        },
+        {
+          "end": 3372,
+          "sentence": "second, put the scoop back",
+          "start": 3340
+        },
+        {
+          "end": 3485,
+          "sentence": "second, close bean bin",
+          "start": 3373
+        },
+        {
+          "end": 3774,
+          "sentence": "second, place cup",
+          "start": 3486
+        },
+        {
+          "end": 4192,
+          "sentence": "second, press tap to fill cup",
+          "start": 3775
+        },
+        {
+          "end": 4319,
+          "sentence": "second, done",
+          "start": 4193
+        }
+      ]
+    },
+    "0911_boba/demo39": {
+      "class": "boba3_bean1",
+      "group": "demo39",
+      "num_frames": 4612,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 251,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 447,
+          "sentence": "watch, bean right bin",
+          "start": 252
+        },
+        {
+          "end": 598,
+          "sentence": "first, get cup",
+          "start": 448
+        },
+        {
+          "end": 873,
+          "sentence": "first, open boba bin",
+          "start": 599
+        },
+        {
+          "end": 1080,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 874
+        },
+        {
+          "end": 1187,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1081
+        },
+        {
+          "end": 1373,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1188
+        },
+        {
+          "end": 1506,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1374
+        },
+        {
+          "end": 1636,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1507
+        },
+        {
+          "end": 1726,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1637
+        },
+        {
+          "end": 1778,
+          "sentence": "first, put the scoop back",
+          "start": 1727
+        },
+        {
+          "end": 1927,
+          "sentence": "first, close boba bin",
+          "start": 1779
+        },
+        {
+          "end": 2200,
+          "sentence": "first, place cup",
+          "start": 1928
+        },
+        {
+          "end": 2711,
+          "sentence": "first, press tap to fill cup",
+          "start": 2201
+        },
+        {
+          "end": 2874,
+          "sentence": "first, done",
+          "start": 2712
+        },
+        {
+          "end": 3028,
+          "sentence": "second, get cup",
+          "start": 2875
+        },
+        {
+          "end": 3269,
+          "sentence": "second, open bean bin",
+          "start": 3029
+        },
+        {
+          "end": 3469,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3270
+        },
+        {
+          "end": 3525,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3470
+        },
+        {
+          "end": 3562,
+          "sentence": "second, put the scoop back",
+          "start": 3526
+        },
+        {
+          "end": 3729,
+          "sentence": "second, close bean bin",
+          "start": 3563
+        },
+        {
+          "end": 4099,
+          "sentence": "second, place cup",
+          "start": 3730
+        },
+        {
+          "end": 4508,
+          "sentence": "second, press tap to fill cup",
+          "start": 4100
+        },
+        {
+          "end": 4611,
+          "sentence": "second, done",
+          "start": 4509
+        }
+      ]
+    },
+    "0911_boba/demo4": {
+      "class": "boba3_bean1",
+      "group": "demo4",
+      "num_frames": 5268,
+      "segments": [
+        {
+          "end": 122,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 236,
+          "sentence": "watch, boba middle bin",
+          "start": 123
+        },
+        {
+          "end": 440,
+          "sentence": "watch, bean right bin",
+          "start": 237
+        },
+        {
+          "end": 616,
+          "sentence": "first, get cup",
+          "start": 441
+        },
+        {
+          "end": 906,
+          "sentence": "first, open boba bin",
+          "start": 617
+        },
+        {
+          "end": 1195,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 907
+        },
+        {
+          "end": 1480,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1196
+        },
+        {
+          "end": 1582,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1481
+        },
+        {
+          "end": 1769,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1583
+        },
+        {
+          "end": 1912,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1770
+        },
+        {
+          "end": 2014,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1913
+        },
+        {
+          "end": 2057,
+          "sentence": "first, put the scoop back",
+          "start": 2015
+        },
+        {
+          "end": 2225,
+          "sentence": "first, close boba bin",
+          "start": 2058
+        },
+        {
+          "end": 2574,
+          "sentence": "first, place cup",
+          "start": 2226
+        },
+        {
+          "end": 3120,
+          "sentence": "first, press tap to fill cup",
+          "start": 2575
+        },
+        {
+          "end": 3372,
+          "sentence": "first, done",
+          "start": 3121
+        },
+        {
+          "end": 3537,
+          "sentence": "second, get cup",
+          "start": 3373
+        },
+        {
+          "end": 3783,
+          "sentence": "second, open bean bin",
+          "start": 3538
+        },
+        {
+          "end": 3982,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3784
+        },
+        {
+          "end": 4038,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3983
+        },
+        {
+          "end": 4081,
+          "sentence": "second, put the scoop back",
+          "start": 4039
+        },
+        {
+          "end": 4228,
+          "sentence": "second, close bean bin",
+          "start": 4082
+        },
+        {
+          "end": 4589,
+          "sentence": "second, place cup",
+          "start": 4229
+        },
+        {
+          "end": 5161,
+          "sentence": "second, press tap to fill cup",
+          "start": 4590
+        },
+        {
+          "end": 5267,
+          "sentence": "second, done",
+          "start": 5162
+        }
+      ]
+    },
+    "0911_boba/demo41": {
+      "class": "boba3_bean1",
+      "group": "demo41",
+      "num_frames": 4708,
+      "segments": [
+        {
+          "end": 134,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 242,
+          "sentence": "watch, boba middle bin",
+          "start": 135
+        },
+        {
+          "end": 517,
+          "sentence": "watch, bean right bin",
+          "start": 243
+        },
+        {
+          "end": 668,
+          "sentence": "first, get cup",
+          "start": 518
+        },
+        {
+          "end": 939,
+          "sentence": "first, open boba bin",
+          "start": 669
+        },
+        {
+          "end": 1209,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 940
+        },
+        {
+          "end": 1301,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1210
+        },
+        {
+          "end": 1420,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1302
+        },
+        {
+          "end": 1503,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1421
+        },
+        {
+          "end": 1652,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1504
+        },
+        {
+          "end": 1704,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1653
+        },
+        {
+          "end": 1745,
+          "sentence": "first, put the scoop back",
+          "start": 1705
+        },
+        {
+          "end": 1902,
+          "sentence": "first, close boba bin",
+          "start": 1746
+        },
+        {
+          "end": 2412,
+          "sentence": "first, place cup",
+          "start": 1903
+        },
+        {
+          "end": 2848,
+          "sentence": "first, press tap to fill cup",
+          "start": 2413
+        },
+        {
+          "end": 2986,
+          "sentence": "first, done",
+          "start": 2849
+        },
+        {
+          "end": 3174,
+          "sentence": "second, get cup",
+          "start": 2987
+        },
+        {
+          "end": 3379,
+          "sentence": "second, open bean bin",
+          "start": 3175
+        },
+        {
+          "end": 3536,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3380
+        },
+        {
+          "end": 3582,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3537
+        },
+        {
+          "end": 3616,
+          "sentence": "second, put the scoop back",
+          "start": 3583
+        },
+        {
+          "end": 3732,
+          "sentence": "second, close bean bin",
+          "start": 3617
+        },
+        {
+          "end": 4057,
+          "sentence": "second, place cup",
+          "start": 3733
+        },
+        {
+          "end": 4610,
+          "sentence": "second, press tap to fill cup",
+          "start": 4058
+        },
+        {
+          "end": 4707,
+          "sentence": "second, done",
+          "start": 4611
+        }
+      ]
+    },
+    "0911_boba/demo42": {
+      "class": "boba3_bean1",
+      "group": "demo42",
+      "num_frames": 4507,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 278,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 464,
+          "sentence": "watch, bean right bin",
+          "start": 279
+        },
+        {
+          "end": 621,
+          "sentence": "first, get cup",
+          "start": 465
+        },
+        {
+          "end": 886,
+          "sentence": "first, open boba bin",
+          "start": 622
+        },
+        {
+          "end": 1077,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 887
+        },
+        {
+          "end": 1175,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1078
+        },
+        {
+          "end": 1303,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1176
+        },
+        {
+          "end": 1375,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1304
+        },
+        {
+          "end": 1515,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1376
+        },
+        {
+          "end": 1560,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1516
+        },
+        {
+          "end": 1598,
+          "sentence": "first, put the scoop back",
+          "start": 1561
+        },
+        {
+          "end": 1728,
+          "sentence": "first, close boba bin",
+          "start": 1599
+        },
+        {
+          "end": 2077,
+          "sentence": "first, place cup",
+          "start": 1729
+        },
+        {
+          "end": 2475,
+          "sentence": "first, press tap to fill cup",
+          "start": 2078
+        },
+        {
+          "end": 2645,
+          "sentence": "first, done",
+          "start": 2476
+        },
+        {
+          "end": 2787,
+          "sentence": "second, get cup",
+          "start": 2646
+        },
+        {
+          "end": 3045,
+          "sentence": "second, open bean bin",
+          "start": 2788
+        },
+        {
+          "end": 3298,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3046
+        },
+        {
+          "end": 3416,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3299
+        },
+        {
+          "end": 3523,
+          "sentence": "second, put the scoop back",
+          "start": 3417
+        },
+        {
+          "end": 3641,
+          "sentence": "second, close bean bin",
+          "start": 3524
+        },
+        {
+          "end": 3935,
+          "sentence": "second, place cup",
+          "start": 3642
+        },
+        {
+          "end": 4396,
+          "sentence": "second, press tap to fill cup",
+          "start": 3936
+        },
+        {
+          "end": 4506,
+          "sentence": "second, done",
+          "start": 4397
+        }
+      ]
+    },
+    "0911_boba/demo43": {
+      "class": "boba3_bean1",
+      "group": "demo43",
+      "num_frames": 4447,
+      "segments": [
+        {
+          "end": 134,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 233,
+          "sentence": "watch, boba middle bin",
+          "start": 135
+        },
+        {
+          "end": 363,
+          "sentence": "watch, bean right bin",
+          "start": 234
+        },
+        {
+          "end": 514,
+          "sentence": "first, get cup",
+          "start": 364
+        },
+        {
+          "end": 775,
+          "sentence": "first, open boba bin",
+          "start": 515
+        },
+        {
+          "end": 990,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 776
+        },
+        {
+          "end": 1085,
+          "sentence": "first, pour, 1 of 3",
+          "start": 991
+        },
+        {
+          "end": 1241,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1086
+        },
+        {
+          "end": 1329,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1242
+        },
+        {
+          "end": 1498,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1330
+        },
+        {
+          "end": 1542,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1499
+        },
+        {
+          "end": 1591,
+          "sentence": "first, put the scoop back",
+          "start": 1543
+        },
+        {
+          "end": 1717,
+          "sentence": "first, close boba bin",
+          "start": 1592
+        },
+        {
+          "end": 2026,
+          "sentence": "first, place cup",
+          "start": 1718
+        },
+        {
+          "end": 2392,
+          "sentence": "first, press tap to fill cup",
+          "start": 2027
+        },
+        {
+          "end": 2564,
+          "sentence": "first, done",
+          "start": 2393
+        },
+        {
+          "end": 2730,
+          "sentence": "second, get cup",
+          "start": 2565
+        },
+        {
+          "end": 3003,
+          "sentence": "second, open bean bin",
+          "start": 2731
+        },
+        {
+          "end": 3196,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3004
+        },
+        {
+          "end": 3278,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3197
+        },
+        {
+          "end": 3338,
+          "sentence": "second, put the scoop back",
+          "start": 3279
+        },
+        {
+          "end": 3474,
+          "sentence": "second, close bean bin",
+          "start": 3339
+        },
+        {
+          "end": 3785,
+          "sentence": "second, place cup",
+          "start": 3475
+        },
+        {
+          "end": 4342,
+          "sentence": "second, press tap to fill cup",
+          "start": 3786
+        },
+        {
+          "end": 4446,
+          "sentence": "second, done",
+          "start": 4343
+        }
+      ]
+    },
+    "0911_boba/demo44": {
+      "class": "boba3_bean1",
+      "group": "demo44",
+      "num_frames": 4322,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 251,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 451,
+          "sentence": "watch, bean right bin",
+          "start": 252
+        },
+        {
+          "end": 592,
+          "sentence": "first, get cup",
+          "start": 452
+        },
+        {
+          "end": 863,
+          "sentence": "first, open boba bin",
+          "start": 593
+        },
+        {
+          "end": 1107,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 864
+        },
+        {
+          "end": 1212,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1108
+        },
+        {
+          "end": 1347,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1213
+        },
+        {
+          "end": 1429,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1348
+        },
+        {
+          "end": 1556,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1430
+        },
+        {
+          "end": 1615,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1557
+        },
+        {
+          "end": 1658,
+          "sentence": "first, put the scoop back",
+          "start": 1616
+        },
+        {
+          "end": 1810,
+          "sentence": "first, close boba bin",
+          "start": 1659
+        },
+        {
+          "end": 2108,
+          "sentence": "first, place cup",
+          "start": 1811
+        },
+        {
+          "end": 2490,
+          "sentence": "first, press tap to fill cup",
+          "start": 2109
+        },
+        {
+          "end": 2736,
+          "sentence": "first, done",
+          "start": 2491
+        },
+        {
+          "end": 2889,
+          "sentence": "second, get cup",
+          "start": 2737
+        },
+        {
+          "end": 3116,
+          "sentence": "second, open bean bin",
+          "start": 2890
+        },
+        {
+          "end": 3300,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3117
+        },
+        {
+          "end": 3352,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3301
+        },
+        {
+          "end": 3388,
+          "sentence": "second, put the scoop back",
+          "start": 3353
+        },
+        {
+          "end": 3518,
+          "sentence": "second, close bean bin",
+          "start": 3389
+        },
+        {
+          "end": 3827,
+          "sentence": "second, place cup",
+          "start": 3519
+        },
+        {
+          "end": 4222,
+          "sentence": "second, press tap to fill cup",
+          "start": 3828
+        },
+        {
+          "end": 4321,
+          "sentence": "second, done",
+          "start": 4223
+        }
+      ]
+    },
+    "0911_boba/demo45": {
+      "class": "boba3_bean1",
+      "group": "demo45",
+      "num_frames": 4345,
+      "segments": [
+        {
+          "end": 152,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 281,
+          "sentence": "watch, boba middle bin",
+          "start": 153
+        },
+        {
+          "end": 474,
+          "sentence": "watch, bean right bin",
+          "start": 282
+        },
+        {
+          "end": 629,
+          "sentence": "first, get cup",
+          "start": 475
+        },
+        {
+          "end": 906,
+          "sentence": "first, open boba bin",
+          "start": 630
+        },
+        {
+          "end": 1131,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 907
+        },
+        {
+          "end": 1228,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1132
+        },
+        {
+          "end": 1363,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1229
+        },
+        {
+          "end": 1465,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1364
+        },
+        {
+          "end": 1593,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1466
+        },
+        {
+          "end": 1668,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1594
+        },
+        {
+          "end": 1707,
+          "sentence": "first, put the scoop back",
+          "start": 1669
+        },
+        {
+          "end": 1846,
+          "sentence": "first, close boba bin",
+          "start": 1708
+        },
+        {
+          "end": 2175,
+          "sentence": "first, place cup",
+          "start": 1847
+        },
+        {
+          "end": 2556,
+          "sentence": "first, press tap to fill cup",
+          "start": 2176
+        },
+        {
+          "end": 2728,
+          "sentence": "first, done",
+          "start": 2557
+        },
+        {
+          "end": 2910,
+          "sentence": "second, get cup",
+          "start": 2729
+        },
+        {
+          "end": 3157,
+          "sentence": "second, open bean bin",
+          "start": 2911
+        },
+        {
+          "end": 3372,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3158
+        },
+        {
+          "end": 3415,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3373
+        },
+        {
+          "end": 3453,
+          "sentence": "second, put the scoop back",
+          "start": 3416
+        },
+        {
+          "end": 3599,
+          "sentence": "second, close bean bin",
+          "start": 3454
+        },
+        {
+          "end": 3863,
+          "sentence": "second, place cup",
+          "start": 3600
+        },
+        {
+          "end": 4255,
+          "sentence": "second, press tap to fill cup",
+          "start": 3864
+        },
+        {
+          "end": 4344,
+          "sentence": "second, done",
+          "start": 4256
+        }
+      ]
+    },
+    "0911_boba/demo46": {
+      "class": "boba3_bean1",
+      "group": "demo46",
+      "num_frames": 4300,
+      "segments": [
+        {
+          "end": 122,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 224,
+          "sentence": "watch, boba middle bin",
+          "start": 123
+        },
+        {
+          "end": 402,
+          "sentence": "watch, bean right bin",
+          "start": 225
+        },
+        {
+          "end": 556,
+          "sentence": "first, get cup",
+          "start": 403
+        },
+        {
+          "end": 831,
+          "sentence": "first, open boba bin",
+          "start": 557
+        },
+        {
+          "end": 1031,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 832
+        },
+        {
+          "end": 1223,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1032
+        },
+        {
+          "end": 1329,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1224
+        },
+        {
+          "end": 1459,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1330
+        },
+        {
+          "end": 1595,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1460
+        },
+        {
+          "end": 1712,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1596
+        },
+        {
+          "end": 1754,
+          "sentence": "first, put the scoop back",
+          "start": 1713
+        },
+        {
+          "end": 1894,
+          "sentence": "first, close boba bin",
+          "start": 1755
+        },
+        {
+          "end": 2197,
+          "sentence": "first, place cup",
+          "start": 1895
+        },
+        {
+          "end": 2566,
+          "sentence": "first, press tap to fill cup",
+          "start": 2198
+        },
+        {
+          "end": 2753,
+          "sentence": "first, done",
+          "start": 2567
+        },
+        {
+          "end": 2904,
+          "sentence": "second, get cup",
+          "start": 2754
+        },
+        {
+          "end": 3142,
+          "sentence": "second, open bean bin",
+          "start": 2905
+        },
+        {
+          "end": 3298,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3143
+        },
+        {
+          "end": 3393,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3299
+        },
+        {
+          "end": 3422,
+          "sentence": "second, put the scoop back",
+          "start": 3394
+        },
+        {
+          "end": 3541,
+          "sentence": "second, close bean bin",
+          "start": 3423
+        },
+        {
+          "end": 3807,
+          "sentence": "second, place cup",
+          "start": 3542
+        },
+        {
+          "end": 4205,
+          "sentence": "second, press tap to fill cup",
+          "start": 3808
+        },
+        {
+          "end": 4299,
+          "sentence": "second, done",
+          "start": 4206
+        }
+      ]
+    },
+    "0911_boba/demo47": {
+      "class": "boba3_bean1",
+      "group": "demo47",
+      "num_frames": 4282,
+      "segments": [
+        {
+          "end": 113,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 212,
+          "sentence": "watch, boba middle bin",
+          "start": 114
+        },
+        {
+          "end": 365,
+          "sentence": "watch, bean right bin",
+          "start": 213
+        },
+        {
+          "end": 516,
+          "sentence": "first, get cup",
+          "start": 366
+        },
+        {
+          "end": 786,
+          "sentence": "first, open boba bin",
+          "start": 517
+        },
+        {
+          "end": 1098,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 787
+        },
+        {
+          "end": 1184,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1099
+        },
+        {
+          "end": 1299,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1185
+        },
+        {
+          "end": 1373,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1300
+        },
+        {
+          "end": 1515,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1374
+        },
+        {
+          "end": 1562,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1516
+        },
+        {
+          "end": 1606,
+          "sentence": "first, put the scoop back",
+          "start": 1563
+        },
+        {
+          "end": 1746,
+          "sentence": "first, close boba bin",
+          "start": 1607
+        },
+        {
+          "end": 2004,
+          "sentence": "first, place cup",
+          "start": 1747
+        },
+        {
+          "end": 2404,
+          "sentence": "first, press tap to fill cup",
+          "start": 2005
+        },
+        {
+          "end": 2578,
+          "sentence": "first, done",
+          "start": 2405
+        },
+        {
+          "end": 2714,
+          "sentence": "second, get cup",
+          "start": 2579
+        },
+        {
+          "end": 2956,
+          "sentence": "second, open bean bin",
+          "start": 2715
+        },
+        {
+          "end": 3152,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2957
+        },
+        {
+          "end": 3210,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3153
+        },
+        {
+          "end": 3251,
+          "sentence": "second, put the scoop back",
+          "start": 3211
+        },
+        {
+          "end": 3410,
+          "sentence": "second, close bean bin",
+          "start": 3252
+        },
+        {
+          "end": 3763,
+          "sentence": "second, place cup",
+          "start": 3411
+        },
+        {
+          "end": 4177,
+          "sentence": "second, press tap to fill cup",
+          "start": 3764
+        },
+        {
+          "end": 4281,
+          "sentence": "second, done",
+          "start": 4178
+        }
+      ]
+    },
+    "0911_boba/demo48": {
+      "class": "boba3_bean1",
+      "group": "demo48",
+      "num_frames": 4250,
+      "segments": [
+        {
+          "end": 128,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 266,
+          "sentence": "watch, boba middle bin",
+          "start": 129
+        },
+        {
+          "end": 453,
+          "sentence": "watch, bean right bin",
+          "start": 267
+        },
+        {
+          "end": 611,
+          "sentence": "first, get cup",
+          "start": 454
+        },
+        {
+          "end": 871,
+          "sentence": "first, open boba bin",
+          "start": 612
+        },
+        {
+          "end": 1093,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 872
+        },
+        {
+          "end": 1172,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1094
+        },
+        {
+          "end": 1319,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1173
+        },
+        {
+          "end": 1395,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1320
+        },
+        {
+          "end": 1532,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1396
+        },
+        {
+          "end": 1570,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1533
+        },
+        {
+          "end": 1619,
+          "sentence": "first, put the scoop back",
+          "start": 1571
+        },
+        {
+          "end": 1754,
+          "sentence": "first, close boba bin",
+          "start": 1620
+        },
+        {
+          "end": 2063,
+          "sentence": "first, place cup",
+          "start": 1755
+        },
+        {
+          "end": 2421,
+          "sentence": "first, press tap to fill cup",
+          "start": 2064
+        },
+        {
+          "end": 2599,
+          "sentence": "first, done",
+          "start": 2422
+        },
+        {
+          "end": 2755,
+          "sentence": "second, get cup",
+          "start": 2600
+        },
+        {
+          "end": 3019,
+          "sentence": "second, open bean bin",
+          "start": 2756
+        },
+        {
+          "end": 3202,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3020
+        },
+        {
+          "end": 3254,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3203
+        },
+        {
+          "end": 3296,
+          "sentence": "second, put the scoop back",
+          "start": 3255
+        },
+        {
+          "end": 3431,
+          "sentence": "second, close bean bin",
+          "start": 3297
+        },
+        {
+          "end": 3761,
+          "sentence": "second, place cup",
+          "start": 3432
+        },
+        {
+          "end": 4169,
+          "sentence": "second, press tap to fill cup",
+          "start": 3762
+        },
+        {
+          "end": 4249,
+          "sentence": "second, done",
+          "start": 4170
+        }
+      ]
+    },
+    "0911_boba/demo5": {
+      "class": "boba3_bean1",
+      "group": "demo5",
+      "num_frames": 5163,
+      "segments": [
+        {
+          "end": 143,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 254,
+          "sentence": "watch, boba middle bin",
+          "start": 144
+        },
+        {
+          "end": 419,
+          "sentence": "watch, bean right bin",
+          "start": 255
+        },
+        {
+          "end": 586,
+          "sentence": "first, get cup",
+          "start": 420
+        },
+        {
+          "end": 885,
+          "sentence": "first, open boba bin",
+          "start": 587
+        },
+        {
+          "end": 1146,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 886
+        },
+        {
+          "end": 1356,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1147
+        },
+        {
+          "end": 1529,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1357
+        },
+        {
+          "end": 1708,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1530
+        },
+        {
+          "end": 1883,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1709
+        },
+        {
+          "end": 1958,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1884
+        },
+        {
+          "end": 2007,
+          "sentence": "first, put the scoop back",
+          "start": 1959
+        },
+        {
+          "end": 2157,
+          "sentence": "first, close boba bin",
+          "start": 2008
+        },
+        {
+          "end": 2465,
+          "sentence": "first, place cup",
+          "start": 2158
+        },
+        {
+          "end": 2901,
+          "sentence": "first, press tap to fill cup",
+          "start": 2466
+        },
+        {
+          "end": 3180,
+          "sentence": "first, done",
+          "start": 2902
+        },
+        {
+          "end": 3362,
+          "sentence": "second, get cup",
+          "start": 3181
+        },
+        {
+          "end": 3648,
+          "sentence": "second, open bean bin",
+          "start": 3363
+        },
+        {
+          "end": 3853,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3649
+        },
+        {
+          "end": 3928,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3854
+        },
+        {
+          "end": 3980,
+          "sentence": "second, put the scoop back",
+          "start": 3929
+        },
+        {
+          "end": 4185,
+          "sentence": "second, close bean bin",
+          "start": 3981
+        },
+        {
+          "end": 4498,
+          "sentence": "second, place cup",
+          "start": 4186
+        },
+        {
+          "end": 5044,
+          "sentence": "second, press tap to fill cup",
+          "start": 4499
+        },
+        {
+          "end": 5162,
+          "sentence": "second, done",
+          "start": 5045
+        }
+      ]
+    },
+    "0911_boba/demo50": {
+      "class": "boba3_bean1",
+      "group": "demo50",
+      "num_frames": 4441,
+      "segments": [
+        {
+          "end": 128,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 245,
+          "sentence": "watch, boba middle bin",
+          "start": 129
+        },
+        {
+          "end": 432,
+          "sentence": "watch, bean right bin",
+          "start": 246
+        },
+        {
+          "end": 570,
+          "sentence": "first, get cup",
+          "start": 433
+        },
+        {
+          "end": 834,
+          "sentence": "first, open boba bin",
+          "start": 571
+        },
+        {
+          "end": 1050,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 835
+        },
+        {
+          "end": 1137,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1051
+        },
+        {
+          "end": 1277,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1138
+        },
+        {
+          "end": 1358,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1278
+        },
+        {
+          "end": 1493,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1359
+        },
+        {
+          "end": 1540,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1494
+        },
+        {
+          "end": 1584,
+          "sentence": "first, put the scoop back",
+          "start": 1541
+        },
+        {
+          "end": 1726,
+          "sentence": "first, close boba bin",
+          "start": 1585
+        },
+        {
+          "end": 2018,
+          "sentence": "first, place cup",
+          "start": 1727
+        },
+        {
+          "end": 2415,
+          "sentence": "first, press tap to fill cup",
+          "start": 2019
+        },
+        {
+          "end": 2582,
+          "sentence": "first, done",
+          "start": 2416
+        },
+        {
+          "end": 2719,
+          "sentence": "second, get cup",
+          "start": 2583
+        },
+        {
+          "end": 2952,
+          "sentence": "second, open bean bin",
+          "start": 2720
+        },
+        {
+          "end": 3128,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2953
+        },
+        {
+          "end": 3211,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3129
+        },
+        {
+          "end": 3247,
+          "sentence": "second, put the scoop back",
+          "start": 3212
+        },
+        {
+          "end": 3413,
+          "sentence": "second, close bean bin",
+          "start": 3248
+        },
+        {
+          "end": 3900,
+          "sentence": "second, place cup",
+          "start": 3414
+        },
+        {
+          "end": 4296,
+          "sentence": "second, press tap to fill cup",
+          "start": 3901
+        },
+        {
+          "end": 4440,
+          "sentence": "second, done",
+          "start": 4297
+        }
+      ]
+    },
+    "0911_boba/demo51": {
+      "class": "boba3_bean1",
+      "group": "demo51",
+      "num_frames": 4236,
+      "segments": [
+        {
+          "end": 113,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 257,
+          "sentence": "watch, boba middle bin",
+          "start": 114
+        },
+        {
+          "end": 432,
+          "sentence": "watch, bean right bin",
+          "start": 258
+        },
+        {
+          "end": 557,
+          "sentence": "first, get cup",
+          "start": 433
+        },
+        {
+          "end": 847,
+          "sentence": "first, open boba bin",
+          "start": 558
+        },
+        {
+          "end": 1048,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 848
+        },
+        {
+          "end": 1147,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1049
+        },
+        {
+          "end": 1297,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1148
+        },
+        {
+          "end": 1402,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1298
+        },
+        {
+          "end": 1539,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1403
+        },
+        {
+          "end": 1592,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1540
+        },
+        {
+          "end": 1636,
+          "sentence": "first, put the scoop back",
+          "start": 1593
+        },
+        {
+          "end": 1767,
+          "sentence": "first, close boba bin",
+          "start": 1637
+        },
+        {
+          "end": 2057,
+          "sentence": "first, place cup",
+          "start": 1768
+        },
+        {
+          "end": 2412,
+          "sentence": "first, press tap to fill cup",
+          "start": 2058
+        },
+        {
+          "end": 2592,
+          "sentence": "first, done",
+          "start": 2413
+        },
+        {
+          "end": 2754,
+          "sentence": "second, get cup",
+          "start": 2593
+        },
+        {
+          "end": 2961,
+          "sentence": "second, open bean bin",
+          "start": 2755
+        },
+        {
+          "end": 3212,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2962
+        },
+        {
+          "end": 3285,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3213
+        },
+        {
+          "end": 3334,
+          "sentence": "second, put the scoop back",
+          "start": 3286
+        },
+        {
+          "end": 3472,
+          "sentence": "second, close bean bin",
+          "start": 3335
+        },
+        {
+          "end": 3766,
+          "sentence": "second, place cup",
+          "start": 3473
+        },
+        {
+          "end": 4112,
+          "sentence": "second, press tap to fill cup",
+          "start": 3767
+        },
+        {
+          "end": 4235,
+          "sentence": "second, done",
+          "start": 4113
+        }
+      ]
+    },
+    "0911_boba/demo52": {
+      "class": "boba3_bean1",
+      "group": "demo52",
+      "num_frames": 4602,
+      "segments": [
+        {
+          "end": 125,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 215,
+          "sentence": "watch, boba middle bin",
+          "start": 126
+        },
+        {
+          "end": 402,
+          "sentence": "watch, bean right bin",
+          "start": 216
+        },
+        {
+          "end": 540,
+          "sentence": "first, get cup",
+          "start": 403
+        },
+        {
+          "end": 822,
+          "sentence": "first, open boba bin",
+          "start": 541
+        },
+        {
+          "end": 1041,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 823
+        },
+        {
+          "end": 1117,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1042
+        },
+        {
+          "end": 1259,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1118
+        },
+        {
+          "end": 1345,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1260
+        },
+        {
+          "end": 1477,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1346
+        },
+        {
+          "end": 1523,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1478
+        },
+        {
+          "end": 1572,
+          "sentence": "first, put the scoop back",
+          "start": 1524
+        },
+        {
+          "end": 1711,
+          "sentence": "first, close boba bin",
+          "start": 1573
+        },
+        {
+          "end": 1966,
+          "sentence": "first, place cup",
+          "start": 1712
+        },
+        {
+          "end": 2497,
+          "sentence": "first, press tap to fill cup",
+          "start": 1967
+        },
+        {
+          "end": 2713,
+          "sentence": "first, done",
+          "start": 2498
+        },
+        {
+          "end": 2906,
+          "sentence": "second, get cup",
+          "start": 2714
+        },
+        {
+          "end": 3200,
+          "sentence": "second, open bean bin",
+          "start": 2907
+        },
+        {
+          "end": 3380,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3201
+        },
+        {
+          "end": 3462,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3381
+        },
+        {
+          "end": 3513,
+          "sentence": "second, put the scoop back",
+          "start": 3463
+        },
+        {
+          "end": 3659,
+          "sentence": "second, close bean bin",
+          "start": 3514
+        },
+        {
+          "end": 3972,
+          "sentence": "second, place cup",
+          "start": 3660
+        },
+        {
+          "end": 4509,
+          "sentence": "second, press tap to fill cup",
+          "start": 3973
+        },
+        {
+          "end": 4601,
+          "sentence": "second, done",
+          "start": 4510
+        }
+      ]
+    },
+    "0911_boba/demo53": {
+      "class": "boba3_bean1",
+      "group": "demo53",
+      "num_frames": 4162,
+      "segments": [
+        {
+          "end": 119,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 206,
+          "sentence": "watch, boba middle bin",
+          "start": 120
+        },
+        {
+          "end": 361,
+          "sentence": "watch, bean right bin",
+          "start": 207
+        },
+        {
+          "end": 493,
+          "sentence": "first, get cup",
+          "start": 362
+        },
+        {
+          "end": 774,
+          "sentence": "first, open boba bin",
+          "start": 494
+        },
+        {
+          "end": 999,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 775
+        },
+        {
+          "end": 1092,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1000
+        },
+        {
+          "end": 1230,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1093
+        },
+        {
+          "end": 1329,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1231
+        },
+        {
+          "end": 1456,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1330
+        },
+        {
+          "end": 1523,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1457
+        },
+        {
+          "end": 1563,
+          "sentence": "first, put the scoop back",
+          "start": 1524
+        },
+        {
+          "end": 1701,
+          "sentence": "first, close boba bin",
+          "start": 1564
+        },
+        {
+          "end": 1974,
+          "sentence": "first, place cup",
+          "start": 1702
+        },
+        {
+          "end": 2338,
+          "sentence": "first, press tap to fill cup",
+          "start": 1975
+        },
+        {
+          "end": 2517,
+          "sentence": "first, done",
+          "start": 2339
+        },
+        {
+          "end": 2666,
+          "sentence": "second, get cup",
+          "start": 2518
+        },
+        {
+          "end": 2961,
+          "sentence": "second, open bean bin",
+          "start": 2667
+        },
+        {
+          "end": 3125,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2962
+        },
+        {
+          "end": 3183,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3126
+        },
+        {
+          "end": 3218,
+          "sentence": "second, put the scoop back",
+          "start": 3184
+        },
+        {
+          "end": 3337,
+          "sentence": "second, close bean bin",
+          "start": 3219
+        },
+        {
+          "end": 3660,
+          "sentence": "second, place cup",
+          "start": 3338
+        },
+        {
+          "end": 4079,
+          "sentence": "second, press tap to fill cup",
+          "start": 3661
+        },
+        {
+          "end": 4161,
+          "sentence": "second, done",
+          "start": 4080
+        }
+      ]
+    },
+    "0911_boba/demo54": {
+      "class": "boba3_bean1",
+      "group": "demo54",
+      "num_frames": 4521,
+      "segments": [
+        {
+          "end": 140,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 242,
+          "sentence": "watch, boba middle bin",
+          "start": 141
+        },
+        {
+          "end": 435,
+          "sentence": "watch, bean right bin",
+          "start": 243
+        },
+        {
+          "end": 597,
+          "sentence": "first, get cup",
+          "start": 436
+        },
+        {
+          "end": 885,
+          "sentence": "first, open boba bin",
+          "start": 598
+        },
+        {
+          "end": 1071,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 886
+        },
+        {
+          "end": 1265,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1072
+        },
+        {
+          "end": 1387,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1266
+        },
+        {
+          "end": 1528,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1388
+        },
+        {
+          "end": 1615,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1529
+        },
+        {
+          "end": 1746,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1616
+        },
+        {
+          "end": 1793,
+          "sentence": "first, put the scoop back",
+          "start": 1747
+        },
+        {
+          "end": 1927,
+          "sentence": "first, close boba bin",
+          "start": 1794
+        },
+        {
+          "end": 2197,
+          "sentence": "first, place cup",
+          "start": 1928
+        },
+        {
+          "end": 2569,
+          "sentence": "first, press tap to fill cup",
+          "start": 2198
+        },
+        {
+          "end": 2734,
+          "sentence": "first, done",
+          "start": 2570
+        },
+        {
+          "end": 2877,
+          "sentence": "second, get cup",
+          "start": 2735
+        },
+        {
+          "end": 3124,
+          "sentence": "second, open bean bin",
+          "start": 2878
+        },
+        {
+          "end": 3558,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3125
+        },
+        {
+          "end": 3607,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3559
+        },
+        {
+          "end": 3649,
+          "sentence": "second, put the scoop back",
+          "start": 3608
+        },
+        {
+          "end": 3783,
+          "sentence": "second, close bean bin",
+          "start": 3650
+        },
+        {
+          "end": 4041,
+          "sentence": "second, place cup",
+          "start": 3784
+        },
+        {
+          "end": 4439,
+          "sentence": "second, press tap to fill cup",
+          "start": 4042
+        },
+        {
+          "end": 4520,
+          "sentence": "second, done",
+          "start": 4440
+        }
+      ]
+    },
+    "0911_boba/demo55": {
+      "class": "boba3_bean1",
+      "group": "demo55",
+      "num_frames": 4294,
+      "segments": [
+        {
+          "end": 146,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 233,
+          "sentence": "watch, boba middle bin",
+          "start": 147
+        },
+        {
+          "end": 389,
+          "sentence": "watch, bean right bin",
+          "start": 234
+        },
+        {
+          "end": 525,
+          "sentence": "first, get cup",
+          "start": 390
+        },
+        {
+          "end": 799,
+          "sentence": "first, open boba bin",
+          "start": 526
+        },
+        {
+          "end": 1003,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 800
+        },
+        {
+          "end": 1099,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1004
+        },
+        {
+          "end": 1275,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1100
+        },
+        {
+          "end": 1382,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1276
+        },
+        {
+          "end": 1502,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1383
+        },
+        {
+          "end": 1574,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1503
+        },
+        {
+          "end": 1624,
+          "sentence": "first, put the scoop back",
+          "start": 1575
+        },
+        {
+          "end": 1765,
+          "sentence": "first, close boba bin",
+          "start": 1625
+        },
+        {
+          "end": 2051,
+          "sentence": "first, place cup",
+          "start": 1766
+        },
+        {
+          "end": 2412,
+          "sentence": "first, press tap to fill cup",
+          "start": 2052
+        },
+        {
+          "end": 2571,
+          "sentence": "first, done",
+          "start": 2413
+        },
+        {
+          "end": 2700,
+          "sentence": "second, get cup",
+          "start": 2572
+        },
+        {
+          "end": 2945,
+          "sentence": "second, open bean bin",
+          "start": 2701
+        },
+        {
+          "end": 3138,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 2946
+        },
+        {
+          "end": 3329,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3139
+        },
+        {
+          "end": 3364,
+          "sentence": "second, put the scoop back",
+          "start": 3330
+        },
+        {
+          "end": 3499,
+          "sentence": "second, close bean bin",
+          "start": 3365
+        },
+        {
+          "end": 3783,
+          "sentence": "second, place cup",
+          "start": 3500
+        },
+        {
+          "end": 4208,
+          "sentence": "second, press tap to fill cup",
+          "start": 3784
+        },
+        {
+          "end": 4293,
+          "sentence": "second, done",
+          "start": 4209
+        }
+      ]
+    },
+    "0911_boba/demo56": {
+      "class": "boba3_bean1",
+      "group": "demo56",
+      "num_frames": 4495,
+      "segments": [
+        {
+          "end": 113,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 218,
+          "sentence": "watch, boba middle bin",
+          "start": 114
+        },
+        {
+          "end": 329,
+          "sentence": "watch, bean right bin",
+          "start": 219
+        },
+        {
+          "end": 466,
+          "sentence": "first, get cup",
+          "start": 330
+        },
+        {
+          "end": 724,
+          "sentence": "first, open boba bin",
+          "start": 467
+        },
+        {
+          "end": 913,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 725
+        },
+        {
+          "end": 1038,
+          "sentence": "first, pour, 1 of 3",
+          "start": 914
+        },
+        {
+          "end": 1195,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1039
+        },
+        {
+          "end": 1391,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1196
+        },
+        {
+          "end": 1516,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1392
+        },
+        {
+          "end": 1617,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1517
+        },
+        {
+          "end": 1657,
+          "sentence": "first, put the scoop back",
+          "start": 1618
+        },
+        {
+          "end": 1823,
+          "sentence": "first, close boba bin",
+          "start": 1658
+        },
+        {
+          "end": 2118,
+          "sentence": "first, place cup",
+          "start": 1824
+        },
+        {
+          "end": 2521,
+          "sentence": "first, press tap to fill cup",
+          "start": 2119
+        },
+        {
+          "end": 2715,
+          "sentence": "first, done",
+          "start": 2522
+        },
+        {
+          "end": 2894,
+          "sentence": "second, get cup",
+          "start": 2716
+        },
+        {
+          "end": 3148,
+          "sentence": "second, open bean bin",
+          "start": 2895
+        },
+        {
+          "end": 3335,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3149
+        },
+        {
+          "end": 3394,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3336
+        },
+        {
+          "end": 3449,
+          "sentence": "second, put the scoop back",
+          "start": 3395
+        },
+        {
+          "end": 3649,
+          "sentence": "second, close bean bin",
+          "start": 3450
+        },
+        {
+          "end": 3961,
+          "sentence": "second, place cup",
+          "start": 3650
+        },
+        {
+          "end": 4373,
+          "sentence": "second, press tap to fill cup",
+          "start": 3962
+        },
+        {
+          "end": 4494,
+          "sentence": "second, done",
+          "start": 4374
+        }
+      ]
+    },
+    "0911_boba/demo57": {
+      "class": "boba3_bean1",
+      "group": "demo57",
+      "num_frames": 4284,
+      "segments": [
+        {
+          "end": 134,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 272,
+          "sentence": "watch, boba middle bin",
+          "start": 135
+        },
+        {
+          "end": 408,
+          "sentence": "watch, bean right bin",
+          "start": 273
+        },
+        {
+          "end": 553,
+          "sentence": "first, get cup",
+          "start": 409
+        },
+        {
+          "end": 807,
+          "sentence": "first, open boba bin",
+          "start": 554
+        },
+        {
+          "end": 992,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 808
+        },
+        {
+          "end": 1079,
+          "sentence": "first, pour, 1 of 3",
+          "start": 993
+        },
+        {
+          "end": 1202,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1080
+        },
+        {
+          "end": 1291,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1203
+        },
+        {
+          "end": 1428,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1292
+        },
+        {
+          "end": 1477,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1429
+        },
+        {
+          "end": 1568,
+          "sentence": "first, put the scoop back",
+          "start": 1478
+        },
+        {
+          "end": 1711,
+          "sentence": "first, close boba bin",
+          "start": 1569
+        },
+        {
+          "end": 2007,
+          "sentence": "first, place cup",
+          "start": 1712
+        },
+        {
+          "end": 2406,
+          "sentence": "first, press tap to fill cup",
+          "start": 2008
+        },
+        {
+          "end": 2623,
+          "sentence": "first, done",
+          "start": 2407
+        },
+        {
+          "end": 2799,
+          "sentence": "second, get cup",
+          "start": 2624
+        },
+        {
+          "end": 3041,
+          "sentence": "second, open bean bin",
+          "start": 2800
+        },
+        {
+          "end": 3245,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3042
+        },
+        {
+          "end": 3335,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3246
+        },
+        {
+          "end": 3375,
+          "sentence": "second, put the scoop back",
+          "start": 3336
+        },
+        {
+          "end": 3498,
+          "sentence": "second, close bean bin",
+          "start": 3376
+        },
+        {
+          "end": 3781,
+          "sentence": "second, place cup",
+          "start": 3499
+        },
+        {
+          "end": 4181,
+          "sentence": "second, press tap to fill cup",
+          "start": 3782
+        },
+        {
+          "end": 4283,
+          "sentence": "second, done",
+          "start": 4182
+        }
+      ]
+    },
+    "0911_boba/demo58": {
+      "class": "boba3_bean1",
+      "group": "demo58",
+      "num_frames": 4280,
+      "segments": [
+        {
+          "end": 131,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 227,
+          "sentence": "watch, boba middle bin",
+          "start": 132
+        },
+        {
+          "end": 375,
+          "sentence": "watch, bean right bin",
+          "start": 228
+        },
+        {
+          "end": 505,
+          "sentence": "first, get cup",
+          "start": 376
+        },
+        {
+          "end": 751,
+          "sentence": "first, open boba bin",
+          "start": 506
+        },
+        {
+          "end": 941,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 752
+        },
+        {
+          "end": 1089,
+          "sentence": "first, pour, 1 of 3",
+          "start": 942
+        },
+        {
+          "end": 1218,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1090
+        },
+        {
+          "end": 1362,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1219
+        },
+        {
+          "end": 1451,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1363
+        },
+        {
+          "end": 1595,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1452
+        },
+        {
+          "end": 1644,
+          "sentence": "first, put the scoop back",
+          "start": 1596
+        },
+        {
+          "end": 1778,
+          "sentence": "first, close boba bin",
+          "start": 1645
+        },
+        {
+          "end": 2043,
+          "sentence": "first, place cup",
+          "start": 1779
+        },
+        {
+          "end": 2458,
+          "sentence": "first, press tap to fill cup",
+          "start": 2044
+        },
+        {
+          "end": 2675,
+          "sentence": "first, done",
+          "start": 2459
+        },
+        {
+          "end": 2818,
+          "sentence": "second, get cup",
+          "start": 2676
+        },
+        {
+          "end": 3073,
+          "sentence": "second, open bean bin",
+          "start": 2819
+        },
+        {
+          "end": 3215,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3074
+        },
+        {
+          "end": 3361,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3216
+        },
+        {
+          "end": 3406,
+          "sentence": "second, put the scoop back",
+          "start": 3362
+        },
+        {
+          "end": 3538,
+          "sentence": "second, close bean bin",
+          "start": 3407
+        },
+        {
+          "end": 3808,
+          "sentence": "second, place cup",
+          "start": 3539
+        },
+        {
+          "end": 4196,
+          "sentence": "second, press tap to fill cup",
+          "start": 3809
+        },
+        {
+          "end": 4279,
+          "sentence": "second, done",
+          "start": 4197
+        }
+      ]
+    },
+    "0911_boba/demo59": {
+      "class": "boba3_bean1",
+      "group": "demo59",
+      "num_frames": 4359,
+      "segments": [
+        {
+          "end": 155,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 251,
+          "sentence": "watch, boba middle bin",
+          "start": 156
+        },
+        {
+          "end": 399,
+          "sentence": "watch, bean right bin",
+          "start": 252
+        },
+        {
+          "end": 527,
+          "sentence": "first, get cup",
+          "start": 400
+        },
+        {
+          "end": 776,
+          "sentence": "first, open boba bin",
+          "start": 528
+        },
+        {
+          "end": 961,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 777
+        },
+        {
+          "end": 1102,
+          "sentence": "first, pour, 1 of 3",
+          "start": 962
+        },
+        {
+          "end": 1204,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1103
+        },
+        {
+          "end": 1356,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1205
+        },
+        {
+          "end": 1421,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1357
+        },
+        {
+          "end": 1509,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1422
+        },
+        {
+          "end": 1549,
+          "sentence": "first, put the scoop back",
+          "start": 1510
+        },
+        {
+          "end": 1722,
+          "sentence": "first, close boba bin",
+          "start": 1550
+        },
+        {
+          "end": 2023,
+          "sentence": "first, place cup",
+          "start": 1723
+        },
+        {
+          "end": 2393,
+          "sentence": "first, press tap to fill cup",
+          "start": 2024
+        },
+        {
+          "end": 2599,
+          "sentence": "first, done",
+          "start": 2394
+        },
+        {
+          "end": 2760,
+          "sentence": "second, get cup",
+          "start": 2600
+        },
+        {
+          "end": 3016,
+          "sentence": "second, open bean bin",
+          "start": 2761
+        },
+        {
+          "end": 3365,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3017
+        },
+        {
+          "end": 3419,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3366
+        },
+        {
+          "end": 3463,
+          "sentence": "second, put the scoop back",
+          "start": 3420
+        },
+        {
+          "end": 3589,
+          "sentence": "second, close bean bin",
+          "start": 3464
+        },
+        {
+          "end": 3872,
+          "sentence": "second, place cup",
+          "start": 3590
+        },
+        {
+          "end": 4261,
+          "sentence": "second, press tap to fill cup",
+          "start": 3873
+        },
+        {
+          "end": 4358,
+          "sentence": "second, done",
+          "start": 4262
+        }
+      ]
+    },
+    "0911_boba/demo60": {
+      "class": "boba3_bean1",
+      "group": "demo60",
+      "num_frames": 4261,
+      "segments": [
+        {
+          "end": 113,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 200,
+          "sentence": "watch, boba middle bin",
+          "start": 114
+        },
+        {
+          "end": 345,
+          "sentence": "watch, bean right bin",
+          "start": 201
+        },
+        {
+          "end": 522,
+          "sentence": "first, get cup",
+          "start": 346
+        },
+        {
+          "end": 801,
+          "sentence": "first, open boba bin",
+          "start": 523
+        },
+        {
+          "end": 1031,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 802
+        },
+        {
+          "end": 1133,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1032
+        },
+        {
+          "end": 1326,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1134
+        },
+        {
+          "end": 1439,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1327
+        },
+        {
+          "end": 1566,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1440
+        },
+        {
+          "end": 1640,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1567
+        },
+        {
+          "end": 1691,
+          "sentence": "first, put the scoop back",
+          "start": 1641
+        },
+        {
+          "end": 1850,
+          "sentence": "first, close boba bin",
+          "start": 1692
+        },
+        {
+          "end": 2150,
+          "sentence": "first, place cup",
+          "start": 1851
+        },
+        {
+          "end": 2498,
+          "sentence": "first, press tap to fill cup",
+          "start": 2151
+        },
+        {
+          "end": 2680,
+          "sentence": "first, done",
+          "start": 2499
+        },
+        {
+          "end": 2832,
+          "sentence": "second, get cup",
+          "start": 2681
+        },
+        {
+          "end": 3037,
+          "sentence": "second, open bean bin",
+          "start": 2833
+        },
+        {
+          "end": 3202,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3038
+        },
+        {
+          "end": 3259,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3203
+        },
+        {
+          "end": 3298,
+          "sentence": "second, put the scoop back",
+          "start": 3260
+        },
+        {
+          "end": 3433,
+          "sentence": "second, close bean bin",
+          "start": 3299
+        },
+        {
+          "end": 3724,
+          "sentence": "second, place cup",
+          "start": 3434
+        },
+        {
+          "end": 4162,
+          "sentence": "second, press tap to fill cup",
+          "start": 3725
+        },
+        {
+          "end": 4260,
+          "sentence": "second, done",
+          "start": 4163
+        }
+      ]
+    },
+    "0911_boba/demo7": {
+      "class": "boba3_bean1",
+      "group": "demo7",
+      "num_frames": 5568,
+      "segments": [
+        {
+          "end": 116,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 233,
+          "sentence": "watch, boba middle bin",
+          "start": 117
+        },
+        {
+          "end": 420,
+          "sentence": "watch, bean right bin",
+          "start": 234
+        },
+        {
+          "end": 586,
+          "sentence": "first, get cup",
+          "start": 421
+        },
+        {
+          "end": 920,
+          "sentence": "first, open boba bin",
+          "start": 587
+        },
+        {
+          "end": 1184,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 921
+        },
+        {
+          "end": 1335,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1185
+        },
+        {
+          "end": 1503,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1336
+        },
+        {
+          "end": 1634,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1504
+        },
+        {
+          "end": 1747,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1635
+        },
+        {
+          "end": 1823,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1748
+        },
+        {
+          "end": 1889,
+          "sentence": "first, put the scoop back",
+          "start": 1824
+        },
+        {
+          "end": 2070,
+          "sentence": "first, close boba bin",
+          "start": 1890
+        },
+        {
+          "end": 2364,
+          "sentence": "first, place cup",
+          "start": 2071
+        },
+        {
+          "end": 2884,
+          "sentence": "first, press tap to fill cup",
+          "start": 2365
+        },
+        {
+          "end": 3096,
+          "sentence": "first, done",
+          "start": 2885
+        },
+        {
+          "end": 3309,
+          "sentence": "second, get cup",
+          "start": 3097
+        },
+        {
+          "end": 3611,
+          "sentence": "second, open bean bin",
+          "start": 3310
+        },
+        {
+          "end": 3818,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3612
+        },
+        {
+          "end": 3879,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3819
+        },
+        {
+          "end": 3930,
+          "sentence": "second, put the scoop back",
+          "start": 3880
+        },
+        {
+          "end": 4099,
+          "sentence": "second, close bean bin",
+          "start": 3931
+        },
+        {
+          "end": 4496,
+          "sentence": "second, place cup",
+          "start": 4100
+        },
+        {
+          "end": 5460,
+          "sentence": "second, press tap to fill cup",
+          "start": 4497
+        },
+        {
+          "end": 5567,
+          "sentence": "second, done",
+          "start": 5461
+        }
+      ]
+    },
+    "0911_boba/demo8": {
+      "class": "boba3_bean1",
+      "group": "demo8",
+      "num_frames": 4976,
+      "segments": [
+        {
+          "end": 134,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 239,
+          "sentence": "watch, boba middle bin",
+          "start": 135
+        },
+        {
+          "end": 404,
+          "sentence": "watch, bean right bin",
+          "start": 240
+        },
+        {
+          "end": 562,
+          "sentence": "first, get cup",
+          "start": 405
+        },
+        {
+          "end": 915,
+          "sentence": "first, open boba bin",
+          "start": 563
+        },
+        {
+          "end": 1145,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 916
+        },
+        {
+          "end": 1250,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1146
+        },
+        {
+          "end": 1376,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1251
+        },
+        {
+          "end": 1484,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1377
+        },
+        {
+          "end": 1650,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1485
+        },
+        {
+          "end": 1706,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1651
+        },
+        {
+          "end": 1767,
+          "sentence": "first, put the scoop back",
+          "start": 1707
+        },
+        {
+          "end": 1932,
+          "sentence": "first, close boba bin",
+          "start": 1768
+        },
+        {
+          "end": 2308,
+          "sentence": "first, place cup",
+          "start": 1933
+        },
+        {
+          "end": 2757,
+          "sentence": "first, press tap to fill cup",
+          "start": 2309
+        },
+        {
+          "end": 2983,
+          "sentence": "first, done",
+          "start": 2758
+        },
+        {
+          "end": 3153,
+          "sentence": "second, get cup",
+          "start": 2984
+        },
+        {
+          "end": 3449,
+          "sentence": "second, open bean bin",
+          "start": 3154
+        },
+        {
+          "end": 3642,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3450
+        },
+        {
+          "end": 3746,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3643
+        },
+        {
+          "end": 3803,
+          "sentence": "second, put the scoop back",
+          "start": 3747
+        },
+        {
+          "end": 3991,
+          "sentence": "second, close bean bin",
+          "start": 3804
+        },
+        {
+          "end": 4350,
+          "sentence": "second, place cup",
+          "start": 3992
+        },
+        {
+          "end": 4875,
+          "sentence": "second, press tap to fill cup",
+          "start": 4351
+        },
+        {
+          "end": 4975,
+          "sentence": "second, done",
+          "start": 4876
+        }
+      ]
+    },
+    "0911_boba/demo9": {
+      "class": "boba3_bean1",
+      "group": "demo9",
+      "num_frames": 5211,
+      "segments": [
+        {
+          "end": 125,
+          "sentence": "watch, sago left bin",
+          "start": 0
+        },
+        {
+          "end": 221,
+          "sentence": "watch, boba middle bin",
+          "start": 126
+        },
+        {
+          "end": 429,
+          "sentence": "watch, bean right bin",
+          "start": 222
+        },
+        {
+          "end": 604,
+          "sentence": "first, get cup",
+          "start": 430
+        },
+        {
+          "end": 961,
+          "sentence": "first, open boba bin",
+          "start": 605
+        },
+        {
+          "end": 1173,
+          "sentence": "first, scoop, 1 of 3",
+          "start": 962
+        },
+        {
+          "end": 1366,
+          "sentence": "first, pour, 1 of 3",
+          "start": 1174
+        },
+        {
+          "end": 1598,
+          "sentence": "first, scoop, 2 of 3",
+          "start": 1367
+        },
+        {
+          "end": 1681,
+          "sentence": "first, pour, 2 of 3",
+          "start": 1599
+        },
+        {
+          "end": 1845,
+          "sentence": "first, scoop, 3 of 3",
+          "start": 1682
+        },
+        {
+          "end": 1972,
+          "sentence": "first, pour, 3 of 3",
+          "start": 1846
+        },
+        {
+          "end": 2035,
+          "sentence": "first, put the scoop back",
+          "start": 1973
+        },
+        {
+          "end": 2236,
+          "sentence": "first, close boba bin",
+          "start": 2036
+        },
+        {
+          "end": 2577,
+          "sentence": "first, place cup",
+          "start": 2237
+        },
+        {
+          "end": 3082,
+          "sentence": "first, press tap to fill cup",
+          "start": 2578
+        },
+        {
+          "end": 3318,
+          "sentence": "first, done",
+          "start": 3083
+        },
+        {
+          "end": 3502,
+          "sentence": "second, get cup",
+          "start": 3319
+        },
+        {
+          "end": 3794,
+          "sentence": "second, open bean bin",
+          "start": 3503
+        },
+        {
+          "end": 3976,
+          "sentence": "second, scoop, 1 of 1",
+          "start": 3795
+        },
+        {
+          "end": 4035,
+          "sentence": "second, pour, 1 of 1",
+          "start": 3977
+        },
+        {
+          "end": 4106,
+          "sentence": "second, put the scoop back",
+          "start": 4036
+        },
+        {
+          "end": 4372,
+          "sentence": "second, close bean bin",
+          "start": 4107
+        },
+        {
+          "end": 4630,
+          "sentence": "second, place cup",
+          "start": 4373
+        },
+        {
+          "end": 5108,
+          "sentence": "second, press tap to fill cup",
+          "start": 4631
+        },
+        {
+          "end": 5210,
+          "sentence": "second, done",
+          "start": 5109
+        }
+      ]
+    }
+  },
+  "num_episodes": 56,
+  "schema_version": "openpi.v5.subtask-labels.v1",
+  "sentences": [
+    "first, close boba bin",
+    "first, done",
+    "first, get cup",
+    "first, open boba bin",
+    "first, place cup",
+    "first, pour, 1 of 3",
+    "first, pour, 2 of 3",
+    "first, pour, 3 of 3",
+    "first, press tap to fill cup",
+    "first, put the scoop back",
+    "first, scoop, 1 of 3",
+    "first, scoop, 2 of 3",
+    "first, scoop, 3 of 3",
+    "second, close bean bin",
+    "second, done",
+    "second, get cup",
+    "second, open bean bin",
+    "second, place cup",
+    "second, pour, 1 of 1",
+    "second, press tap to fill cup",
+    "second, put the scoop back",
+    "second, scoop, 1 of 1",
+    "watch, bean right bin",
+    "watch, boba middle bin",
+    "watch, sago left bin"
+  ],
+  "source_manifest": "cluster_v7/boba/boba_episode_manifest_v1.json",
+  "source_manifest_sha256": "b8a54b30245e5d4cbe3e4fc0e5348280d0feeb334d5a3660d2afb4c4e0d14a7d"
+}
