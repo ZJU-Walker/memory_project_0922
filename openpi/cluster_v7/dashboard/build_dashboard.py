@@ -12,7 +12,7 @@ V7 = pathlib.Path("/iris/u/kewalk/memory_project_v7/v7")
 V6 = pathlib.Path("/iris/u/kewalk/memory_project_v6/v6")
 TODAY = dt.date(2026, 9, 12)
 STEP_RE = re.compile(r"^Step (\d+): (.*)$")
-PROG_RE = re.compile(r"^(\d\d):(\d\d):(\d\d)\.\d+ \[I\] Progress on: ([\d.]+)it/(\d+)it rate:([\d.]+)s/it")
+PROG_RE = re.compile(r"^(\d\d):(\d\d):(\d\d)\.\d+ \[I\] Progress on: ([\d.]+k?)it/([\d.]+k?)it rate:([\d.]+)s/it")
 LAUNCH_RE = re.compile(r"^launch (\d\d)/(\d\d) (\d\d):(\d\d) .*config=(\S+) exp=(\S+) batch=(\d+) accum=(\d+) mode=(\S+) code=(\S+)")
 EXIT_RE = re.compile(r"^exit=(\d+) (\d\d)/(\d\d) (\d\d):(\d\d)")
 
@@ -59,7 +59,9 @@ def parse_progress(path: pathlib.Path) -> list[dict]:
             day = day + dt.timedelta(days=1)
             t = dt.datetime.combine(day, dt.time(h, mi, s))
         prev = t
-        out.append({"t": t.isoformat(timespec="seconds"), "step": float(m.group(4)), "total": int(m.group(5))})
+        def _n(v: str) -> float:  # tqdm prints 1.50kit for 1501 (and 1.00kit once the step passes 1000)
+            return float(v[:-1]) * 1000 if v.endswith("k") else float(v)
+        out.append({"t": t.isoformat(timespec="seconds"), "step": _n(m.group(4)), "total": int(_n(m.group(5)))})
     return out
 
 
@@ -142,7 +144,7 @@ def log_tail(path: pathlib.Path, n: int = 70, mem: bool = False) -> list[str]:
             continue
         m = PROG_RE.match(line)
         if m:
-            out.append(f"{m.group(1)}:{m.group(2)}:{m.group(3)}  update {m.group(4).rstrip('0').rstrip('.')}/{m.group(5)}  {m.group(6)} s/it")
+            out.append(f"{m.group(1)}:{m.group(2)}:{m.group(3)}  update {m.group(4)}/{m.group(5)}  {m.group(6)} s/it")
             continue
         low = line.lower()
         if any(k in low for k in ("traceback", "error", "cancelled", "killed", "resource_exhausted", "nan")) and "constant folding" not in low and "this isn't necessarily" not in low and "xla_dump" not in low:
