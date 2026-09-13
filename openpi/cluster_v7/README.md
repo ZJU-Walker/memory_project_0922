@@ -310,3 +310,8 @@ job (GPUs 0,1 are full while training). What to look for: self-write decision st
 the third scoop announced on its own, 8 first-drink writes per episode (open, 3 scoop, 3 pour, put back) with none skipped.
 At 15:20 a 4-GPU `pi05_trossen_pack...` process (132 GB per card, not a job step) was on the node and disappeared as our
 step started; GPUs 2,3 hold only the keep-alive.
+
+**Disk clean-up (09-13 16:10, user-approved list):** deleted bobaA r3/250, bobaB r3 500 + 1000 (1500 kept), boba base
+5000 (9999 kept), ctx_none 2500 (4999 kept), ctx_state 4999, ctx_both 4999 (ctx_prev 4999 kept), v6 task1A6 r1/200 and
+task1B6 r3 200-1400 + 1800 (1600 and 1999 kept). /iris/u/kewalk went from 502 GB free (91 %) to 1.1 TB free (79 %). The
+batteries and traces of every deleted checkpoint remain under v7/diagnostics/.
