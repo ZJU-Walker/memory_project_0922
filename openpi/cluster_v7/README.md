@@ -239,3 +239,20 @@ today) or give the count its own token/slot -- and/or the labels should state `3
 v2 labels do) so `scoop k` is a count the bank must hold rather than a digit inside a near-duplicate sentence; both are
 config/data changes on top of the same base. (c) The empty-bank start needs windows that begin at frame 0 (5 % today; raise `slice_prob`'s
 complement or add a frame-0 bucket) or a warm-up rule in deployment. Decision on (b)/(c) is the user's.
+
+### Stage B/1000 dev battery (02:34–03:00, `v7/diagnostics/videos_v7_bobaB_20260912_r3_1000/`)
+
+Training at B/1000: ce 0.506 (0.668 at 500), flow 0.0031, decision-exact 98.9 %, 33 commits/window, separation key/value
+cos max unchanged at 0.93 / 0.92.
+
+| write mode | decision steps exact (demo11 / 19 / 37) | total | all steps exact | writes (21 true) |
+|---|---|---|---|---|
+| self | 41/66 · 39/65 · 38/64 | 118/195 = 61 % (B/500: 68 %, A/250: 56 %) | 739/921 = 80 % | 33 · 25 · 29 |
+| oracle | 62/66 · 60/65 · 55/64 | 177/195 = 91 % (B/500: 89 %, A/250: 86 %) | 817/921 = 89 % | 21 · 21 · 21 |
+
+Self-write decision errors: 22 timing, 44 count, 11 other (B/500: 23 / 31 / 9). All three self rollouts now say `2 of 3`
+through the whole third scoop (demo19 had it right at B/500); banks 25–33 entries with 17–18 distinct sentences. Oracle
+keeps improving (copy gets sharper: 14 timing errors, 4 count) while self-write regresses: the trend from A/250 -> B/500
+(56 -> 68 %) did NOT continue, so more updates on this recipe are not the fix. Consistent with the mechanism above --
+the previous count is what the bank returns, the increment has to come from a visual cue the model does not generalise.
+B/1500 (~06:20) gets the same battery for completeness; the decision on labels / separation / dropout is the user's.
