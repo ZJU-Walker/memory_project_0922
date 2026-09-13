@@ -256,3 +256,23 @@ keeps improving (copy gets sharper: 14 timing errors, 4 count) while self-write 
 (56 -> 68 %) did NOT continue, so more updates on this recipe are not the fix. Consistent with the mechanism above --
 the previous count is what the bank returns, the increment has to come from a visual cue the model does not generalise.
 B/1500 (~06:20) gets the same battery for completeness; the decision on labels / separation / dropout is the user's.
+
+### Stage B/1500 dev battery (06:19–06:45, `v7/diagnostics/videos_v7_bobaB_20260912_r3_1500/`) and the r3 series
+
+Stage B ended 06:18 (exit 0; 1501 updates, ce 0.91 -> 0.357, flow 0.0031, decision-exact ~99 % on training windows).
+
+| checkpoint | self: decision steps exact | self: frames | oracle: decision steps exact | oracle: frames |
+|---|---|---|---|---|
+| A/250 | 109/195 = 56 % | 82 % | 168/195 = 86 % | 91 % |
+| B/500 | 132/195 = 68 % | 82 % | 173/195 = 89 % | 88 % |
+| B/1000 | 118/195 = 61 % | 80 % | 177/195 = 91 % | 89 % |
+| B/1500 | 128/195 = 66 % (41/66 · 53/65 · 34/64) | 82 % | 174/195 = 89 % (62/66 · 59/65 · 53/64) | 88 % |
+| ctx_prev (non-memory, §2) | -- | 99 % | -- | -- |
+
+B/1500 self errors: 25 timing, 30 count, 12 other; writes 32 · 27 · 30. The third scoop is still `2 of 3` in demo11 and
+demo37; demo19 gets it (as at B/500, not at B/1000): the count flips between checkpoints on the same held-out episode,
+which is what a fragile visual cue looks like, not a memory read. Verdict for the r3 recipe: self-write is flat at
+61–68 % from B/500 on, oracle saturates at ~90 % (copy sharpens), neither approaches the 99 % of the previous-sentence
+text baseline. Nothing more to learn from more updates; the next move is one of (a) separation loss on, (b) dropout of
+the previous-sentence shift + pointer bonus in training, (c) labels with the count changing at the pour -- see the
+B/500 section. Job 17403682's four H200 are idle since 06:18 (1 GB keep-alive only).
