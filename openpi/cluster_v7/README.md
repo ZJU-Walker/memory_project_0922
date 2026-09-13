@@ -216,19 +216,26 @@ not the cause. `self_stable` = nodup + commit only a sentence produced on two co
 (the start predictions persist for 3–4 steps: `first, get cup` committed at step 6, `second, get cup` at step 18) and
 costs one step per transition; 132/195, identical to plain self.
 
-**The bank read is inactive.** In every rollout the read query's best key cosine is 0.14 (A/250) / 0.20 (B/500) at
-every step, decisions included, and the semantic read RMS is 0.010–0.017; the training log agrees (step 500:
-`v5_qk_cos_sum/v5_qk_count` = 0.12 at decision steps, `v4_sem_raw_read_rms_sum` = 0.013 per step). With the previous
-sentence handed to the decoder as the query and the labels carrying the count (`scoop, k of 3`), the 98.8 %
-training decision accuracy needs no bank: previous sentence + vision suffice, exactly the leak `cluster_v5/BEANS_LABELS.md`
-removed for the beans task ("x is stated once"). The self-write failure is therefore a vision + previous-sentence failure
-on the third scoop of unseen episodes, not a memory-read failure, and the memory policy at 750 updates is simply a
-weaker ctx_prev (5000 updates, 99 %).
+**How the previous sentence reaches the decoder (corrected 01:10).** It is NOT a prompt field. `memory_v5_query_prev_sentence`
+encodes the last committed sentence and adds a (zero-initialised, learned) projection of it to the bank-READ queries; the
+read result is then projected and appended to the prefix as memory tokens (`_v4_inject_semantic`). So the previous
+sentence arrives through the bank, by retrieving its own entry (the query is shifted towards the key just written), and
+the decoder copies what the read returns. The raw read is small (RMS 0.010-0.017 in every rollout, 0.013 in the step-500
+log) but the injection gain is large (`v4_sem_injected_post_cast_rms` = 4.0 per step), so the read IS active -- an
+earlier note here called it inactive from the raw RMS alone, which was wrong. What the read cannot do is separate the
+counts: the step-500 log has `v5_separation_key_cos_max` = 0.93 and `v5_separation_value_cos_max` = 0.92 over the 21
+reference sentences (the docstring of the separation term measured 0.996-0.999 for sentences differing only in a count
+before the term existed; `v5_separation_loss` = 0.019 at step 500), i.e. `scoop, 2 of 3` and `scoop, 3 of 3` are still
+written with nearly the same key and value. The query's best key cosine of 0.14-0.20 in the rollouts is the pointer
+landing on that blurred cluster. Net effect: the channel delivers "first, scoop" reliably and the count only as a
+~0.07 residual, so the decoder continues the sentence it is given until a visually loud cue arrives -- consistent with
+training decision accuracy of 98.8 % on seen episodes (the residual + episode-specific visuals suffice there) and 68 %
+held out. The same mechanism explains the empty-bank start (nothing to retrieve -> junk `first, ...` sentences).
 
 **Consequences.** (a) B/1000 (~02:30) and B/1500 (~06:15) get the same battery; the trend 56 -> 68 % self says more
 updates help, but the oracle/ctx_prev ceiling for this label design is the previous-sentence channel, not the bank.
-(b) If the bank is the thing under test, the labels or the query must stop carrying the count: state `3` once (at
-`open boba bin`, as the beans v2 labels do) so `scoop k` must be counted from memory, and/or drop
-`memory_v5_query_prev_sentence` so the read has to fetch the previous sentence itself; both are data/config changes on
-top of the same base. (c) The empty-bank start needs windows that begin at frame 0 (5 % today; raise `slice_prob`'s
+(b) The count has to become separable in key/value space -- raise `memory_v5_sentence_separation_weight` (0.019 of loss
+today) or give the count its own token/slot -- and/or the labels should state `3` once (at `open boba bin`, as the beans
+v2 labels do) so `scoop k` is a count the bank must hold rather than a digit inside a near-duplicate sentence; both are
+config/data changes on top of the same base. (c) The empty-bank start needs windows that begin at frame 0 (5 % today; raise `slice_prob`'s
 complement or add a frame-0 bucket) or a warm-up rule in deployment. Decision on (b)/(c) is the user's.
