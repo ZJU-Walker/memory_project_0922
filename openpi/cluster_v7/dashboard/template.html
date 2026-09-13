@@ -50,6 +50,11 @@ svg.chart .ref{stroke-dasharray:4 4;stroke-width:1.2}
 .tile .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .tile .v{font-size:24px;font-weight:500;margin-top:2px;line-height:1.15;overflow-wrap:anywhere}
 .tile .d{font-size:12px;color:var(--muted);margin-top:3px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px}
+.toolbar button{font:500 13px "IBM Plex Sans",system-ui,sans-serif;color:#fff;background:var(--s0);border:1px solid var(--s0);border-radius:6px;padding:6px 14px;cursor:pointer}
+.toolbar button[disabled]{opacity:.6;cursor:wait}
+.toolbar button:focus-visible{outline:2px solid var(--s3);outline-offset:2px}
+.toolbar .sub{margin:0}
 .switch{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
 .switch button{font:500 13px "IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer}
 .switch button[aria-pressed="true"]{background:var(--s0);border-color:var(--s0);color:#fff}
@@ -74,7 +79,7 @@ footer{margin-top:36px;font-size:12px;color:var(--muted)}
 
 <main>
 <h1>Boba Memory Training</h1>
-<p class="sub" id="generated"></p>
+<div class="toolbar"><button id="refreshbtn" type="button">Refresh</button><p class="sub" id="generated"></p></div>
 <div class="status" id="status"></div>
 <div class="tiles" id="tiles"></div>
 
@@ -300,18 +305,44 @@ $('#chainnote').textContent = (L.chain||[]).filter(l=>/chain|done|missing/.test(
 $('#foot').innerHTML = `Logs: v7/logs/train_${A.exp}.log, v7/logs/train_${B.exp}.log, v7/logs/train_ctx_*_20260912_r1.log, v6/logs/train_${R.base.exp}.log. Recipe and cache notes: openpi/cluster_v7/README.md §3. Slurm: ${(DATA.gpu.jobs||'').trim().split(' ').join(' · ')}`;
 }
 render(DATA);
+// ---- auto refresh: live db feed when the viewer grants it, otherwise a timed reload (a republish also reloads open views) ----
 (async () => {
   const state = document.querySelector('#logstate');
+  const builtAt = String(DATA.generated||'').slice(11,16);
+  let live = false; let dbRef = null;
+  const btn = document.querySelector('#refreshbtn');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; btn.textContent = 'Refreshing…';
+    try {
+      if(dbRef){ const snap = await dbRef.get(); if(snap.exists){ render(snap.data()); const at = String(snap.data().generated||'').slice(11,16); state.textContent = `Refreshed from the live data pushed at ${at}. The training session pushes new data every 5 minutes; the button pulls the latest push.`; } }
+      else { const ok = await (async()=>{ try{ const r=await fetch('data.json',{cache:'no-store'}); if(!r.ok) return false; render(await r.json()); return true; }catch(e){ return false; } })(); if(!ok){ location.reload(); return; } state.textContent = 'Refreshed from the workstation server just now.'; }
+    } catch(e) { console.error(e); location.reload(); return; }
+    btn.disabled = false; btn.textContent = 'Refresh';
+  });
+  const tick = () => {
+    const mins = Math.max(0, Math.round((Date.now() - new Date(DATA.generated).getTime())/60000));
+    if(!live) state.textContent = `Snapshot built ${builtAt} (${mins} min ago). This page reloads itself every 5 minutes and after every republish; the training session refreshes the data every 5 minutes; the Refresh button reloads it.`;
+  };
+  tick(); setInterval(tick, 30000);
+  setInterval(() => { if(!live) location.reload(); }, 5*60*1000);
   try {
-    if(!(window.claude && typeof window.claude.use === 'function')){ return; }
+    // served by serve_dashboard.py on the workstation (ssh port-forward): poll data.json every 15 s
+    const localPoll = async () => {
+      try { const r = await fetch('data.json', {cache:'no-store'}); if(!r.ok) return false; const d = await r.json(); render(d); live = true;
+        state.textContent = `Live from the workstation server: logs re-read ${String(d.generated||'').slice(11,19)}, refreshed every 15 s (GPU snapshot every ~30 s).`; return true; } catch(e) { return false; }
+    };
+    if(!(window.claude && typeof window.claude.use === 'function')){ if(await localPoll()) setInterval(localPoll, 15000); return; }
     const db = await window.claude.use('db');
-    if(!db){ state.textContent = 'Snapshot from the page build (live updates need the claude.ai viewer).'; return; }
-    db.doc('dash/data').onSnapshot(snap => {
+    if(!db){ if(await localPoll()) setInterval(localPoll, 15000); return; }
+    dbRef = db.doc('dash/data');
+    dbRef.onSnapshot(snap => {
       if(!snap.exists) return;
       const d = snap.data();
       try { render(d); } catch(e) { console.error(e); return; }
-      state.textContent = 'Live: last push ' + String(d.generated||'').slice(11,16) + ' (the training session pushes new data about every 10 minutes; the page redraws on its own).';
-    }, err => { state.textContent = 'Live feed stopped (' + err.code + '); showing the last data received.'; });
+      live = true;
+      const at = String(d.generated||'').slice(11,16);
+      state.textContent = `Live feed connected: data pushed at ${at}; the page redraws by itself when the training session pushes again (every 5 minutes); Refresh pulls the latest push now.`;
+    }, err => { live = false; state.textContent = 'Live feed stopped (' + err.code + '); falling back to timed reloads.'; });
   } catch(e) { console.error(e); }
 })();
 </script>

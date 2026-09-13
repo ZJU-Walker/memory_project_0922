@@ -72,6 +72,19 @@ result: `{config, exp, steps:[{step, metric...}], progress:[{t, step, total}], s
    expires after 7 days; the page freezes at the last push when the session ends.
 5. Republishing the same `file_path` keeps the URL; omit `capabilities` on a redeploy to keep the stored declaration.
 
+## 4b. Fully live variant (workstation server + ssh port-forward)
+
+The artifact page cannot reach the cluster's files (CSP), so its freshness is the push cadence. For a truly live view
+`serve_dashboard.py` serves the SAME template from the workstation and re-reads the logs on every `/data.json` request;
+the page polls it every 15 s (the boot block tries `fetch('data.json')` when `claude.use` is absent or returns null). A
+background thread runs `refresh.sh` every 30 s for the GPU/job/disk snapshot.
+```
+bash start_server.sh 8020            # on iris-ws-18 (pidfile server.pid; restart = run again)
+ssh -L 8020:localhost:8020 iris-ws-18.stanford.edu   # from the laptop, then open http://localhost:8020
+```
+Never `pkill -f serve_dashboard` from an inline command: the pattern matches the calling shell and kills it (two
+shells died that way); `start_server.sh` uses the pidfile.
+
 ## 5. Gotchas met on the way
 
 * The workstation `python3` is old: keep `from __future__ import annotations` after the docstring.
