@@ -60,10 +60,14 @@ local disk the same run does 1.8 updates/s. On a shared cluster set, before laun
 
 ```bash
 export OPENPI_BEANS_DATASET_ROOT=/scr/<user>/beans0922/bean_scoop_0905_v5   # rsync -a of the dataset dir
-export HF_DATASETS_CACHE=/scr/<user>/beans0922/hf_datasets                  # the arrow cache is rebuilt there (~5 min)
+# the arrow cache: the launcher sources cluster_v35/env.sh, which pins HF_DATASETS_CACHE to <repo>/v35/cache/huggingface/datasets
+# (exporting the variable yourself is overridden), so make that in-tree directory a symlink to the local disk:
+mkdir -p /scr/<user>/beans0922/hf_datasets && ln -sfn /scr/<user>/beans0922/hf_datasets <repo>/v35/cache/huggingface/datasets
 ```
 
-`beans/logs/restart_local_cache.sh` shows the exact restart used here (resume from the last checkpoint).
+The cache is rebuilt there on the first loader start (a few minutes from a local dataset). `beans/logs/switch_at_5000.sh` shows the
+restart used here (resume from the last checkpoint). Symptom to recognise: loader workers at ~5 % CPU in `folio_wait_bit_common`
+(page-fault waits on the memory-mapped arrow files) while the GPUs idle.
 
 ## Serving
 
