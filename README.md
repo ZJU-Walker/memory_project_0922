@@ -64,7 +64,11 @@ node. Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoi
 `beans0922_ablation` (the `diagnostic/vis_*` curves show the sensory bank: commits per step, bank norm, read scale).
 
 Data and weights (public, fetched by the setup script): dataset `kewalk123/yam_bean_scoop_0905_v5` (89 episodes, LeRobot
-layout), base checkpoint `kewalk123/beans0922_pi05_base_10k` (pi0.5 with knowledge insulation, 10k updates on this data —
-what every row warm-starts from). Adding a row = one entry in `ROWS` of
+layout), base checkpoint `kewalk123/beans0922_pi05_base_10k` (pi0.5 with knowledge insulation on this data — what every
+row warm-starts from). The base run is still going: the repo holds **step 5000 first** (its `STEP` file says which) and is
+replaced by step 10000 when that lands; `00_download.sh` places whatever is published under
+`beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/<step>/params` and the launcher warm-starts from the largest
+step present — re-run `bash beans/ablations/00_download.sh` once to pick up the 10000 checkpoint (rows started from 5000
+say so in their `train_<exp>_status.log`). Adding a row = one entry in `ROWS` of
 `openpi/src/openpi/training/beans0922_ablation_config.py` + a two-line `beans/ablations/run_<row>.sh`.
 More: `beans/ablations/README.md` (how the sensory bank works, tests), `beans/README.md` (the policy, base + memory runs, serving).

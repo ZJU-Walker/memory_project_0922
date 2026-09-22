@@ -66,12 +66,21 @@ state-only rows ignore the images. `openpi/src/openpi/training/beans0922_ablatio
 control in exactly the intended fields. Serving: `openpi/scripts/serve_yam_memory.py` advances the sensory bank once per
 served tick; `--vis-zero-read` silences its read for a reliance test.
 
+## Node-local data (speed) and the two path guards
+
+The loader memory-maps its arrow cache; over NFS that stalls training (measured: 2 s/update vs 1.8 updates/s local). The
+tree's path guards only accept in-project paths, with two sanctioned exceptions for node-local disks: symlinks at or below
+`v35/cache/` (caches) and entries of `local/` (mirrors of project data). `00_download.sh LOCAL_DISK=<dir>` creates both
+links (`local/bean_scoop_0905_v5` and `v35/cache/huggingface/datasets`); `train_ablation.sh` uses `local/bean_scoop_0905_v5`
+automatically when it exists. Do not point `OPENPI_BEANS_DATASET_ROOT` or `HF_DATASETS_CACHE` at a raw outside path for a
+memory run: the v3.5 authorization refuses it.
+
 ## Files
 
 | file | purpose |
 | --- | --- |
 | `setup_other_cluster.sh` | one-shot setup on another machine: clone + `uv sync` + `00_download.sh` |
-| `00_download.sh` | once per machine: dataset + norm stats + the 10k base checkpoint from the Hub, tokenizer caches |
+| `00_download.sh` | once per machine: dataset + norm stats + the published base checkpoint (step 5000 until 10000 lands; re-run to upgrade) from the Hub, tokenizer caches; `LOCAL_DISK=<dir>` keeps dataset + cache on the node's disk |
 | `train_ablation.sh` | generic 4-GPU launcher (waits for the base checkpoint and free cards, OOM fallback ladder, resume) |
 | `run_snap.sh`, `run_vis8.sh`, `run_vis8s.sh`, `run_vis8s_add.sh`, `run_state8.sh`, `run_state8_add.sh` | one row each: `[GPUS=0,1,2,3] bash beans/ablations/run_<row>.sh [smoke]` |
 | `ablation_ctl.sh` | `status` / `stop [<row>]` |
