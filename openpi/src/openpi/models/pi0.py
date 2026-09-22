@@ -6677,6 +6677,7 @@ class Pi0(_model.BaseModel):
                 "vis_raw_read_rms_sum": jnp.sum(ys["vis_raw_read_rms"]),
                 "vis_injected_pre_cast_rms_sum": jnp.sum(ys["vis_injected_pre_cast_rms"]),
                 "vis_bank_norm_sum": jnp.sum(ys["vis_bank_norm"]),
+                "vis_valid_count": jnp.sum(ys["valid"]),  # denominator of the per-tick means train.py logs
             }
         )
         if v4_on:

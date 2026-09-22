@@ -61,7 +61,7 @@ bash beans/ablations/ablation_ctl.sh status;  bash beans/ablations/ablation_ctl.
 Knobs (environment): `GPUS` (default `0,1,2,3`), `STEPS` (default 3000), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM — 4 × 80 GB usually
 lands at 8–12), `WORKERS` (16 loader processes per row), `WANDB=0`. No scheduler is needed: python runs directly on the
 node. Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoints/<config>/<exp>/`; W&B project
-`beans0922_ablation` (the `diagnostic/vis_*` curves show the sensory bank: commits per step, bank norm, read scale).
+`beans0922_ablation` (the `vis_bank_norm`, `vis_read_rms`, `vis_read_injected_rms`, `vis_commit_rate` curves show the sensory bank).
 
 Data and weights (public, fetched by the setup script): dataset `kewalk123/yam_bean_scoop_0905_v5` (89 episodes, LeRobot
 layout), base checkpoint `kewalk123/beans0922_pi05_base_10k` (pi0.5 with knowledge insulation on this data — what every

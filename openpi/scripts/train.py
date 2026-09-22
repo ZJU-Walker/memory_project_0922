@@ -1312,6 +1312,7 @@ _V5_INFO_KEYS = (
     "vis_raw_read_rms_sum",
     "vis_injected_pre_cast_rms_sum",
     "vis_bank_norm_sum",
+    "vis_valid_count",
     "v4_sem_commit_count",
     "v4_sem_write_eligible_count",
     "v4_sem_degenerate_count",
@@ -1347,6 +1348,22 @@ def _v5_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Array]:
     """v5 sentence-bank telemetry (cluster_v5/README.md §6), raw numerators/denominators for
     exact logging-window pooling; no loss term is derived from any of them."""
     return {f"diagnostic/{key}": chunked_loss[key] for key in _V5_INFO_KEYS}
+
+
+_VIS_BANK_METRICS = (
+    # beans0922 ablation: sensory-bank health as PLAIN keys (per valid tick), because the beans0922 recipe logs with
+    # log_diagnostics=False and would drop them under diagnostic/. The caller gates on the bank, so snap's key set is unchanged.
+    ("vis_bank_norm", "vis_bank_norm_sum"),  # Frobenius norm of the bank: bounded (delta rule) / plateau (additive rule)
+    ("vis_read_rms", "vis_raw_read_rms_sum"),  # raw retrieval before the gate
+    ("vis_read_injected_rms", "vis_injected_pre_cast_rms_sum"),  # after the gate, what the blocks see
+    ("vis_commit_rate", "vis_commit_count"),  # fraction of valid ticks that wrote (write-every-tick: ~1)
+)
+
+
+def _vis_bank_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Array]:
+    """Per-valid-tick means of the sensory-bank telemetry (exact zeros in an empty window)."""
+    count = jnp.maximum(chunked_loss["vis_valid_count"], 1.0)
+    return {name: chunked_loss[key] / count for name, key in _VIS_BANK_METRICS}
 
 
 def _v35_loss_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Array]:
@@ -1886,6 +1903,8 @@ def train_step(
                 info.update(_v4_fact_info(chunked_loss))
             if "v5_write_requested_count" in chunked_loss:
                 info.update(_v5_info(chunked_loss))
+                if getattr(model, "memory_vis_bank", False):
+                    info.update(_vis_bank_info(chunked_loss))
             if "ladder_writer_ce_sum" in chunked_loss:
                 # Section 6 online rungs: features are stop-gradient'ed inside the model, so
                 # this term reaches ONLY the ladder heads -- whose grads train_step removes
@@ -2133,6 +2152,8 @@ def train_step(
                 info.update(_v4_fact_info(chunked_loss))
             if "v5_write_requested_count" in chunked_loss:
                 info.update(_v5_info(chunked_loss))
+                if getattr(model, "memory_vis_bank", False):
+                    info.update(_vis_bank_info(chunked_loss))
             if "ladder_writer_ce_sum" in chunked_loss:
                 if ladder_count_global is None:
                     raise ValueError("ladder probe losses require the seq_side/evidence/waiting fields.")

@@ -51,11 +51,13 @@ kept for resume), 1000 / 2000 / 3000 permanent (~27 GB each; `OPENPI_BEANS_AB_KE
 `beans0922_ablation`. Tick 5 frames, 40-tick windows, TBPTT 25, the 20 target-carry sentences, no
 state masking — all snap's (`openpi/src/openpi/training/beans0922_config.py`).
 
-## Telemetry to watch (W&B `diagnostic/`)
+## Telemetry to watch (W&B, plain keys next to the losses)
 
-`vis_commit_count` (should equal the number of valid ticks), `vis_bank_norm_sum` (bounded; grows towards a plateau under
-the additive rule), `vis_raw_read_rms_sum` (the raw retrieval before the gate), `vis_injected_pre_cast_rms_sum` (after the
-gate; ≈ gate × image-token RMS × ticks), next to snap's usual sentence/flow losses and memory-group gradient norm.
+`vis_bank_norm` (Frobenius norm of the sensory bank per valid tick: bounded under the delta rule, climbs to a plateau under
+the additive rule — a norm that keeps growing is the thing to report), `vis_read_rms` (the raw retrieval before the gate),
+`vis_read_injected_rms` (after the gate; ≈ 0.5 × image-token RMS once the bank is non-empty), `vis_commit_rate` (fraction of
+valid ticks that wrote; ≈ 1 for write-every-tick), next to snap's sentence/flow losses and `memory_grad_norm`. The raw sums
+behind them (`vis_*_sum`, `vis_commit_count`, `vis_valid_count`) stay under `diagnostic/`, which the recipe does not log.
 
 ## Tests
 

@@ -38,9 +38,8 @@ def wandb_history(project: str, exp: str) -> dict[int, dict]:
         import wandb
     except ImportError:
         return {}
-    keys = ["memory_grad_norm", "grad_norm", "diagnostic/vis_commit_count", "diagnostic/vis_bank_norm_sum",
-            "diagnostic/vis_raw_read_rms_sum", "diagnostic/vis_injected_pre_cast_rms_sum", "diagnostic/v4_sem_commit_count",
-            "diagnostic/v4_sem_injected_pre_cast_rms_sum"]
+    keys = ["memory_grad_norm", "grad_norm", "vis_commit_rate", "vis_bank_norm", "vis_read_rms", "vis_read_injected_rms",
+            "diagnostic/v4_sem_commit_count", "diagnostic/v4_sem_injected_pre_cast_rms_sum"]  # sentence-bank keys only with log_diagnostics
     api = wandb.Api(timeout=30)
     out: dict[int, dict] = {}
     try:
@@ -74,15 +73,15 @@ def report(row: str, project: str, use_wandb: bool) -> list[str]:
     steps = parse_log(log)
     hist = wandb_history(project, exp) if use_wandb else {}
     print(f"\n== {row}  ({log.name}, {len(steps)} logged steps)")
-    cols = ["step", "loss", "ce_loss", "flow_loss", "grad_norm", "memory_grad_norm", "vis_commit", "vis_bank_norm",
+    cols = ["step", "loss", "ce_loss", "flow_loss", "grad_norm", "memory_grad_norm", "vis_commit_rate", "vis_bank_norm",
             "vis_read_rms", "vis_inj_rms", "sem_commit"]
     print(" | ".join(f"{c:>14}" for c in cols))
     for rec in steps:
         h = hist.get(rec["step"], {})
         vals = [rec["step"], rec.get("loss"), rec.get("ce_loss"), rec.get("flow_loss"), rec.get("grad_norm"),
-                rec.get("memory_grad_norm", h.get("memory_grad_norm")), h.get("diagnostic/vis_commit_count"),
-                h.get("diagnostic/vis_bank_norm_sum"), h.get("diagnostic/vis_raw_read_rms_sum"),
-                h.get("diagnostic/vis_injected_pre_cast_rms_sum"), h.get("diagnostic/v4_sem_commit_count")]
+                rec.get("memory_grad_norm", h.get("memory_grad_norm")), rec.get("vis_commit_rate", h.get("vis_commit_rate")),
+                rec.get("vis_bank_norm", h.get("vis_bank_norm")), rec.get("vis_read_rms", h.get("vis_read_rms")),
+                rec.get("vis_read_injected_rms", h.get("vis_read_injected_rms")), h.get("diagnostic/v4_sem_commit_count")]
         print(" | ".join(f"{fmt(v):>14}" for v in vals))
         for k, v in rec.items():
             if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -94,7 +93,7 @@ def report(row: str, project: str, use_wandb: bool) -> list[str]:
             flags.append(f"{row}: grad_norm grows {first:.1f} -> {last:.1f}")
         if max(g) > 1000:
             flags.append(f"{row}: grad_norm spike {max(g):.0f}")
-    bank = [h["diagnostic/vis_bank_norm_sum"] for _, h in sorted(hist.items()) if "diagnostic/vis_bank_norm_sum" in h]
+    bank = [r["vis_bank_norm"] for r in steps if "vis_bank_norm" in r] or [h["vis_bank_norm"] for _, h in sorted(hist.items()) if "vis_bank_norm" in h]
     if len(bank) >= 6 and bank[-1] > 2 * bank[len(bank) // 2] and bank[-1] > bank[-2] > bank[-3]:
         flags.append(f"{row}: vis_bank_norm still growing at the end ({bank[len(bank)//2]:.3g} -> {bank[-1]:.3g})")
     losses = [r["loss"] for r in steps if "loss" in r]
