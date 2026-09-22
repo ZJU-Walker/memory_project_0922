@@ -49,3 +49,17 @@ def test_beans0922_configs():
     assert sorted(spec_obs.images) == ["base_0_rgb", "left_wrist_0_rgb", "right_wrist_0_rgb"] and spec_act.shape[-2] == 50
     for n in ("pi05_yam_beans0922_base_smoke", "pi05_yam_beans0922_v1_smoke"):
         s = _config.get_config(n); assert s.num_train_steps == 3 and not s.wandb_enabled
+
+
+def test_v2_is_v1_with_the_change_only_confident_write_rule():
+    from openpi.training import config as _config
+
+    v1 = _config.get_config("pi05_yam_beans0922_v1")
+    v2 = _config.get_config("pi05_yam_beans0922_v2")
+    assert v2.model.memory_v7_write_every_step is False and v1.model.memory_v7_write_every_step is True
+    assert v2.model.memory_v5_write_conf == 0.9 and v1.model.memory_v5_write_conf == 0.0
+    assert v2.model.memory_v5_prev_is_committed is True
+    changed = {f.name for f in dataclasses.fields(v1.model) if getattr(v1.model, f.name) != getattr(v2.model, f.name)}
+    assert changed == {"memory_v7_write_every_step", "memory_v5_write_conf"}
+    for field in ("data", "weight_loader", "lr_schedule", "num_train_steps", "batch_size", "label_write_schedule_steps"):
+        assert getattr(v1, field) == getattr(v2, field), field

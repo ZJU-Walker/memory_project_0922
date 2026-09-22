@@ -92,4 +92,11 @@ label sentences) and renders the top camera with the labelled phase, the decoded
 `beans/eval/videos_<exp>_<step>/ep<idx>_<mode>.{mp4,json}` + `status.log`. On this cluster run it inside a Slurm job you own:
 `JOB=<job> GPU=<card> GRES=<cards of that job> bash beans/eval/run_heldout_videos.sh pi05_yam_beans0922_v1 beans0922_v1 1500`
 (one H100/H200, ~2 min per episode and mode). Elsewhere: `bash beans/eval/run_heldout_videos.sh ...` on a node with a free card.
-Results page for checkpoint 1500 (2026-09-22): https://claude.ai/artifact/WM4QNWYaVRDAQyEiG4R6rR
+A third pass with the bank never written: `MODES=self TAGSUF=_blank EXTRA='--intervention blank' ...` (files
+`ep<idx>_self_blank.*`). Results page for checkpoint 1500 (2026-09-22): https://claude.ai/artifact/WM4QNWYaVRDAQyEiG4R6rR
+
+Checkpoint-1500 verdict (6 dev episodes): the running blink count is read from the bank (own notes exact on 113/127 light
+ticks, right count in the notes in 5/6; with the bank blank both blinks decode as "light on: 2"), but the "yellow go: scoop k
+times" count ignores the notes -- own notes and label notes give the same sentence in 6/6 (right in 3/6), and the every-tick
+own writes then drift 2 -> 3. Hence `pi05_yam_beans0922_v2` = v1 with change-only, confidence-gated (0.9) writes
+(`V2_WRITE_RULE` in `beans0922_config.py`).

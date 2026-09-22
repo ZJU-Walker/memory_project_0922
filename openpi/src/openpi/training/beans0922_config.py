@@ -86,9 +86,17 @@ def base_config(existing: dict, name: str = "pi05_yam_beans0922_base", *, steps:
     )
 
 
+# v2 write rule (user 09-22 14:24, after the checkpoint-1500 held-out probe): a note is written only when the decoded sentence
+# differs from the last COMMITTED one (memory_v5_prev_is_committed stays True = retry until committed) AND its mean token
+# probability is >= 0.9 (B9's gate); label writes during the ramp are always confident. v1 wrote every tick with no gate, so a
+# wrong "scoop 2 times" was rewritten 15x and read back (2 -> 3 drift on dev ep 29/73) and junk decodes entered the bank.
+V2_WRITE_RULE = dict(memory_v7_write_every_step=False, memory_v5_write_conf=0.9)
+
+
 def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps: int = MEM_STEPS, wandb: bool = True,
-                  batch: int = MEM_BATCH) -> cfg.TrainConfig:
-    """v1 structure on the beans v5 (B9) window / labels / sampling, from the beans0922 base with fresh memory leaves."""
+                  batch: int = MEM_BATCH, model_overrides: dict | None = None) -> cfg.TrainConfig:
+    """v1 structure on the beans v5 (B9) window / labels / sampling, from the beans0922 base with fresh memory leaves.
+    `model_overrides` = the flags a later revision changes on top of v1 (v2: V2_WRITE_RULE)."""
     template = existing["pi05_yam_mem_v6_task1A2"]  # the linear delta-rule bank template every 0920 config derives from
     b9 = existing["pi05_yam_mem_v5_beansB9"]  # the beans v5 recipe: data, labels, window, reference tokens
     model_kwargs = dict(STRUCTURE)  # the v1 structure (includes prefill_history True, own writes, ramp-compatible flags)
@@ -102,6 +110,7 @@ def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps:
         memory_v5_reference_tokens=b9.model.memory_v5_reference_tokens,  # the 20 target-carry sentences
         memory_state_mask_prob=0.0,  # no state masking (user 09-22 00:36; B9 used 0.5)
     )
+    model_kwargs.update(model_overrides or {})
     model = dataclasses.replace(template.model, **model_kwargs)
     data = _with_beans_data(b9.data)
     return dataclasses.replace(
@@ -124,4 +133,6 @@ def get_configs(existing: dict) -> list:
         base_config(existing, "pi05_yam_beans0922_base_smoke", steps=2, wandb=False),
         memory_config(existing),
         memory_config(existing, "pi05_yam_beans0922_v1_smoke", steps=2, wandb=False),
+        memory_config(existing, "pi05_yam_beans0922_v2", model_overrides=V2_WRITE_RULE),
+        memory_config(existing, "pi05_yam_beans0922_v2_smoke", steps=2, wandb=False, model_overrides=V2_WRITE_RULE),
     ]
