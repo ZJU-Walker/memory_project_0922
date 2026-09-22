@@ -52,6 +52,19 @@ The launcher refuses to start while another process holds more than 2 GB on the 
 that already holds a numeric checkpoint, and in step 2 retries once at batch 2 if batch 4 runs out of memory. Logs:
 `beans/logs/train_<exp>.log`, status lines in `beans/logs/train_beans0922_status.log`. W&B project `beans0922`.
 
+## Throughput note (measured 2026-09-22 on iris-hgx-1)
+
+The loader memory-maps the dataset's arrow index (the `datasets` cache) and decodes the mp4s per sample. With both on a
+network filesystem the two H100s sat idle 80 % of the time (about 2 s per update at batch 16). With both on the node's
+local disk the same run does 1.8 updates/s. On a shared cluster set, before launching:
+
+```bash
+export OPENPI_BEANS_DATASET_ROOT=/scr/<user>/beans0922/bean_scoop_0905_v5   # rsync -a of the dataset dir
+export HF_DATASETS_CACHE=/scr/<user>/beans0922/hf_datasets                  # the arrow cache is rebuilt there (~5 min)
+```
+
+`beans/logs/restart_local_cache.sh` shows the exact restart used here (resume from the last checkpoint).
+
 ## Serving
 
 `openpi/scripts/serve_yam_memory.py` serves step 2 with the same tick, write rule and read as training (the RoboMME clients

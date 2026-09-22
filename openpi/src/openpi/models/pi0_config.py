@@ -369,6 +369,13 @@ class Pi0Config(_model.BaseModelConfig):
     memory_vis_input_rms: float | None = None
     # serving / eval switch: read exactly zero from the visual bank while its writes continue (reliance test)
     memory_vis_zero_read: bool = False
+    # What the bank is written from each tick (the read is the same `memory_vis_slots` fixed queries either way):
+    # `memory_vis_image_write` = the pooled front-camera slots (rows vis8*), `memory_vis_state_slot` = one more slot from
+    # the current 14-D state through a fresh linear map (key = unit(P_k phi(s) + e_state), value = unit(P_v phi(s)));
+    # image False + state True = a state-only bank (rows state8*). The commit rule (delta vs additive) is
+    # `memory.commit_rule` (MemoryConfig).
+    memory_vis_image_write: bool = True
+    memory_vis_state_slot: bool = False
     # v7 (09-18, user: "fully remove the visual bank ... keep the tokens clean"): drop the 16 visual-bank columns from
     # the injected block; only the sentence-bank read tokens are injected. The visual bank still runs (unused).
     memory_v7_no_visual_block: bool = False
@@ -595,6 +602,10 @@ class Pi0Config(_model.BaseModelConfig):
                     )
                 if self.memory_vis_input_rms is not None and not self.memory_vis_input_rms > 0.0:
                     raise ValueError("memory_vis_input_rms must be positive or None.")
+                if not (self.memory_vis_image_write or self.memory_vis_state_slot):
+                    raise ValueError("memory_vis_bank needs at least one write source (memory_vis_image_write or memory_vis_state_slot).")
+            elif self.memory_vis_state_slot or not self.memory_vis_image_write:
+                raise ValueError("memory_vis_state_slot / memory_vis_image_write need memory_vis_bank.")
             if self.memory_task_conditioned_write and self.memory_architecture != "v32_layer8_dual_query":
                 raise ValueError("memory_task_conditioned_write requires the v3.2 dual-query architecture.")
             if self.memory_seq_steps < 1:

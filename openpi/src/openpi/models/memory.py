@@ -128,6 +128,11 @@ class MemoryConfig:
     write_rule: Literal["gradient", "delta_output"] = "gradient"
     association_mode: Literal["tokens", "pooled_frame"] = "tokens"
     delta_rate: float = 1.0
+    # beans0922 ablations (2026-09-22): what one delta_output commit adds. "delta" (default, every existing config) writes
+    # the ERROR v - W k, so a repeated association adds ~nothing (a presence memory); "additive" (Hebbian / outer product,
+    # the rule inside linear attention) writes v itself, so repeats accumulate in proportion to how often they occur
+    # (a tally memory; bounded by the alpha_step decay). Same decay, same read.
+    commit_rule: Literal["delta", "additive"] = "delta"
 
     # Fixed forgetting rate per *sampled memory step* (15 raw frames in the v3.5 pilot).  This
     # is deliberately not produced by the learned gate.  Keeping it static makes a skipped
@@ -153,6 +158,10 @@ class MemoryConfig:
             raise ValueError("write_rule='delta_output' requires association_mode='pooled_frame'.")
         if self.write_rule == "delta_output" and self.drift_radius is not None:
             raise ValueError("drift_radius is incompatible with write_rule='delta_output'.")
+        if self.commit_rule not in ("delta", "additive"):
+            raise ValueError(f"Unknown commit_rule {self.commit_rule!r}.")
+        if self.commit_rule == "additive" and self.write_rule != "delta_output":
+            raise ValueError("commit_rule='additive' requires write_rule='delta_output'.")
         if not math.isfinite(self.delta_rate) or not 0.0 <= self.delta_rate <= 1.0:
             raise ValueError(f"delta_rate must be finite and in [0, 1], got {self.delta_rate!r}.")
         if not math.isfinite(self.alpha_step) or not 0.0 <= self.alpha_step < 1.0:
@@ -555,7 +564,8 @@ class TitansMemory(nnx.Module):
         # Compute raw telemetry first, then sanitize only the arithmetic feeding a candidate
         # update.  This prevents NaN*False from contaminating an otherwise fail-closed sample.
         raw_prediction = jnp.einsum("bh,bhd->bd", hidden, decayed_w3, precision=jax.lax.Precision.HIGHEST)
-        raw_pre_residual = pooled_value - raw_prediction
+        # additive rule: the whole value is written, not the error (no look-up of what the bank already returns)
+        raw_pre_residual = pooled_value if self.config.commit_rule == "additive" else pooled_value - raw_prediction
         state_finite = jnp.all(jnp.isfinite(decayed_w3), axis=(-2, -1))
         hidden_finite = jnp.all(jnp.isfinite(hidden), axis=-1) & jnp.isfinite(hidden_norm_sq)
         residual_finite = jnp.all(jnp.isfinite(raw_pre_residual), axis=-1)
@@ -680,7 +690,8 @@ class TitansMemory(nnx.Module):
                 hidden_norm_sq >= jnp.asarray(self.config.hidden_norm_sq_floor, dtype=jnp.float32)
             )
             raw_prediction = jnp.einsum("bh,bhd->bd", hidden, w3_cur, precision=jax.lax.Precision.HIGHEST)
-            raw_residual = pooled_value - raw_prediction
+            # additive rule: the whole value is written, not the error (no look-up of what the bank already returns)
+            raw_residual = pooled_value if self.config.commit_rule == "additive" else pooled_value - raw_prediction
             residual_finite = jnp.all(jnp.isfinite(raw_residual), axis=-1)
             hidden_safe = jnp.where(jnp.isfinite(hidden), hidden, jnp.zeros_like(hidden))
             residual_safe = jnp.where(jnp.isfinite(raw_residual), raw_residual, jnp.zeros_like(raw_residual))

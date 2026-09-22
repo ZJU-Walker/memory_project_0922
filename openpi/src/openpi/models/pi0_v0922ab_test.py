@@ -30,6 +30,7 @@ from openpi.models.pi0_v6_test import D_KEY, WIDTH
 
 SLOTS = 2
 TOP = 4  # tiny patch tokens per camera
+STATE_DIM = 2  # the tiny model's action / state width
 
 
 def _vis_kwargs(**overrides) -> dict:
@@ -72,12 +73,12 @@ class _TinyVis(_TinyV0):
     vis_bank_write = pi0.Pi0.vis_bank_write
     vis_read_tokens = pi0.Pi0.vis_read_tokens
 
-    def __init__(self, rngs: nnx.Rngs, *, on: bool = True):
+    def __init__(self, rngs: nnx.Rngs, *, on: bool = True, image: bool = True, state: bool = False, rule: str = "delta"):
         super().__init__(rngs, history_frames=0)
         self.memory = memory.TitansMemory(
             memory.MemoryConfig(
                 d_input=WIDTH, d_key=D_KEY, hidden_dims=(), d_value=WIDTH, mlp_l2norm=True, blank_initial_output=True,
-                write_rule="delta_output", association_mode="pooled_frame", delta_rate=1.0, alpha_step=0.01,
+                write_rule="delta_output", association_mode="pooled_frame", delta_rate=1.0, alpha_step=0.01, commit_rule=rule,
             ),
             rngs=rngs,
         )
@@ -85,7 +86,13 @@ class _TinyVis(_TinyV0):
         self.memory_vis_slots = SLOTS
         self.memory_vis_input_rms = None
         self.memory_vis_zero_read = False
-        self.memory_vis_pooler = pi0.MemoryQueryCompressor(num_queries=SLOTS, width=WIDTH, num_heads=1, rngs=rngs)
+        self.memory_vis_image_write = image
+        self.memory_vis_state_slot = state
+        if image:
+            self.memory_vis_pooler = pi0.MemoryQueryCompressor(num_queries=SLOTS, width=WIDTH, num_heads=1, rngs=rngs)
+        if state:
+            self.memory_vis_state_proj = nnx.Linear(STATE_DIM, WIDTH, rngs=rngs)
+            self.memory_vis_state_key = nnx.Param(jax.random.normal(rngs.params(), (D_KEY,), dtype=jnp.float32) / jnp.sqrt(jnp.float32(D_KEY)))
         self.memory_vis_key_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)
         self.memory_vis_value_proj = nnx.Linear(WIDTH, WIDTH, use_bias=False, rngs=rngs)
         self.memory_vis_value_proj.kernel.value = jnp.eye(WIDTH, dtype=jnp.float32)
@@ -104,6 +111,25 @@ def tiny_vis():
         yield _TinyVis(nnx.Rngs(9))
     finally:
         gemma.PALIGEMMA_VOCAB_SIZE = original_vocab
+
+
+def _tiny(**kwargs):
+    original_vocab = gemma.PALIGEMMA_VOCAB_SIZE
+    try:
+        gemma.PALIGEMMA_VOCAB_SIZE = 128
+        return _TinyVis(nnx.Rngs(9), **kwargs)
+    finally:
+        gemma.PALIGEMMA_VOCAB_SIZE = original_vocab
+
+
+@pytest.fixture(scope="module")
+def tiny_vis_state():
+    return _tiny(image=True, state=True)
+
+
+@pytest.fixture(scope="module")
+def tiny_state_only_add():
+    return _tiny(image=False, state=True, rule="additive")
 
 
 @pytest.fixture(scope="module")
@@ -399,3 +425,128 @@ def test_sampler_advances_the_visual_bank_per_tick_in_normal_mode_only(tiny_vis)
     )
     ref, _ = model.memory.analytic_decay(s1, 1)
     jax.tree.map(lambda a, b: np.testing.assert_allclose(np.asarray(a), np.asarray(b), atol=1e-6), dyn, ref)
+
+
+# --------------------------------------------------------------------------- (h) the additive rule, the state slot
+
+
+def _bank(rule: str):
+    return memory.TitansMemory(
+        memory.MemoryConfig(
+            d_input=WIDTH, d_key=D_KEY, hidden_dims=(), d_value=WIDTH, mlp_l2norm=True, blank_initial_output=True,
+            write_rule="delta_output", association_mode="pooled_frame", delta_rate=1.0, alpha_step=0.01, commit_rule=rule,
+        ),
+        rngs=nnx.Rngs(3),
+    )
+
+
+def test_additive_rule_accumulates_repeats_and_the_delta_rule_does_not():
+    with pytest.raises(ValueError, match="commit_rule"):
+        memory.MemoryConfig(commit_rule="hebb")
+    with pytest.raises(ValueError, match="additive"):
+        memory.MemoryConfig(commit_rule="additive")  # needs the delta_output form
+    k = memory.l2_normalize(jax.random.normal(jax.random.key(1), (1, 1, D_KEY)))
+    v = memory.l2_normalize(jax.random.normal(jax.random.key(2), (1, 1, WIDTH)))
+    ones = jnp.ones((1, 1), dtype=bool)
+    reads = {}
+    for rule in ("delta", "additive"):
+        bank = _bank(rule)
+        state = bank.init_state(1)
+        for _ in range(3):
+            state, aux = bank.delta_write_kv_multi(state, k, v, ones)
+            assert bool(aux["commit_applied"][0, 0])
+        reads[rule] = np.asarray(bank.read_key(state, k))[0, 0]
+    unit_v = np.asarray(v)[0, 0]
+    # delta: the bank returns v (refreshed against the decay), additive: v + 0.99 v + 0.99^2 v
+    np.testing.assert_allclose(reads["delta"], unit_v, atol=1e-4)
+    np.testing.assert_allclose(reads["additive"], (1 + 0.99 + 0.99**2) * unit_v, atol=1e-4)
+    # the default is delta, bit-for-bit
+    assert memory.MemoryConfig(write_rule="delta_output", association_mode="pooled_frame").commit_rule == "delta"
+
+
+def test_state_slot_is_one_more_association_from_the_state_only(tiny_vis_state):
+    model = tiny_vis_state
+    step0 = _single_step_observation()
+    prefix, _, _, front = _front(model, step0)
+    state = step0.state
+    keys, values, pooled = model.vis_write_kv(front, state=state)
+    assert keys.shape == (1, SLOTS + 1, D_KEY) and values.shape == (1, SLOTS + 1, WIDTH) and pooled.shape == (1, SLOTS + 1, WIDTH)
+    np.testing.assert_allclose(np.linalg.norm(np.asarray(keys), axis=-1), 1.0, atol=1e-5)
+    with pytest.raises(ValueError, match="state"):
+        model.vis_write_kv(front)
+    # a different state changes the state slot only; a different image changes the image slots only
+    keys_s, values_s, _ = model.vis_write_kv(front, state=state + 1.0)
+    np.testing.assert_array_equal(np.asarray(keys_s[:, :SLOTS]), np.asarray(keys[:, :SLOTS]))
+    assert not np.allclose(np.asarray(keys_s[:, SLOTS]), np.asarray(keys[:, SLOTS]), atol=1e-4)
+    keys_i, _, _ = model.vis_write_kv(front * 0.5, state=state)
+    np.testing.assert_array_equal(np.asarray(keys_i[:, SLOTS]), np.asarray(keys[:, SLOTS]))
+    assert not np.allclose(np.asarray(keys_i[:, :SLOTS]), np.asarray(keys[:, :SLOTS]), atol=1e-4)
+
+    def write_loss(m):
+        p, _, _ = m.embed_prefix(step0)
+        k, v, _ = m.vis_write_kv(p[:, :TOP], state=step0.state)
+        return jnp.sum(k) + jnp.sum(v)
+
+    grads = nnx.grad(write_loss)(model)
+    for name in ("memory_vis_state_proj", "memory_vis_state_key", "memory_vis_pooler"):
+        assert max(float(jnp.max(jnp.abs(leaf))) for leaf in jax.tree_util.tree_leaves(grads[name])) > 0.0, name
+    # the prefix builder passes the state through; without it the state slot fails loudly
+    blank_sem, written_sem = _written_bank(model)
+    with pytest.raises(ValueError, match="state"):
+        model._v0920_prepare_prefix(prefix, *_front(model, step0)[1:3], written_sem, top_token_count=TOP, visual_state=model.memory.init_state(1))
+    p = model._v0920_prepare_prefix(prefix, *_front(model, step0)[1:3], written_sem, top_token_count=TOP, visual_state=model.memory.init_state(1), state=state)
+    assert p["vis_keys"].shape == (1, SLOTS + 1, D_KEY) and p["memory_tokens"].shape == (1, 3 + SLOTS, WIDTH)  # read tokens unchanged
+
+
+def test_state_only_bank_ignores_the_images_and_keeps_the_read(tiny_state_only_add):
+    model = tiny_state_only_add
+    step0 = _single_step_observation()
+    _, _, _, front = _front(model, step0)
+    assert not hasattr(model, "memory_vis_pooler") and model.memory.config.commit_rule == "additive"
+    keys, values, _ = model.vis_write_kv(front, state=step0.state)
+    assert keys.shape == (1, 1, D_KEY)
+    keys_i, _, _ = model.vis_write_kv(front * 3.0, state=step0.state)
+    np.testing.assert_array_equal(np.asarray(keys_i), np.asarray(keys))
+    assert model._memory_token_total == 3 + SLOTS  # still 8-style read tokens
+    # repeats accumulate: three identical ticks read back ~ (1 + 0.99 + 0.99^2) x the value
+    state = model.memory.init_state(1)
+    for _ in range(3):
+        state, _ = model.vis_bank_write(state, keys, values, jnp.ones((1,), dtype=bool))
+    back = np.asarray(model.memory.read_key(state, keys))[0, 0]
+    np.testing.assert_allclose(back, (1 + 0.99 + 0.99**2) * np.asarray(values)[0, 0], atol=1e-4)
+    # ... and the read token is still RMS-matched (the tally shows up as direction, not scale)
+    tokens, valid = model.vis_read_tokens(state, front, jnp.float32)[:2]
+    target = float(np.sqrt(np.mean(np.square(np.asarray(front, dtype=np.float32)))))
+    np.testing.assert_allclose(np.sqrt(np.mean(np.square(np.asarray(tokens)), axis=-1)), 0.5 * target, rtol=1e-4)
+    assert bool(np.all(np.asarray(valid)))
+
+
+@pytest.mark.parametrize("fixture", ["tiny_vis_state", "tiny_state_only_add"])
+def test_state_rows_train_and_serve(fixture, request):
+    from openpi.models.pi0_v35_test import _single_observation
+
+    model = request.getfixturevalue(fixture)
+    observation = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    losses = model._compute_sequence_loss_v32(jax.random.key(922), observation, actions, train=False)
+    for key, value in losses.items():
+        assert np.all(np.isfinite(np.asarray(value))), key
+    np.testing.assert_array_equal(losses["vis_commit_count"], 3.0)
+    assert float(losses["vis_bank_norm_sum"]) > 0.0
+
+    def total_loss(m):
+        out = m._compute_sequence_loss_v32(jax.random.key(922), observation, actions, train=False)
+        return jnp.sum(out["v4_decision_ce_steps"]) + jnp.sum(out["ce"]) + jnp.sum(out["flow"])
+
+    grads = nnx.grad(total_loss)(model)
+    bad = ["/".join(str(k) for k in path) for path, leaf in jax.tree_util.tree_leaves_with_path(grads) if not bool(jnp.all(jnp.isfinite(jnp.asarray(leaf))))]
+    assert not bad, bad[:10]
+    for name in ("memory_vis_state_proj", "memory_vis_state_key", "memory_vis_read_query_bank"):
+        assert max(float(jnp.max(jnp.abs(leaf))) for leaf in jax.tree_util.tree_leaves(grads[name])) > 0.0, name
+    # serving: the bank advances per tick (state slot included) in normal mode
+    single = _single_observation()
+    blank_sem, written_sem = _written_bank(model)
+    kwargs = {"stop_token": 1, "max_decode_steps": 2, "num_steps": 1, "noise": jnp.zeros((1, 4, 2), dtype=jnp.float32)}
+    _, s1, _ = model.sample_with_memory(jax.random.key(1), single, model.memory.init_state(1), semantic_state=written_sem,
+                                        write_mode="normal", v35_transition_valid=True, v35_write_mask=True, **kwargs)
+    assert float(jnp.linalg.norm(s1.fast_weights[model.memory._output_weight_name])) > 0.0

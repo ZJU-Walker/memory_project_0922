@@ -6,6 +6,12 @@ for the ablation table, every one trained with the SAME 4-card recipe so the row
                                (Pi0Config.memory_vis_bank, 8 slots) and read with 8 fixed queries at the input next to
                                the 8 sentence tokens; the bank is `Pi05Config.memory` reconfigured as the SAME linear
                                delta-rule bank as the sentence bank (decay 0.99 per tick, rate 1, blank start).
+  pi05_yam_beans0922_ab_vis8s  vision + state: the same bank with one more write slot per tick from the 14-D state
+                               (memory_vis_state_slot); delta rule (a presence memory: repeats add nothing).
+  pi05_yam_beans0922_ab_vis8s_add   vision + state with the ADDITIVE commit rule (memory.commit_rule = "additive",
+                               Hebbian / outer product: repeats accumulate, a tally memory), same decay, same read.
+  pi05_yam_beans0922_ab_state8      state slot only (memory_vis_image_write False), delta rule, 8 read tokens.
+  pi05_yam_beans0922_ab_state8_add  state slot only, additive rule.
   <name>_smoke                 2 updates, no W&B, for the launch check.
 
 Ablation recipe (user 2026-09-22 04:39: "make full use ... batch size larger ... target 3k steps and same first 500 label
@@ -50,24 +56,43 @@ def snap_config(existing: dict, name: str = "pi05_yam_beans0922_ab_snap", *, ste
     return _recipe(existing, name, steps=steps, wandb=wandb, batch=batch)
 
 
-def vis8_config(existing: dict, name: str = "pi05_yam_beans0922_ab_vis8", *, steps: int = AB_STEPS, wandb: bool = True,
-                batch: int = AB_BATCH, slots: int = VIS_SLOTS) -> cfg.TrainConfig:
-    """Ablation (1): snap + an `slots`-slot visual bank (Pi0Config.memory_vis_bank). The visual bank is `model.memory`
-    reconfigured as a copy of the sentence bank's MemoryConfig (linear, delta rule, decay 0.99, blank start)."""
+def sensory_config(existing: dict, name: str, *, image: bool = True, state: bool = False, rule: str = "delta",
+                   steps: int = AB_STEPS, wandb: bool = True, batch: int = AB_BATCH, slots: int = VIS_SLOTS) -> cfg.TrainConfig:
+    """snap + a sensory bank (Pi0Config.memory_vis_bank) read as `slots` fixed-query tokens at the input. `image` = the
+    pooled front-camera slots, `state` = the state slot, `rule` = the commit rule of the bank ("delta" or "additive").
+    The bank is `model.memory` reconfigured as a copy of the sentence bank's MemoryConfig (linear, decay 0.99, blank start)
+    with that commit rule."""
     base = _recipe(existing, name, steps=steps, wandb=wandb, batch=batch)
     model = dataclasses.replace(
         base.model,
-        memory=dataclasses.replace(base.model.memory_semantic),  # the same linear delta-rule bank as the sentence bank
+        memory=dataclasses.replace(base.model.memory_semantic, commit_rule=rule),
         memory_vis_bank=True,
         memory_vis_slots=slots,
+        memory_vis_image_write=image,
+        memory_vis_state_slot=state,
     )
     return dataclasses.replace(base, model=model)
 
 
+def vis8_config(existing: dict, name: str = "pi05_yam_beans0922_ab_vis8", *, steps: int = AB_STEPS, wandb: bool = True,
+                batch: int = AB_BATCH, slots: int = VIS_SLOTS) -> cfg.TrainConfig:
+    """Ablation (1): snap + an `slots`-slot visual bank (image slots only, delta rule)."""
+    return sensory_config(existing, name, image=True, state=False, rule="delta", steps=steps, wandb=wandb, batch=batch, slots=slots)
+
+
+ROWS = {  # name suffix -> (image slots, state slot, commit rule); every row = snap + this bank under the same recipe
+    "vis8": (True, False, "delta"),
+    "vis8s": (True, True, "delta"),
+    "vis8s_add": (True, True, "additive"),
+    "state8": (False, True, "delta"),
+    "state8_add": (False, True, "additive"),
+}
+
+
 def get_configs(existing: dict) -> list:
-    return [
-        snap_config(existing),
-        snap_config(existing, "pi05_yam_beans0922_ab_snap_smoke", steps=2, wandb=False),
-        vis8_config(existing),
-        vis8_config(existing, "pi05_yam_beans0922_ab_vis8_smoke", steps=2, wandb=False),
-    ]
+    configs = [snap_config(existing), snap_config(existing, "pi05_yam_beans0922_ab_snap_smoke", steps=2, wandb=False)]
+    for suffix, (image, state, rule) in ROWS.items():
+        name = f"pi05_yam_beans0922_ab_{suffix}"
+        configs.append(sensory_config(existing, name, image=image, state=state, rule=rule))
+        configs.append(sensory_config(existing, f"{name}_smoke", image=image, state=state, rule=rule, steps=2, wandb=False))
+    return configs

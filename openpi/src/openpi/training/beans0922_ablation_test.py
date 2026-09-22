@@ -34,6 +34,23 @@ def test_beans0922_ablation_configs():
     assert vis8.model.memory_vis_bank and vis8.model.memory_vis_slots == 8
     assert vis8.model.memory == vis8.model.memory_semantic  # the same linear delta-rule bank as the sentence bank
     assert vis8.model.memory.hidden_dims == () and vis8.model.memory.write_rule == "delta_output"
+    # the sensory rows: image / state slots and the commit rule are the only differences
+    expected = {
+        "vis8s": ({"memory", "memory_vis_bank", "memory_vis_state_slot"}, True, True, "delta"),
+        "vis8s_add": ({"memory", "memory_vis_bank", "memory_vis_state_slot"}, True, True, "additive"),
+        "state8": ({"memory", "memory_vis_bank", "memory_vis_state_slot", "memory_vis_image_write"}, False, True, "delta"),
+        "state8_add": ({"memory", "memory_vis_bank", "memory_vis_state_slot", "memory_vis_image_write"}, False, True, "additive"),
+    }
+    assert set(ab.ROWS) == {"vis8", *expected}
+    for suffix, (fields, image, state, rule) in expected.items():
+        row = _config.get_config(f"pi05_yam_beans0922_ab_{suffix}")
+        assert _diff(row, ab_snap) == {"name", "model"}, suffix
+        assert _diff(row.model, ab_snap.model) == fields, (suffix, _diff(row.model, ab_snap.model))
+        assert row.model.memory_vis_image_write is image and row.model.memory_vis_state_slot is state, suffix
+        assert row.model.memory.commit_rule == rule and row.model.memory_semantic.commit_rule == "delta", suffix
+        assert dataclasses.replace(row.model.memory, commit_rule="delta") == row.model.memory_semantic, suffix
+        smoke = _config.get_config(f"pi05_yam_beans0922_ab_{suffix}_smoke")
+        assert smoke.model == row.model and smoke.num_train_steps == 3 and smoke.wandb_enabled is False, suffix
     assert vis8.model.memory.blank_initial_output and vis8.model.memory.alpha_step == 0.01
     assert vis8.model.memory_v0920_input_read and vis8.model.memory_v35_enabled
     # the new leaves are memory leaves (fresh init from the base, memory-group grad clip)

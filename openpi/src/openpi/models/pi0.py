@@ -817,17 +817,26 @@ class Pi0(_model.BaseModel):
                     self.memory_vis_slots = int(getattr(config, "memory_vis_slots", 8))
                     self.memory_vis_input_rms = getattr(config, "memory_vis_input_rms", None)
                     self.memory_vis_zero_read = bool(getattr(config, "memory_vis_zero_read", False))
+                    self.memory_vis_image_write = bool(getattr(config, "memory_vis_image_write", True))
+                    self.memory_vis_state_slot = bool(getattr(config, "memory_vis_state_slot", False))
                     if self.memory_vis_bank:
                         vis_dk = config.memory.d_key
                         width = paligemma_config.width
-                        self.memory_vis_pooler = MemoryQueryCompressor(
-                            num_queries=self.memory_vis_slots,
-                            width=width,
-                            num_heads=config.memory_query_heads,
-                            compute_dtype=jnp.dtype(config.dtype),
-                            qk_norm=config.memory_qk_norm,
-                            rngs=rngs,
-                        )
+                        if self.memory_vis_image_write:
+                            self.memory_vis_pooler = MemoryQueryCompressor(
+                                num_queries=self.memory_vis_slots,
+                                width=width,
+                                num_heads=config.memory_query_heads,
+                                compute_dtype=jnp.dtype(config.dtype),
+                                qk_norm=config.memory_qk_norm,
+                                rngs=rngs,
+                            )
+                        if self.memory_vis_state_slot:
+                            # the state slot: the normalised state vector -> width (fresh linear map) + its own key offset
+                            self.memory_vis_state_proj = nnx.Linear(config.action_dim, width, rngs=rngs)
+                            self.memory_vis_state_key = nnx.Param(
+                                jax.random.normal(rngs.params(), (vis_dk,), dtype=jnp.float32) / jnp.sqrt(jnp.float32(vis_dk))
+                            )
                         self.memory_vis_key_proj = nnx.Linear(width, vis_dk, use_bias=False, rngs=rngs)
                         self.memory_vis_value_proj = nnx.Linear(width, width, use_bias=False, rngs=rngs)
                         self.memory_vis_value_proj.kernel.value = jnp.eye(width, dtype=self.memory_vis_value_proj.kernel.value.dtype)
@@ -2028,15 +2037,30 @@ class Pi0(_model.BaseModel):
         x = jax.lax.stop_gradient(front_tokens.astype(jnp.float32))
         return jnp.sqrt(jnp.mean(jnp.square(x), axis=(1, 2), keepdims=True) + 1e-12)
 
-    def vis_write_kv(self, front_tokens: at.Array) -> tuple[at.Array, at.Array, at.Array]:
-        """Visual write content of one tick from the front camera's INPUT image tokens [b, n, d] (memory-blind by
-        construction, stop-gradient): `memory_vis_slots` learned queries pool them -> pooled [b, s, d] fp32;
-        key_i = unit(P_k pooled_i + e_i), value_i = unit(P_v pooled_i). Returns (keys [b, s, dk], values [b, s, d], pooled)."""
-        source = jax.lax.stop_gradient(front_tokens.astype(jnp.float32))
-        pooled = self.memory_vis_pooler(source).astype(jnp.float32)
-        keys = _memory.l2_normalize(
-            self.memory_vis_key_proj(pooled).astype(jnp.float32) + self.memory_vis_slot_key.value[None].astype(jnp.float32)
-        )
+    def vis_write_kv(self, front_tokens: at.Array, state: at.Array | None = None) -> tuple[at.Array, at.Array, at.Array]:
+        """Write content of one tick for the sensory bank, as slot associations (keys [b, S, dk], values [b, S, d], and the
+        pre-projection content [b, S, d]): with `memory_vis_image_write` the front camera's INPUT image tokens [b, n, d]
+        (memory-blind by construction, stop-gradient) pooled by `memory_vis_slots` learned queries, slot i -> key_i =
+        unit(P_k pooled_i + e_i), value_i = unit(P_v pooled_i); with `memory_vis_state_slot` one more slot from the
+        normalised state [b, action_dim] (stop-gradient) through the fresh linear map phi: key = unit(P_k phi + e_state),
+        value = unit(P_v phi)."""
+        content = []
+        offsets = []
+        if getattr(self, "memory_vis_image_write", True):
+            source = jax.lax.stop_gradient(front_tokens.astype(jnp.float32))
+            content.append(self.memory_vis_pooler(source).astype(jnp.float32))
+            offsets.append(self.memory_vis_slot_key.value.astype(jnp.float32))
+        if getattr(self, "memory_vis_state_slot", False):
+            if state is None:
+                raise ValueError("memory_vis_state_slot needs the tick's state at the write.")
+            phi = self.memory_vis_state_proj(jax.lax.stop_gradient(state.astype(jnp.float32)))
+            content.append(phi.astype(jnp.float32)[:, None, :])
+            offsets.append(self.memory_vis_state_key.value.astype(jnp.float32)[None, :])
+        if not content:
+            raise ValueError("the sensory bank has no write source (memory_vis_image_write / memory_vis_state_slot).")
+        pooled = jnp.concatenate(content, axis=1)
+        offset = jnp.concatenate(offsets, axis=0)
+        keys = _memory.l2_normalize(self.memory_vis_key_proj(pooled).astype(jnp.float32) + offset[None])
         values = _memory.l2_normalize(self.memory_vis_value_proj(pooled).astype(jnp.float32))
         return keys, values, pooled
 
@@ -2086,6 +2110,7 @@ class Pi0(_model.BaseModel):
         top_token_count: int,
         zero_read: bool = False,
         visual_state: _memory.MemoryState | None = None,
+        state: at.Array | None = None,
     ) -> dict[str, at.Array | _gemma.KVCache | None]:
         """One pass through ALL blocks over [prefix | 8 memory tokens] (memory rows blind, memory columns visible to
         every row). Returns the dict the v3.2 call sites consume; the visual-bank entries are zeros (that bank is
@@ -2110,7 +2135,7 @@ class Pi0(_model.BaseModel):
             vis_tokens, vis_valid, vis_retrieved, vis_queries, vis_pre, vis_post = self.vis_read_tokens(
                 visual_state, front, prefix_tokens.dtype, zero_read=zero_read
             )
-            vis_keys, vis_values, vis_pooled = self.vis_write_kv(front)
+            vis_keys, vis_values, vis_pooled = self.vis_write_kv(front, state=state)
             tokens8 = jnp.concatenate([tokens8, vis_tokens], axis=1)
             valid8 = jnp.concatenate([valid8, vis_valid], axis=1)
             vis_out = {
@@ -4617,7 +4642,7 @@ class Pi0(_model.BaseModel):
         if getattr(self, "memory_v0920_input_read", False):
             prepared = self._v0920_prepare_prefix(
                 prefix_tokens, prefix_mask, prefix_ar, semantic_state, top_token_count=top_tokens, zero_read=zero_read,
-                visual_state=memory_state,
+                visual_state=memory_state, state=preprocessed.state,
             )
         else:
             prepared = self._v32_prepare_memory_prefix(
@@ -5713,7 +5738,7 @@ class Pi0(_model.BaseModel):
             if getattr(self, "memory_v0920_input_read", False):
                 prepared = self._v0920_prepare_prefix(
                     masked_prefix_tokens, prefix_mask, prefix_ar, read_sem_state, top_token_count=top_tokens,
-                    visual_state=read_state,
+                    visual_state=read_state, state=obs_k.state,
                 )
             else:
                 prepared = self._v32_prepare_memory_prefix(
