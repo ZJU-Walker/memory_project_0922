@@ -10,7 +10,7 @@
 set -euo pipefail
 ROOT="${MEMORY_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"; cd "$ROOT/openpi"
 PY="${OPENPI_PYTHON:-$ROOT/openpi/.venv/bin/python}"; HF="$(dirname "$PY")/huggingface-cli"
-[ -x "$PY" ] || { echo "no venv at $PY -- run: cd $ROOT/openpi && GIT_LFS_SKIP_SMUDGE=1 uv sync --frozen"; exit 2; }
+[ -x "$PY" ] || { echo "no venv at $PY -- run: cd $ROOT/openpi && GIT_LFS_SKIP_SMUDGE=1 uv sync --frozen --no-install-package rerun-sdk"; exit 2; }
 DATASET_REPO=kewalk123/yam_bean_scoop_0905_v5
 BASE_REPO=kewalk123/beans0922_pi05_base_10k
 DS_DIR="$ROOT/v5/data/lerobot/yam/bean_scoop_0905_v5"                       # beans0922_config.DATASET_ROOT_REL

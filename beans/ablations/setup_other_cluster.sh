@@ -13,6 +13,8 @@ REPO="${REPO:-https://github.com/ZJU-Walker/memory_project_0922.git}"
 command -v uv >/dev/null 2>&1 || { echo "uv not found; install it: curl -LsSf https://astral.sh/uv/install.sh | sh"; exit 2; }
 if [ -d "$DEST/.git" ]; then echo "repo present: $DEST"; else git clone "$REPO" "$DEST"; fi
 cd "$DEST/openpi"
-GIT_LFS_SKIP_SMUDGE=1 uv sync --frozen
+# --no-install-package rerun-sdk: lerobot's visualizer, unused here; its wheel needs glibc >= 2.31 and RHEL-8-class nodes
+# (glibc 2.28, e.g. Purdue Anvil) have none -- everything else in the lock installs there
+GIT_LFS_SKIP_SMUDGE=1 uv sync --frozen --no-install-package rerun-sdk
 LOCAL_DISK="${LOCAL_DISK:-}" bash "$DEST/beans/ablations/00_download.sh"
 echo "setup complete: $DEST"
