@@ -23,6 +23,14 @@ Needs: git, `uv`, a CUDA-12 driver on the nodes, `wandb login` once (or `WANDB=0
 builds the arrow cache (~40 min); every later start is fast. Nothing else needs configuring -- all paths are relative to the
 clone (override with `OPENPI_BEANS_DATASET_ROOT` / `OPENPI_BEANS_BASE_PARAMS` only if you keep data elsewhere).
 
+**Two rows on one 8 x H100 node:** run the first smoke alone (it builds the shared arrow cache once), then
+```bash
+GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_vis8.out 2>&1 &
+GPUS=4,5,6,7 nohup bash beans/ablations/run_snap.sh > beans/ablations/logs/run_snap.out 2>&1 &
+```
+Each row checks only its own four cards, has its own logs / checkpoints / W&B run, and `ablation_ctl.sh stop vis8` stops
+that row only. 16 loader workers each (`WORKERS`) want ~40 free cores per node; lower it if the node is smaller.
+
 **Adding a row:** one config function in `openpi/src/openpi/training/beans0922_ablation_config.py` (copy `vis8_config`,
 change the flag, add it to `get_configs`), one gated model flag if the row needs new code, and a two-line
 `run_<row>.sh` (copy `run_vis8.sh`, change `CFG` / `EXP`). Snap's own configs must stay bit-identical.

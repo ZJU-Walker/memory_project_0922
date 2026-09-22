@@ -25,9 +25,11 @@ BASE_PARAMS="${OPENPI_BEANS_BASE_PARAMS:-$ROOT/beans/checkpoints/pi05_yam_beans0
 WAIT_FOR=${WAIT_FOR:-$BASE_PARAMS}
 LOGS="$ROOT/beans/ablations/logs"; mkdir -p "$LOGS"; status="$LOGS/train_${EXP}_status.log"
 log() { echo "[$(date +%m/%d\ %H:%M:%S)] $*" | tee -a "$status"; }
+# nvidia-smi ignores CUDA_VISIBLE_DEVICES: on a shared 8-GPU node the direct path must ask about OUR cards only (-i), or a
+# second row on the other four cards would wait for the first one forever. Inside a Slurm step the cgroup already limits the view.
 gpu_busy() { local q=(nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits)
   if [ -n "${JOB:-}" ]; then srun --jobid="$JOB" --overlap --nodes=1 --ntasks=1 --gres=gpu:"${GRES:-$NGPU}" env CUDA_VISIBLE_DEVICES="$GPUS" "${q[@]}" 2>/dev/null | awk '$1+0>2000' | wc -l
-  else CUDA_VISIBLE_DEVICES=$GPUS "${q[@]}" 2>/dev/null | awk '$1+0>2000' | wc -l; fi; }
+  else nvidia-smi -i "$GPUS" --query-compute-apps=used_memory --format=csv,noheader,nounits 2>/dev/null | awk '$1+0>2000' | wc -l; fi; }
 wait_gpu() { local ok=0; for i in $(seq 1 ${WAIT_ROUNDS:-240}); do if [ "$(gpu_busy)" = "0" ]; then ok=$((ok+1)); [ $ok -ge ${FREE_STREAK:-4} ] && return 0; else ok=0; fi; sleep 30; done; return 1; }
 wait_path() { local n=0; while [ ! -e "$1" ]; do [ $n -eq 0 ] && log "waiting for $1"; n=$((n+1)); [ $n -gt ${WAIT_PATH_ROUNDS:-2880} ] && return 1; sleep 30; done; sleep 60; return 0; }  # + 60 s: let the writer finish
 PY="${OPENPI_PYTHON:-$ROOT/openpi/.venv/bin/python}"

@@ -27,6 +27,14 @@ bash beans/ablations/ablation_ctl.sh status          # progress;  ... stop  ends
 | control | `beans/ablations/run_snap.sh` | snap: 8 sentence-memory tokens |
 | (1) | `beans/ablations/run_vis8.sh` | snap + visual memory: 8 sentence + 8 visual memory tokens |
 
+Two rows on one 8-GPU node (run one smoke first, it builds the shared data cache once):
+
+```bash
+GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_vis8.out 2>&1 &
+GPUS=4,5,6,7 nohup bash beans/ablations/run_snap.sh > beans/ablations/logs/run_snap.out 2>&1 &
+bash beans/ablations/ablation_ctl.sh stop vis8            # stops that row only
+```
+
 Knobs (environment): `GPUS` (default `0,1,2,3`), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM), `WORKERS` (16),
 `WANDB=0`, `JOB=<slurm job id>` (run as an `srun --overlap` step inside that allocation instead of directly).
 Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoints/<config>/<exp>/`; W&B project `beans0922_ablation`.
