@@ -41,6 +41,18 @@ cd ~/memory_project_beans0922
 wandb login                                                 # once; or WANDB=0 on every launch
 ```
 
+## 1b. Test the code (any time; the GPU parts need the download from step 1)
+
+```bash
+bash beans/ablations/run_tests.sh cpu                    # no GPU, ~6 min: unit tests of the ablation code (gates, configs, telemetry)
+GPUS=0,1,2,3 bash beans/ablations/run_tests.sh smoke     # 2-update smoke of all six rows (or ROWS="vis8s state8" ...)
+GPUS=0,1,2,3 bash beans/ablations/run_tests.sh probe     # 100 updates per row + a table of losses / gradient norms / bank curves
+```
+
+Each line prints PASS/FAIL per row and appends to `beans/ablations/logs/run_tests.log`; the exit code counts the failures.
+The probe table (`beans/ablations/probe_report.py`) flags non-finite values, a growing gradient norm and a sensory-bank norm
+that keeps climbing — the things that would make a row unusable.
+
 ## 2. Smoke-test once per node (2 updates: compile + one real batch; also builds the data cache, ~40 min the first time)
 
 ```bash

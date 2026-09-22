@@ -90,6 +90,7 @@ memory run: the v3.5 authorization refuses it.
 | file | purpose |
 | --- | --- |
 | `setup_other_cluster.sh` | one-shot setup on another machine: clone + `uv sync` + `00_download.sh` |
+| `run_tests.sh cpu\|smoke\|probe\|all` | the test runner: unit tests without a GPU, 2-update smokes of every row, 100-update stability probes + the `probe_report.py` table |
 | `00_download.sh` | once per machine: dataset + norm stats + the published base checkpoint (the final step 10000; re-run once if you downloaded step 5000 earlier) from the Hub, tokenizer caches; `LOCAL_DISK=<dir>` keeps dataset + cache on the node's disk |
 | `train_ablation.sh` | generic 4-GPU launcher (waits for the base checkpoint and free cards, OOM fallback ladder, resume) |
 | `run_snap.sh`, `run_vis8.sh`, `run_vis8s.sh`, `run_vis8s_add.sh`, `run_state8.sh`, `run_state8_add.sh` | one row each: `[GPUS=0,1,2,3] bash beans/ablations/run_<row>.sh [smoke]` |
