@@ -14,9 +14,12 @@ export MEMORY_PROJECT_ROOT="$ROOT" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 export XLA_PYTHON_CLIENT_MEM_FRACTION=${MEMFRAC:-0.92} OPENPI_0920_REMAT=${REMAT:-nothing_saveable}
 export WANDB__SERVICE_WAIT=${WANDB__SERVICE_WAIT:-300}
 export HOME=${HOME:-$ROOT}
+# the tree keeps every cache under its own root (project_paths.configure_v35_runtime_environment) and refuses inherited
+# machine-wide settings, so drop them here (TMPDIR / WANDB_DIR may differ and are kept)
+unset HF_HOME HF_LEROBOT_HOME HF_DATASETS_CACHE OPENPI_DATA_HOME OPENPI_JAX_CACHE_DIR UV_CACHE_DIR
 CFG=${CFG:?set CFG}; EXP=${EXP:?set EXP}; MODE=${MODE:-train}
 GPUS=${GPUS:-0,1,2,3}; NGPU=$(echo "$GPUS" | tr ',' '\n' | wc -l); WORKERS=${WORKERS:-16}; WANDB=${WANDB:-1}
-BATCH=${BATCH:-16}; FALLBACK=${BATCH_FALLBACK:-"12 8"}
+BATCH=${BATCH:-16}; FALLBACK=${BATCH_FALLBACK:-"12 8 4"}  # 4 x 80 GB (H100): expect 8-12; 4 x 141 GB (H200): 16+
 if [ "$MODE" = smoke ]; then CFG="${CFG}_smoke"; EXP="smoke_${EXP}"; WANDB=0; FALLBACK=${BATCH_FALLBACK:-}; fi
 BASE_PARAMS="${OPENPI_BEANS_BASE_PARAMS:-$ROOT/beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/10000/params}"
 WAIT_FOR=${WAIT_FOR:-$BASE_PARAMS}

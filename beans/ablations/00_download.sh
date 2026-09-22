@@ -28,6 +28,7 @@ if [ -d "$BASE_DIR/params" ]; then echo "base checkpoint present: $BASE_DIR/para
 fi
 [ -d "$BASE_DIR/params" ] || { echo "the base repo has no params/ yet (pushed once the base run reaches 10k)"; exit 1; }
 echo "pre-fetching tokenizers into the tree's caches"
+unset HF_HOME HF_LEROBOT_HOME HF_DATASETS_CACHE OPENPI_DATA_HOME OPENPI_JAX_CACHE_DIR UV_CACHE_DIR
 MEMORY_PROJECT_ROOT="$ROOT" PYTHONDONTWRITEBYTECODE=1 JAX_PLATFORMS=cpu "$PY" - <<'PYEOF'
 from openpi.shared import project_paths
 project_paths.configure_v35_runtime_environment()

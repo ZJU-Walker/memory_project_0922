@@ -1,5 +1,34 @@
 # beans0922 ablations
 
+## Usage on another cluster (4 x H100) -- three commands
+
+```bash
+# 1. once per machine (login node with internet; ~60 GB, 20-40 min): clone + venv + dataset + base checkpoint
+curl -sO https://raw.githubusercontent.com/ZJU-Walker/memory_project_0922/main/beans/ablations/setup_other_cluster.sh
+bash setup_other_cluster.sh ~/memory_project_beans0922
+cd ~/memory_project_beans0922
+
+# 2. once per row, on the 4 GPUs you own (inside your salloc / srun / job script, or a node you own): the smoke = 2 updates
+GPUS=0,1,2,3 bash beans/ablations/run_vis8.sh smoke
+
+# 3. the row itself: 3000 updates, label ramp 500, from base/10000; keep it running with nohup / tmux / your job script
+GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_vis8.out 2>&1 &
+```
+
+Rows: `run_snap.sh` (control), `run_vis8.sh` (snap + visual memory); more rows = more `run_<row>.sh`. Watch a run with
+`bash beans/ablations/ablation_ctl.sh status` (or `tail -f beans/ablations/logs/train_<exp>.log`), stop it with
+`ablation_ctl.sh stop`; a rerun resumes from the last checkpoint in `beans/checkpoints/<config>/<exp>/`. The launcher tries
+batch 16 and falls back to 12 / 8 / 4 on OOM (4 x 80 GB usually lands at 8-12); override with `BATCH=8 BATCH_FALLBACK=4`.
+Needs: git, `uv`, a CUDA-12 driver on the nodes, `wandb login` once (or `WANDB=0`). The very first data-loader start
+builds the arrow cache (~40 min); every later start is fast. Nothing else needs configuring -- all paths are relative to the
+clone (override with `OPENPI_BEANS_DATASET_ROOT` / `OPENPI_BEANS_BASE_PARAMS` only if you keep data elsewhere).
+
+**Adding a row:** one config function in `openpi/src/openpi/training/beans0922_ablation_config.py` (copy `vis8_config`,
+change the flag, add it to `get_configs`), one gated model flag if the row needs new code, and a two-line
+`run_<row>.sh` (copy `run_vis8.sh`, change `CFG` / `EXP`). Snap's own configs must stay bit-identical.
+
+## Background
+
 Ablations of the LED bean-scoop memory policy ("snap": `pi05_yam_beans0922_v1`, see `../README.md`). Every row is trained
 with the same 4-card recipe (`openpi/src/openpi/training/beans0922_ablation_config.py`): warm start from the beans0922
 knowledge-insulation base (`beans0922_base/10000`), **3000 updates, label-write probability 1 -> 0 over the first 500**,
