@@ -29,8 +29,8 @@ tags: [lerobot, yam, bimanual, memory, openpi]
 # yam/bean_scoop_0905_v5 -- LED bean scoop (real YAM station)
 
 89 teleoperated episodes (71,089 frames at 30 Hz, 3 cameras 480x640, 14-D joint state/actions) of the task
-"scoop the beans into the tray as many times as the green light blinked". The LED blinks 1-4 times at the start of the episode;
-the robot must remember the count while scooping. LeRobot v2 layout (`data/`, `meta/`), images stored in the parquet files.
+"scoop the beans into the tray as many times as the green light blinked". The green LED blinks 1-3 times at the start of the
+episode, then a yellow light signals "go"; the robot must remember the count while scooping. LeRobot v2 layout (`data/`, `meta/`), images stored in the parquet files.
 
 Extras: `openpi_assets/pi05_yam_bean_scoop_0905_v5/yam/bean_scoop_0905_v5/norm_stats.json` = the openpi normalisation
 statistics of this dataset. Per-frame sub-task labels and the episode manifest live in the code repository

@@ -4,6 +4,9 @@
 # needed afterwards), then pre-fetch the tokenizers into the tree's own caches (train.py pins HF_HOME / OPENPI_DATA_HOME
 # there). Public repos, no token needed. ~60 GB. Safe to re-run: existing pieces are skipped.
 #   bash beans/ablations/00_download.sh
+# LOCAL_DISK=<dir on the node's own disk> (optional, recommended when the clone sits on a network filesystem): the dataset is
+# downloaded there and the arrow cache the loader builds on first start lives there too; the tree gets symlinks. Measured on
+# our cluster: dataset + arrow cache on NFS 2 s/update, on local disk 1.8 updates/s (the loader memory-maps the arrow cache).
 set -euo pipefail
 ROOT="${MEMORY_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"; cd "$ROOT/openpi"
 PY="${OPENPI_PYTHON:-$ROOT/openpi/.venv/bin/python}"; HF="$(dirname "$PY")/huggingface-cli"
@@ -16,6 +19,14 @@ BASE_DIR="$ROOT/beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/10000" 
 for link in v5 data v6; do  # this cluster's trees use symlinks into sibling checkouts; a dangling one must not shadow the download
   if [ -L "$ROOT/$link" ] && [ ! -e "$ROOT/$link" ]; then echo "removing dangling symlink $ROOT/$link"; rm "$ROOT/$link"; fi
 done
+if [ -n "${LOCAL_DISK:-}" ]; then
+  mkdir -p "$LOCAL_DISK/beans0922/hf_datasets" "$(dirname "$DS_DIR")" "$ROOT/v35/cache/huggingface"
+  if [ ! -e "$DS_DIR" ]; then ln -s "$LOCAL_DISK/beans0922/bean_scoop_0905_v5" "$DS_DIR"; echo "dataset -> $LOCAL_DISK/beans0922/bean_scoop_0905_v5"; fi
+  mkdir -p "$LOCAL_DISK/beans0922/bean_scoop_0905_v5"
+  ARROW="$ROOT/v35/cache/huggingface/datasets"  # train.py pins HF_DATASETS_CACHE to this path; a symlink keeps the cache local
+  if [ -d "$ARROW" ] && [ ! -L "$ARROW" ]; then rmdir "$ARROW" 2>/dev/null || mv "$ARROW" "$ARROW.nfs_$(date +%s)"; fi
+  [ -e "$ARROW" ] || ln -s "$LOCAL_DISK/beans0922/hf_datasets" "$ARROW"; echo "arrow cache -> $LOCAL_DISK/beans0922/hf_datasets"
+fi
 if [ -f "$DS_DIR/meta/info.json" ] && [ -n "$(ls "$DS_DIR/data" 2>/dev/null)" ]; then echo "dataset present: $DS_DIR"; else
   echo "downloading $DATASET_REPO -> $DS_DIR (89 episodes, ~56 GB)"; mkdir -p "$DS_DIR"
   "$HF" download "$DATASET_REPO" --repo-type dataset --local-dir "$DS_DIR"

@@ -3,7 +3,8 @@
 ## What is being compared (one paragraph for the reader)
 
 The policy is a pi0.5 VLA on the real YAM station for the task *"scoop the beans into the tray as many times as the green
-light blinked"*: the LED blinks 1–4 times at the start, then nothing in the scene says the count any more. Our model,
+light blinked"*: the green LED blinks 1–3 times at the start, then a yellow light says "go" and nothing in the scene says
+the count any more. Our model,
 **snap**, gives pi0.5 a small fast-weight memory that it fills with **its own words**: every tick (5 frames, 0.17 s) it
 decodes a short sub-task sentence such as "scoop 2 of 3: dig and carry", writes that sentence into the memory (each word is
 stored as a key/value association with the delta rule, decay 0.99 per tick), and reads the memory back through 8 fixed
@@ -13,14 +14,14 @@ sentence — adds anything on top of the narrated one. Every row starts from the
 and is trained with the same recipe (3000 updates, the first 500 with a decaying probability of writing the label sentence
 instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs); a row differs from snap in exactly one thing.
 
-| row | script | memory tokens at the input | sensory bank written from (every tick) | update rule |
-| --- | --- | --- | --- | --- |
-| control (snap) | `run_snap.sh` | 8 sentence | – | delta |
-| vis8 | `run_vis8.sh` | 8 sentence + 8 sensory | front camera (256 image tokens pooled into 8 slots) | delta |
-| vis8s | `run_vis8s.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | delta |
-| vis8s_add | `run_vis8s_add.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | **additive** |
-| state8 | `run_state8.sh` | 8 sentence + 8 sensory | arm state (1 slot) | delta |
-| state8_add | `run_state8_add.sh` | 8 sentence + 8 sensory | arm state (1 slot) | **additive** |
+| row | script | memory tokens at the input | sensory bank written from (every tick) | update rule | status |
+| --- | --- | --- | --- | --- | --- |
+| control (snap) | `run_snap.sh` | 8 sentence | – | delta | runs here (Stanford 4×H200) |
+| vis8 | `run_vis8.sh` | 8 sentence + 8 sensory | front camera (256 image tokens pooled into 8 slots) | delta | runs here (Stanford 4×H200) |
+| vis8s | `run_vis8s.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | delta | **to run: node 1, GPUs 0–3** |
+| vis8s_add | `run_vis8s_add.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | **additive** | **to run: node 1, GPUs 4–7** |
+| state8 | `run_state8.sh` | 8 sentence + 8 sensory | arm state (1 slot) | delta | **to run: node 2, GPUs 0–3** |
+| state8_add | `run_state8_add.sh` | 8 sentence + 8 sensory | arm state (1 slot) | **additive** | **to run: node 2, GPUs 4–7** |
 
 *Delta rule* (W ← ρW + η(v − Wk)kᵀ) stores whether something occurred — a repeat adds nothing. *Additive rule*
 (W ← ρW + η·v·kᵀ, the outer-product update of linear attention) stores how often — repeats accumulate until the decay
@@ -31,23 +32,30 @@ balances them. The sentence bank is always delta (a note must be retrieved exact
 ```bash
 curl -sO https://raw.githubusercontent.com/ZJU-Walker/memory_project_0922/main/beans/ablations/setup_other_cluster.sh
 bash setup_other_cluster.sh ~/memory_project_beans0922     # clone + venv + dataset + base checkpoint + tokenizer caches
+#   LOCAL_DISK=/local/ssd bash setup_other_cluster.sh ...   # if the clone is on a network filesystem: dataset + loader cache on the node's disk (3-4x faster)
 cd ~/memory_project_beans0922
 wandb login                                                 # once; or WANDB=0 on every launch
 ```
 
-## 2. Smoke-test a row on 4 GPUs (2 updates: compile + one real batch)
+## 2. Smoke-test once per node (2 updates: compile + one real batch; also builds the data cache, ~40 min the first time)
 
 ```bash
-GPUS=0,1,2,3 bash beans/ablations/run_vis8s_add.sh smoke
+GPUS=0,1,2,3 bash beans/ablations/run_vis8s.sh smoke
 ```
 
-## 3. Run rows (3000 updates each; a relaunch resumes from the last checkpoint)
+## 3. The four remaining rows: two 8×H100 nodes, two rows per node (3000 updates each; a relaunch resumes)
 
 ```bash
-# two rows per 8-GPU node; run the first smoke alone once (it builds the shared data cache, ~40 min)
-GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8s_add.sh > beans/ablations/logs/run_vis8s_add.out 2>&1 &
-GPUS=4,5,6,7 nohup bash beans/ablations/run_vis8s.sh     > beans/ablations/logs/run_vis8s.out 2>&1 &
-bash beans/ablations/ablation_ctl.sh status               # progress of every row;  stop <row>  ends one row
+# node 1, GPUs 0-3: vision + state bank, delta rule
+GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8s.sh      > beans/ablations/logs/run_vis8s.out 2>&1 &
+# node 1, GPUs 4-7: vision + state bank, additive rule
+GPUS=4,5,6,7 nohup bash beans/ablations/run_vis8s_add.sh  > beans/ablations/logs/run_vis8s_add.out 2>&1 &
+# node 2, GPUs 0-3: state-only bank, delta rule
+GPUS=0,1,2,3 nohup bash beans/ablations/run_state8.sh     > beans/ablations/logs/run_state8.out 2>&1 &
+# node 2, GPUs 4-7: state-only bank, additive rule
+GPUS=4,5,6,7 nohup bash beans/ablations/run_state8_add.sh > beans/ablations/logs/run_state8_add.out 2>&1 &
+# any node: progress of every row / stop one row
+bash beans/ablations/ablation_ctl.sh status;  bash beans/ablations/ablation_ctl.sh stop vis8s_add
 ```
 
 Knobs (environment): `GPUS` (default `0,1,2,3`), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM — 4 × 80 GB usually
