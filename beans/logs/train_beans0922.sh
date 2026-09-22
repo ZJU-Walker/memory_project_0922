@@ -21,7 +21,10 @@ case $MODE in
 esac
 LOGS="$ROOT/beans/logs"; mkdir -p "$LOGS"; status="$LOGS/train_beans0922_status.log"
 log() { echo "[$(date +%m/%d\ %H:%M:%S)] $*" | tee -a "$status"; }
-gpu_busy() { CUDA_VISIBLE_DEVICES=$GPUS nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits 2>/dev/null | awk '$1+0>2000' | wc -l; }
+# look at the job's own cards: a plain shell on a shared node sits in the newest job's cgroup and sees the wrong GPUs
+gpu_busy() { local q=(nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits)
+  if [ -n "${JOB:-}" ]; then srun --jobid="$JOB" --overlap --nodes=1 --ntasks=1 --gres=gpu:"${GRES:-$NGPU}" env CUDA_VISIBLE_DEVICES="$GPUS" "${q[@]}" 2>/dev/null | awk '$1+0>2000' | wc -l
+  else CUDA_VISIBLE_DEVICES=$GPUS "${q[@]}" 2>/dev/null | awk '$1+0>2000' | wc -l; fi; }
 # free = nobody holds > 2 GB for FREE_STREAK consecutive 30 s polls (default 6 = 3 min), so a pause between someone's eval episodes
 # does not count as free; WAIT_ROUNDS polls at most (default 240 = 2 h)
 wait_gpu() { local ok=0; for i in $(seq 1 ${WAIT_ROUNDS:-240}); do if [ "$(gpu_busy)" = "0" ]; then ok=$((ok+1)); [ $ok -ge ${FREE_STREAK:-6} ] && return 0; else ok=0; fi; sleep 30; done; return 1; }
