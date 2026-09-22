@@ -1,96 +1,78 @@
-# beans0922 ablations
+# beans0922 ablations — how the rows work
 
-## Usage on another cluster (4 x H100) -- three commands
+Everything here is one gated model flag, `Pi0Config.memory_vis_bank`, plus two switches for what feeds it and one for the
+update rule. With the flag off the model is snap, bit for bit (tested). The top-level README has the row table and the
+commands; this page explains the mechanism so the rows can be read.
 
-```bash
-# 1. once per machine (login node with internet; ~60 GB, 20-40 min): clone + venv + dataset + base checkpoint
-curl -sO https://raw.githubusercontent.com/ZJU-Walker/memory_project_0922/main/beans/ablations/setup_other_cluster.sh
-bash setup_other_cluster.sh ~/memory_project_beans0922
-cd ~/memory_project_beans0922
+## Snap in one tick
 
-# 2. once per row, on the 4 GPUs you own (inside your salloc / srun / job script, or a node you own): the smoke = 2 updates
-GPUS=0,1,2,3 bash beans/ablations/run_vis8.sh smoke
+1. Prefix: 3 cameras × 256 image tokens + 80 prompt tokens + **8 sentence-memory tokens**, all at the input of the 18-block
+   language model. The memory tokens are appended after the prompt; they attend only to each other (blind), everything else
+   may attend to them.
+2. Read: 8 fixed learned queries → the sentence bank W (a 512 × 2048 matrix per episode) → 8 vectors → tanh gate + RMS
+   matched to the word embeddings + slot embedding = the 8 tokens. A fresh bank reads exactly zero and the tokens are masked.
+3. The model decodes its sub-task sentence (up to 48 tokens) and the action chunk.
+4. Write: each word of the sentence becomes an association (key = the memory-blind context of the words before it,
+   value = the word's embedding); committed with the **delta rule**, then the whole bank decays by 0.99. In training the
+   label sentence is written instead of the model's own with probability 1 → 0 over the first 500 updates.
 
-# 3. the row itself: 3000 updates, label ramp 500, from base/10000; keep it running with nohup / tmux / your job script
-GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_vis8.out 2>&1 &
-```
+## The sensory bank (rows vis8 / vis8s / state8 and their `_add` twins)
 
-Rows: `run_snap.sh` (control), `run_vis8.sh` (snap + visual memory); more rows = more `run_<row>.sh`. Watch a run with
-`bash beans/ablations/ablation_ctl.sh status` (or `tail -f beans/ablations/logs/train_<exp>.log`), stop it with
-`ablation_ctl.sh stop`; a rerun resumes from the last checkpoint in `beans/checkpoints/<config>/<exp>/`. The launcher tries
-batch 16 and falls back to 12 / 8 / 4 on OOM (4 x 80 GB usually lands at 8-12); override with `BATCH=8 BATCH_FALLBACK=4`.
-Needs: git, `uv`, a CUDA-12 driver on the nodes, `wandb login` once (or `WANDB=0`). The very first data-loader start
-builds the arrow cache (~40 min); every later start is fast. Nothing else needs configuring -- all paths are relative to the
-clone (override with `OPENPI_BEANS_DATASET_ROOT` / `OPENPI_BEANS_BASE_PARAMS` only if you keep data elsewhere).
+A second bank, same size and same read mechanism, next to the sentence bank:
 
-**Two rows on one 8 x H100 node:** run the first smoke alone (it builds the shared arrow cache once), then
-```bash
-GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_vis8.out 2>&1 &
-GPUS=4,5,6,7 nohup bash beans/ablations/run_snap.sh > beans/ablations/logs/run_snap.out 2>&1 &
-```
-Each row checks only its own four cards, has its own logs / checkpoints / W&B run, and `ablation_ctl.sh stop vis8` stops
-that row only. 16 loader workers each (`WORKERS`) want ~40 free cores per node; lower it if the node is smaller.
+- **Read** — 8 more fixed learned queries → the sensory bank → tanh gate (same 0.5 init) + RMS matched to the sample's own
+  image tokens + slot embedding → **8 more input tokens** after the sentence tokens. Empty bank ⇒ exactly zero, masked,
+  so tick 0 equals snap. Nothing else about the model changes (the sentence/action tokens simply sit 8 positions later).
+- **Write, every valid tick**, from memory-blind, stop-gradient inputs so the bank can never store what it read:
+  - *image slots* (`memory_vis_image_write`): the front camera's 256 input image tokens (SigLIP + projector) are pooled by 8
+    learned queries into 8 vectors v₁..v₈; slot i is stored as key = unit(P_k v_i + e_i), value = unit(P_v v_i);
+  - *state slot* (`memory_vis_state_slot`): the normalised 14-D joint state through a fresh linear map φ; key =
+    unit(P_k φ + e_state), value = unit(P_v φ).
+  P_k, P_v, the pooling queries and the slot offsets e are trained; keys of one tick land in distinct directions because
+  of the offsets. In training the bank is only as old as the window (40 ticks = 6.7 s); at serving it runs from the first
+  tick of the episode. Unlike the sentence bank it cannot be pre-filled from labels for windows that start mid-episode.
+- **Update rule** (`memory.commit_rule`), applied slot by slot within the tick, then one decay step:
+  - `delta` — W ← ρW + η (v − W k) kᵀ: only the error is written. A repeated association adds ≈ nothing: a *presence*
+    memory ("this was seen"), with error correction between different items. This is also the rule of the sentence bank
+    and of gradient-based test-time-training layers (RoboTTT-style).
+  - `additive` — W ← ρW + η v kᵀ: the value itself is written every time. Repeats accumulate (three identical writes read
+    back as (1 + 0.99 + 0.99²) v): a *tally* memory ("how often"), at the price of small cross-talk between items. The
+    read token is RMS-normalised, so the network sees relative strengths, not absolute counts.
+- The old visual bank of the v3 line is the same parameter slot (`model.memory`), reconfigured as the linear delta bank the
+  sentence bank uses; its old layer-8 compressors stay inert. The v3.5 telemetry still sees snap's zero write, so the losses
+  and side probes are unchanged.
 
-**Adding a row:** one config function in `openpi/src/openpi/training/beans0922_ablation_config.py` (copy `vis8_config`,
-change the flag, add it to `get_configs`), one gated model flag if the row needs new code, and a two-line
-`run_<row>.sh` (copy `run_vis8.sh`, change `CFG` / `EXP`). Snap's own configs must stay bit-identical.
+## Recipe (identical for every row)
 
-## Background
+Warm start from `beans0922_base/10000` (pi0.5 + knowledge insulation, trained on the same data) with fresh memory
+parameters; 3000 updates; label-write probability 1 → 0 over the first 500; lr 2.5e-5 constant after a 100-step warm-up;
+FSDP over 4 GPUs; batch = the largest that fits (launcher default 16, fallback 12 / 8 / 4); checkpoints every 250, every
+500 kept; W&B project `beans0922_ablation`. Tick 5 frames, 40-tick windows, TBPTT 25, the 20 target-carry sentences, no
+state masking — all snap's (`openpi/src/openpi/training/beans0922_config.py`).
 
-Ablations of the LED bean-scoop memory policy ("snap": `pi05_yam_beans0922_v1`, see `../README.md`). Every row is trained
-with the same 4-card recipe (`openpi/src/openpi/training/beans0922_ablation_config.py`): warm start from the beans0922
-knowledge-insulation base (`beans0922_base/10000`), **3000 updates, label-write probability 1 -> 0 over the first 500**,
-lr 2.5e-5, FSDP over 4 cards, largest batch that fits (launcher default 16, OOM fallback 12 / 8), checkpoints every 250
-(every 500 kept). Snap's structure, window (tick 5 frames, 40 ticks), labels, sampling and losses are untouched; each
-ablation is one gated flag, default off, so snap's own configs stay bit-identical.
+## Telemetry to watch (W&B `diagnostic/`)
 
-| row | config | what differs from snap | flag |
-| --- | --- | --- | --- |
-| control | `pi05_yam_beans0922_ab_snap` | nothing (the recipe only) | - |
-| (1) snap + visual memory | `pi05_yam_beans0922_ab_vis8` | a second fast-weight bank written every tick from the front camera and read as 8 extra input tokens next to the 8 sentence tokens | `Pi0Config.memory_vis_bank` |
+`vis_commit_count` (should equal the number of valid ticks), `vis_bank_norm_sum` (bounded; grows towards a plateau under
+the additive rule), `vis_raw_read_rms_sum` (the raw retrieval before the gate), `vis_injected_pre_cast_rms_sum` (after the
+gate; ≈ gate × image-token RMS × ticks), next to snap's usual sentence/flow losses and memory-group gradient norm.
 
-## (1) snap + visual memory, in short
+## Tests
 
-- **Write** (every valid tick, same rule and decay as the sentence bank): the front camera's 256 input image tokens (SigLIP +
-  projector, memory-blind, stop-gradient) are pooled by 8 learned queries into 8 vectors; slot i is stored as
-  key = unit(P_k v_i + e_i) (e_i a learned per-slot offset), value = unit(P_v v_i), delta rule at rate 1, decay 0.99 per tick.
-  The bank is the model's `memory` reconfigured as a copy of the sentence bank's MemoryConfig (linear 512 x 2048, blank start).
-- **Read** (once per tick, at the input): 8 fixed learned queries -> bank -> tanh gate (init 0.5) + RMS matched to the
-  sample's own image tokens + slot embedding, appended after the 8 sentence tokens; every block sees them, the memory rows
-  stay blind (attend to memory columns only). A fresh bank reads exactly zero -> masked -> tick 0 equals snap.
-- **What is NOT changed**: the sentence path, the label ramp, the losses (the v3.5 side telemetry still sees snap's inert
-  zero write), the data pipeline (no new image keys), serving (the server advances the visual bank once per served tick;
-  `--vis-zero-read` silences its read for the reliance test).
-- Telemetry (W&B `diagnostic/`): `vis_commit_count`, `vis_raw_read_rms_sum`, `vis_injected_pre_cast_rms_sum`,
-  `vis_bank_norm_sum` (exact zeros for every other config).
-- Tests: `openpi/src/openpi/models/pi0_v0922ab_test.py` (flag off == snap bit-for-bit; empty bank reads zero; write is
-  stop-gradient and trains only `memory_vis_*`; commit / decay / invalid-tick contract; loss finite with gradients to every
-  visual leaf; zeroed read cannot leak the write; sampler advances the bank in "normal" mode only) and
-  `openpi/src/openpi/training/beans0922_ablation_test.py` (the configs differ in exactly the intended fields).
+`openpi/src/openpi/models/pi0_v0922ab_test.py` (tiny model): flag off == snap bit-for-bit; empty bank reads zero; the write is
+stop-gradient and trains only `memory_vis_*`; commit / exact-decay / invalid-tick contract; a second association does not
+destroy the first; sequence loss finite with gradients to every sensory leaf; zeroed read cannot leak the write; the sampler
+advances the bank in "normal" mode only; additive accumulates and delta does not; the state slot depends on the state only;
+state-only rows ignore the images. `openpi/src/openpi/training/beans0922_ablation_test.py`: every row differs from the
+control in exactly the intended fields. Serving: `openpi/scripts/serve_yam_memory.py` advances the sensory bank once per
+served tick; `--vis-zero-read` silences its read for a reliance test.
 
 ## Files
 
 | file | purpose |
 | --- | --- |
 | `setup_other_cluster.sh` | one-shot setup on another machine: clone + `uv sync` + `00_download.sh` |
-| `00_download.sh` | once per machine: dataset + norm stats + KI base checkpoint from the Hub into the tree's default paths, tokenizer caches |
-| `train_ablation.sh` | generic 4-card launcher (waits for the base checkpoint and for free cards, OOM fallback ladder, resume) |
-| `run_snap.sh`, `run_vis8.sh` | one row each: `[JOB=<slurm id>] [GPUS=0,1,2,3] [BATCH=16] bash beans/ablations/run_vis8.sh [smoke]` |
-| `ablation_ctl.sh` | `status` / `stop` of the ablation runners and trainings |
-| `hf_upload.py` (+ `_node.sh`) | the one-off pushes to the Hub (dataset done 2026-09-22 04:58; base pushed when 10k lands) |
-
-Hub: dataset `kewalk123/yam_bean_scoop_0905_v5` (public, LeRobot layout + `openpi_assets/` norm stats), base checkpoint
-`kewalk123/beans0922_pi05_base_10k` (public, `params/`). Logs of a run: `beans/ablations/logs/train_<exp>.log` and
-`train_<exp>_status.log`; checkpoints `beans/checkpoints/<config>/<exp>/`; W&B project `beans0922_ablation`.
-
-## On a new cluster
-
-```bash
-curl -sO https://raw.githubusercontent.com/ZJU-Walker/memory_project_0922/main/beans/ablations/setup_other_cluster.sh
-bash setup_other_cluster.sh ~/memory_project_beans0922          # clone, venv, ~60 GB download
-cd ~/memory_project_beans0922
-GPUS=0,1,2,3 bash beans/ablations/run_vis8.sh smoke             # 2 updates: compile + one real batch
-GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_vis8.out 2>&1 &   # the run
-```
-`WORKERS`, `BATCH`, `BATCH_FALLBACK`, `MEMFRAC` (XLA memory fraction) and the `OPENPI_BEANS_*` path overrides are
-environment knobs of `train_ablation.sh`; W&B needs `wandb login` once (or `WANDB=0`).
+| `00_download.sh` | once per machine: dataset + norm stats + the 10k base checkpoint from the Hub, tokenizer caches |
+| `train_ablation.sh` | generic 4-GPU launcher (waits for the base checkpoint and free cards, OOM fallback ladder, resume) |
+| `run_snap.sh`, `run_vis8.sh`, `run_vis8s.sh`, `run_vis8s_add.sh`, `run_state8.sh`, `run_state8_add.sh` | one row each: `[GPUS=0,1,2,3] bash beans/ablations/run_<row>.sh [smoke]` |
+| `ablation_ctl.sh` | `status` / `stop [<row>]` |
+| `hf_upload.py` (+ `_node.sh`) | the one-off pushes to the Hub (dataset done 2026-09-22; base pushed when 10k lands) |
