@@ -1366,6 +1366,21 @@ def _vis_bank_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Array]:
     return {name: chunked_loss[key] / count for name, key in _VIS_BANK_METRICS}
 
 
+def _sentence_quality_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Array]:
+    """Sentence-quality telemetry as PLAIN keys (the beans0922 recipe logs with log_diagnostics=False, which drops the raw
+    diagnostic/* sums): `wrong_sentence_tokens_per_tick` = sentence tokens whose own teacher-forced prediction misses the label,
+    per valid tick (the rows the error-driven weight multiplies; the count word at a decision is one of them; -> 0 once every
+    word is learned); `decision_sentence_exact` / `evidence_sentence_exact` = teacher-forced exact-sentence rate at decision /
+    evidence ticks. Ratios of two batch sums (device-invariant). The caller gates on memory_v7_hard_token_ce_weight != 1, so
+    every other config's key set is unchanged (09-22 16:20: v3 logged no token-error signal at all)."""
+    valid = jnp.maximum(jnp.sum(chunked_loss["write_valid_count"]), 1.0)
+    return {
+        "wrong_sentence_tokens_per_tick": chunked_loss["v7_hard_token_count"] / valid,
+        "decision_sentence_exact": chunked_loss["v5_exact_decision_sum"] / jnp.maximum(chunked_loss["v4_decision_count"], 1.0),
+        "evidence_sentence_exact": chunked_loss["v5_exact_evidence_sum"] / jnp.maximum(chunked_loss["v5_evidence_count"], 1.0),
+    }
+
+
 def _v35_loss_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Array]:
     """Keep v3.5 numerators and denominators explicit for exact logging-window pooling."""
     info = {}
@@ -1905,6 +1920,8 @@ def train_step(
                 info.update(_v5_info(chunked_loss))
                 if getattr(model, "memory_vis_bank", False):
                     info.update(_vis_bank_info(chunked_loss))
+                if float(getattr(model, "memory_v7_hard_token_ce_weight", 1.0)) != 1.0 and "v7_hard_token_count" in chunked_loss:
+                    info.update(_sentence_quality_info(chunked_loss))
             if "ladder_writer_ce_sum" in chunked_loss:
                 # Section 6 online rungs: features are stop-gradient'ed inside the model, so
                 # this term reaches ONLY the ladder heads -- whose grads train_step removes
@@ -2154,6 +2171,8 @@ def train_step(
                 info.update(_v5_info(chunked_loss))
                 if getattr(model, "memory_vis_bank", False):
                     info.update(_vis_bank_info(chunked_loss))
+                if float(getattr(model, "memory_v7_hard_token_ce_weight", 1.0)) != 1.0 and "v7_hard_token_count" in chunked_loss:
+                    info.update(_sentence_quality_info(chunked_loss))
             if "ladder_writer_ce_sum" in chunked_loss:
                 if ladder_count_global is None:
                     raise ValueError("ladder probe losses require the seq_side/evidence/waiting fields.")
