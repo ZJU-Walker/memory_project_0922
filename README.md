@@ -38,7 +38,8 @@ curl -sO https://raw.githubusercontent.com/ZJU-Walker/memory_project_0922/main/b
 bash setup_other_cluster.sh ~/memory_project_beans0922     # clone + venv + dataset + base checkpoint + tokenizer caches
 #   LOCAL_DISK=/local/ssd bash setup_other_cluster.sh ...   # if the clone is on a network filesystem: dataset + loader cache on the node's disk (3-4x faster)
 cd ~/memory_project_beans0922
-wandb login                                                 # once; or WANDB=0 on every launch
+openpi/.venv/bin/wandb login                                # once; or WANDB=0 on every launch. A new-format (long) W&B key is
+                                                            # refused by this wandb's save step: export WANDB_API_KEY=<key> instead
 ```
 
 ## 1b. Test the code (any time; the GPU parts need the download from step 1)
