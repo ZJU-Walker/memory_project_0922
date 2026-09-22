@@ -91,19 +91,18 @@ def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps:
     """v1 structure on the beans v5 (B9) window / labels / sampling, from the beans0922 base with fresh memory leaves."""
     template = existing["pi05_yam_mem_v6_task1A2"]  # the linear delta-rule bank template every 0920 config derives from
     b9 = existing["pi05_yam_mem_v5_beansB9"]  # the beans v5 recipe: data, labels, window, reference tokens
-    model = dataclasses.replace(
-        template.model,
+    model_kwargs = dict(STRUCTURE)  # the v1 structure (includes prefill_history True, own writes, ramp-compatible flags)
+    model_kwargs.update(
         action_horizon=b9.model.action_horizon,  # 50
         max_token_len=b9.model.max_token_len,  # 80
         simulated_delay=15,  # RTC budget of the base (B9 trained with 6, its successors A10/B10 raised it to 15)
         memory_seq_steps=b9.model.memory_seq_steps,  # 40 ticks x 5 frames = 200 frames
         memory_block_steps=b9.model.memory_block_steps,  # 25
-        memory_v5_prefill_history=True,
         memory_v5_prefill_max=b9.model.memory_v5_prefill_max,  # 16
         memory_v5_reference_tokens=b9.model.memory_v5_reference_tokens,  # the 20 target-carry sentences
         memory_state_mask_prob=0.0,  # no state masking (user 09-22 00:36; B9 used 0.5)
-        **STRUCTURE,
     )
+    model = dataclasses.replace(template.model, **model_kwargs)
     data = _with_beans_data(b9.data)
     return dataclasses.replace(
         template, name=name, model=model, data=data,

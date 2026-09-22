@@ -52,3 +52,6 @@ v7/
 *.log
 *.out
 *.pkl
+
+# the RoboMME evaluation client is source code (the generic eval/ rule above is for run outputs)
+!openpi/cluster_robomme/eval/

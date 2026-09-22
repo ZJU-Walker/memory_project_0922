@@ -207,6 +207,11 @@ symlink (`data`, `v5`, `v6`, `robomme/data`, `robomme/expert_val`); checkpoints,
   srun only when JOB is set, env overrides OPENPI_BEANS_*), chain `chain_beans0922.sh`, `beans0922_ctl.sh`, `beans/README.md`.
   Dataset rebuild `convert_beans0905.sh` running as an srun step (plain-ssh python on hgx-1 lands in the tiny interactive-job
   cgroup and crawls -- the earlier stalls); `start_after_convert.sh` runs the base smoke and starts the chain when it is done.
+- 2026-09-22 00:50 — user 00:36: label-write ramp over the FIRST 500 updates ("at 500 it is already fully self"), NO state masking
+  (memory_state_mask_prob 0), launch, and push to the new repo. Config updated (ramp 500, state mask 0.0), duplicate-keyword bug in
+  `memory_config` fixed (STRUCTURE already carries prefill_history), `openpi/cluster_robomme/eval` un-ignored and added (the generic
+  `eval/` ignore had kept the RoboMME client code out of the 0920 commit). Pushed: `beans0922` -> `main` of
+  github.com/ZJU-Walker/memory_project_0922 (remote `origin0922`, ssh key id_ed25519). Chain auto-starts after the dataset rebuild.
 
 ---
 
