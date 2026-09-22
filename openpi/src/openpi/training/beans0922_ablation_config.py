@@ -17,8 +17,8 @@ for the ablation table, every one trained with the SAME 4-card recipe so the row
 Ablation recipe (user 2026-09-22 04:39: "make full use ... batch size larger ... target 3k steps and same first 500 label
 descend"): warm start from the beans0922 knowledge-insulation base (base/10000, OPENPI_BEANS_BASE_PARAMS) with fresh memory
 leaves, 3000 updates, label-write probability 1 -> 0 over the first 500 updates, lr 2.5e-5, FSDP over the 4 cards, batch
-from the launcher (beans/ablations/train_ablation.sh, default 16 with an OOM fallback ladder), checkpoints every 250 (every
-500 kept). Everything else (window, tick, labels, sampling, losses) is beans0922_config.memory_config.
+from the launcher (beans/ablations/train_ablation.sh, default 16 with an OOM fallback ladder), checkpoints every 250 (the two
+newest kept for resume) with 1000 / 2000 / 3000 permanent (OPENPI_BEANS_AB_KEEP=500 for a finer eval grid; ~27 GB each). Everything else (window, tick, labels, sampling, losses) is beans0922_config.memory_config.
 
 Env knobs: OPENPI_BEANS_AB_STEPS / _BATCH / _FSDP / _WORKERS (defaults 3000 / 16 / 4 / 16) plus the beans0922 dataset /
 checkpoint overrides (OPENPI_BEANS_DATASET_ROOT, OPENPI_BEANS_ASSETS_DIR, OPENPI_BEANS_BASE_PARAMS).
@@ -37,8 +37,8 @@ AB_BATCH = int(os.environ.get("OPENPI_BEANS_AB_BATCH", "16"))
 AB_FSDP = int(os.environ.get("OPENPI_BEANS_AB_FSDP", "4"))
 AB_WORKERS = int(os.environ.get("OPENPI_BEANS_AB_WORKERS", "16"))
 AB_LABEL_WRITE_STEPS = _b.MEM_LABEL_WRITE_STEPS  # 500, as snap
-AB_SAVE_EVERY = 250
-AB_KEEP_EVERY = 500
+AB_SAVE_EVERY = 250  # rolling checkpoints for resume (the 2 newest are kept)
+AB_KEEP_EVERY = int(os.environ.get("OPENPI_BEANS_AB_KEEP", "1000"))  # permanent: 1000 / 2000 / 3000 (~27 GB each); 500 if disk allows
 VIS_SLOTS = 8
 
 

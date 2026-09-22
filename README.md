@@ -12,7 +12,7 @@ learned queries as **8 extra input tokens** that every transformer block sees. T
 memory — the same kind of fast-weight bank, but filled with what the camera sees and/or where the arm is instead of a
 sentence — adds anything on top of the narrated one. Every row starts from the same knowledge-insulation base checkpoint
 and is trained with the same recipe (3000 updates, the first 500 with a decaying probability of writing the label sentence
-instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs); a row differs from snap in exactly one thing.
+instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs, checkpoints kept at 1000 / 2000 / 3000); a row differs from snap in exactly one thing.
 
 | row | script | memory tokens at the input | sensory bank written from (every tick) | update rule | status |
 | --- | --- | --- | --- | --- | --- |

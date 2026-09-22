@@ -46,8 +46,9 @@ A second bank, same size and same read mechanism, next to the sentence bank:
 
 Warm start from `beans0922_base/10000` (pi0.5 + knowledge insulation, trained on the same data) with fresh memory
 parameters; 3000 updates; label-write probability 1 → 0 over the first 500; lr 2.5e-5 constant after a 100-step warm-up;
-FSDP over 4 GPUs; batch = the largest that fits (launcher default 16, fallback 12 / 8 / 4); checkpoints every 250, every
-500 kept; W&B project `beans0922_ablation`. Tick 5 frames, 40-tick windows, TBPTT 25, the 20 target-carry sentences, no
+FSDP over 4 GPUs; batch = the largest that fits (launcher default 16, fallback 12 / 8 / 4); checkpoints every 250 (two newest
+kept for resume), 1000 / 2000 / 3000 permanent (~27 GB each; `OPENPI_BEANS_AB_KEEP=500` for a finer grid); W&B project
+`beans0922_ablation`. Tick 5 frames, 40-tick windows, TBPTT 25, the 20 target-carry sentences, no
 state masking — all snap's (`openpi/src/openpi/training/beans0922_config.py`).
 
 ## Telemetry to watch (W&B `diagnostic/`)
