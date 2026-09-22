@@ -74,20 +74,33 @@ def make_decode_fn(model, max_decode_steps: int):
         prefix_tokens, prefix_mask, prefix_ar = model.embed_prefix(preprocessed)
         prefix_len = prefix_mask.shape[1]
         num_img = prefix_len - model.max_token_len
-        top_tokens = num_img // len(preprocessed.images)
+        top_tokens = model._top_camera_token_count(num_img, preprocessed.images)  # noqa: SLF001
         mem_len = model._memory_token_total  # noqa: SLF001
         gen_base = prefix_len + mem_len
-        prepared = model._v32_prepare_memory_prefix(  # noqa: SLF001
-            prefix_tokens,
-            prefix_mask,
-            prefix_ar,
-            model.memory.init_state(batch),
-            top_token_count=top_tokens,
-            state_token_mask=state_token_mask,
-            semantic_state=sem_state,
-            v5_prev_tokens=prev_tokens,
-            v5_prev_mask=prev_mask,
-        )
+        if getattr(model, "memory_v0920_input_read", False):
+            # 0920 structure (beans0922_v1 / robomme_0920): the 8 read tokens sit at the INPUT of all blocks, the same
+            # dispatch as Pi0._sample_with_memory_v32 and the training scan (no layer-8 interface, no visual bank).
+            prepared = model._v0920_prepare_prefix(  # noqa: SLF001
+                prefix_tokens,
+                prefix_mask,
+                prefix_ar,
+                sem_state,
+                top_token_count=top_tokens,
+                visual_state=model.memory.init_state(batch),
+                state=preprocessed.state,
+            )
+        else:
+            prepared = model._v32_prepare_memory_prefix(  # noqa: SLF001
+                prefix_tokens,
+                prefix_mask,
+                prefix_ar,
+                model.memory.init_state(batch),
+                top_token_count=top_tokens,
+                state_token_mask=state_token_mask,
+                semantic_state=sem_state,
+                v5_prev_tokens=prev_tokens,
+                v5_prev_mask=prev_mask,
+            )
         kv_cache = prepared["cache"]
         final_prefix = prepared["final_prefix"]
         memory_valid = prepared["memory_valid"]

@@ -81,3 +81,15 @@ in `openpi/cluster_robomme/eval` show the request format; the YAM robot client f
 base 10k): the control row and (1) "snap + visual memory" (`Pi0Config.memory_vis_bank`). One-time setup on another machine
 = `beans/ablations/setup_other_cluster.sh` (clone, venv, dataset + base checkpoint from the Hub); one row =
 `beans/ablations/run_<row>.sh`. See `beans/ablations/README.md`.
+
+## Offline held-out probe (videos)
+
+`beans/eval/run_heldout_videos.sh <config> <exp> <step>` walks the six development episodes (manifest split
+"development": LeRobot indices 25 29 59 64 72 73, never trained on) at the training tick with the note bank carried across
+ticks, decodes the subtask sentence every tick, writes it back (`self`: own sentences every tick, as deployed; `oracle`: the
+label sentences) and renders the top camera with the labelled phase, the decoded sentence and the bank overlaid
+(`openpi/scripts/v5_heldout_video.py`, which dispatches to the 0920 input-read prefix for these models). Output:
+`beans/eval/videos_<exp>_<step>/ep<idx>_<mode>.{mp4,json}` + `status.log`. On this cluster run it inside a Slurm job you own:
+`JOB=<job> GPU=<card> GRES=<cards of that job> bash beans/eval/run_heldout_videos.sh pi05_yam_beans0922_v1 beans0922_v1 1500`
+(one H100/H200, ~2 min per episode and mode). Elsewhere: `bash beans/eval/run_heldout_videos.sh ...` on a node with a free card.
+Results page for checkpoint 1500 (2026-09-22): https://claude.ai/artifact/WM4QNWYaVRDAQyEiG4R6rR

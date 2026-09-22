@@ -58,3 +58,8 @@ v7/
 beans/ablations/logs/
 # node-local mirrors of project data (symlinks to the node's own disk; see beans/ablations/README.md)
 /local/
+
+# the beans held-out probe runner is source code (its videos_*/ outputs stay ignored)
+!beans/eval/
+beans/eval/videos_*/
+beans/eval/*.out
