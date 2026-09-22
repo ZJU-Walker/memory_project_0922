@@ -47,7 +47,7 @@ The plain pi0.5 base of the beans0922 line: openpi `pi05_base` fine-tuned on `ke
 knowledge-insulation recipe (sub-task sentence + FAST tokens supervise the language side, flow matching trains the action
 expert under a stop-gradient prefix), batch 16, lr 5e-5, EMA 0.999 (config `pi05_yam_beans0922_base`,
 github.com/ZJU-Walker/memory_project_0922). `params/` is the orbax checkpoint of update **{step}** (the file `STEP` says
-which; the final one is 10000 -- an earlier step is published so training can start before the base run finishes), the one
+which; 10000 is the final one -- step 5000 was published earlier so training could start before the base run finished), the one
 the memory runs warm-start from (`OPENPI_BEANS_BASE_PARAMS`). Restore with `beans/ablations/00_download.sh`.
 """
 

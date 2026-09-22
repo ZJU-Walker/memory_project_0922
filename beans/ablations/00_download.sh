@@ -34,11 +34,11 @@ if [ -f "$DS_DIR/meta/info.json" ] && [ -n "$(ls "$DS_DIR/data" 2>/dev/null)" ];
 fi
 mkdir -p "$ASSETS"; cp -n "$DS_DIR/openpi_assets/pi05_yam_bean_scoop_0905_v5/yam/bean_scoop_0905_v5/norm_stats.json" "$ASSETS/" 2>/dev/null || true
 [ -f "$ASSETS/norm_stats.json" ] || { echo "norm stats missing under $DS_DIR/openpi_assets"; exit 1; }
-# the base checkpoint: the Hub holds params/ of ONE step plus a STEP file (5000 until the base run finishes, then 10000);
-# it lands at <step>/params and train_ablation.sh warm-starts from the largest step present. Re-run this script to pick
-# up the 10000 checkpoint once it is published.
+# the base checkpoint: the Hub holds params/ of ONE step plus a STEP file (the final 10000 since 2026-09-22 08:30 PDT; 5000
+# was published while the base run was still going); it lands at <step>/params and train_ablation.sh warm-starts from the
+# largest step present. A machine that downloaded step 5000 earlier re-runs this script once to add 10000.
 STEP="$("$HF" download "$BASE_REPO" STEP --local-dir "$ROOT/beans/checkpoints/.hf_base_meta" >/dev/null 2>&1 && tr -d '[:space:]' < "$ROOT/beans/checkpoints/.hf_base_meta/STEP")"
-[ -n "$STEP" ] || { echo "the base repo has no STEP / params yet (pushed once the base run reaches 5k)"; exit 1; }
+[ -n "$STEP" ] || { echo "the base repo has no STEP / params yet (the base checkpoint upload is missing)"; exit 1; }
 BASE_DIR="$BASE_ROOT/$STEP"
 if [ -d "$BASE_DIR/params" ] && [ -n "$(ls "$BASE_DIR/params" 2>/dev/null)" ]; then echo "base checkpoint present: $BASE_DIR/params"; else
   echo "downloading $BASE_REPO (step $STEP) -> $BASE_DIR"; mkdir -p "$BASE_DIR"

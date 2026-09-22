@@ -65,10 +65,10 @@ node. Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoi
 
 Data and weights (public, fetched by the setup script): dataset `kewalk123/yam_bean_scoop_0905_v5` (89 episodes, LeRobot
 layout), base checkpoint `kewalk123/beans0922_pi05_base_10k` (pi0.5 with knowledge insulation on this data — what every
-row warm-starts from). The base run is still going: the repo holds **step 5000 first** (its `STEP` file says which) and is
-replaced by step 10000 when that lands; `00_download.sh` places whatever is published under
-`beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/<step>/params` and the launcher warm-starts from the largest
-step present — re-run `bash beans/ablations/00_download.sh` once to pick up the 10000 checkpoint (rows started from 5000
-say so in their `train_<exp>_status.log`). Adding a row = one entry in `ROWS` of
+row warm-starts from). The repo holds the **final step 10000** (its `STEP` file says so; step 5000 was published earlier,
+while the base run was still going); `00_download.sh` places it under
+`beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/10000/params` and the launcher warm-starts from the largest
+step present. A machine that ran the download before 2026-09-22 08:30 PDT has step 5000 only: re-run
+`bash beans/ablations/00_download.sh` once (a row's `train_<exp>_status.log` names the base it started from). Adding a row = one entry in `ROWS` of
 `openpi/src/openpi/training/beans0922_ablation_config.py` + a two-line `beans/ablations/run_<row>.sh`.
 More: `beans/ablations/README.md` (how the sensory bank works, tests), `beans/README.md` (the policy, base + memory runs, serving).
