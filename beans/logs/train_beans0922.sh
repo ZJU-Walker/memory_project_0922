@@ -22,7 +22,9 @@ esac
 LOGS="$ROOT/beans/logs"; mkdir -p "$LOGS"; status="$LOGS/train_beans0922_status.log"
 log() { echo "[$(date +%m/%d\ %H:%M:%S)] $*" | tee -a "$status"; }
 gpu_busy() { CUDA_VISIBLE_DEVICES=$GPUS nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits 2>/dev/null | awk '$1+0>2000' | wc -l; }
-wait_gpu() { for i in $(seq 1 ${WAIT_ROUNDS:-240}); do [ "$(gpu_busy)" = "0" ] && return 0; sleep 30; done; return 1; }
+# free = nobody holds > 2 GB for FREE_STREAK consecutive 30 s polls (default 6 = 3 min), so a pause between someone's eval episodes
+# does not count as free; WAIT_ROUNDS polls at most (default 240 = 2 h)
+wait_gpu() { local ok=0; for i in $(seq 1 ${WAIT_ROUNDS:-240}); do if [ "$(gpu_busy)" = "0" ]; then ok=$((ok+1)); [ $ok -ge ${FREE_STREAK:-6} ] && return 0; else ok=0; fi; sleep 30; done; return 1; }
 PY="${OPENPI_PYTHON:-$ROOT/openpi/.venv/bin/python}"
 run_once() {  # $1 = batch
   local ckdir="$ROOT/beans/checkpoints/$CFG/$EXP" extra=() mode=fresh
