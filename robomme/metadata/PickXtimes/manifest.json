@@ -1,0 +1,1287 @@
+{
+  "episodes": [
+    {
+      "class": "easy",
+      "episode_index": 0,
+      "expected_num_frames": 529,
+      "include": true,
+      "seed": 1000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_0",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 1,
+      "expected_num_frames": 628,
+      "include": true,
+      "seed": 1101,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_1",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 2,
+      "expected_num_frames": 478,
+      "include": true,
+      "seed": 1200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_2",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 3,
+      "expected_num_frames": 814,
+      "include": true,
+      "seed": 1300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_3",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 4,
+      "expected_num_frames": 645,
+      "include": true,
+      "seed": 1400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_4",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 5,
+      "expected_num_frames": 576,
+      "include": true,
+      "seed": 1500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_5",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 6,
+      "expected_num_frames": 470,
+      "include": true,
+      "seed": 1600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_6",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 7,
+      "expected_num_frames": 897,
+      "include": true,
+      "seed": 1700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_7",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 8,
+      "expected_num_frames": 332,
+      "include": true,
+      "seed": 1800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_8",
+      "task_goals": [
+        "pick up the red cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 9,
+      "expected_num_frames": 574,
+      "include": true,
+      "seed": 1900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_9",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 10,
+      "expected_num_frames": 447,
+      "include": true,
+      "seed": 2000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_10",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 11,
+      "expected_num_frames": 822,
+      "include": true,
+      "seed": 2100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_11",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 12,
+      "expected_num_frames": 323,
+      "include": true,
+      "seed": 2200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_12",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 13,
+      "expected_num_frames": 568,
+      "include": true,
+      "seed": 2300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_13",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 14,
+      "expected_num_frames": 556,
+      "include": true,
+      "seed": 2400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_14",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 15,
+      "expected_num_frames": 691,
+      "include": true,
+      "seed": 2500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_15",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 16,
+      "expected_num_frames": 348,
+      "include": true,
+      "seed": 2600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_16",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 17,
+      "expected_num_frames": 465,
+      "include": true,
+      "seed": 2700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_17",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 18,
+      "expected_num_frames": 302,
+      "include": true,
+      "seed": 2800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_18",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 19,
+      "expected_num_frames": 788,
+      "include": true,
+      "seed": 2900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_19",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 20,
+      "expected_num_frames": 421,
+      "include": true,
+      "seed": 3000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_20",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 21,
+      "expected_num_frames": 622,
+      "include": true,
+      "seed": 3100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_21",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 22,
+      "expected_num_frames": 568,
+      "include": true,
+      "seed": 3200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_22",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 23,
+      "expected_num_frames": 813,
+      "include": true,
+      "seed": 3300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_23",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 24,
+      "expected_num_frames": 462,
+      "include": true,
+      "seed": 3400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_24",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 25,
+      "expected_num_frames": 438,
+      "include": true,
+      "seed": 3500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_25",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 26,
+      "expected_num_frames": 565,
+      "include": true,
+      "seed": 3600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_26",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 27,
+      "expected_num_frames": 1025,
+      "include": true,
+      "seed": 3700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_27",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 28,
+      "expected_num_frames": 616,
+      "include": true,
+      "seed": 3800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_28",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 29,
+      "expected_num_frames": 304,
+      "include": true,
+      "seed": 3900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_29",
+      "task_goals": [
+        "pick up the red cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 30,
+      "expected_num_frames": 301,
+      "include": true,
+      "seed": 4000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_30",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 31,
+      "expected_num_frames": 686,
+      "include": true,
+      "seed": 4100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_31",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 32,
+      "expected_num_frames": 540,
+      "include": true,
+      "seed": 4200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_32",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 33,
+      "expected_num_frames": 420,
+      "include": true,
+      "seed": 4300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_33",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 34,
+      "expected_num_frames": 558,
+      "include": true,
+      "seed": 4400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_34",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 35,
+      "expected_num_frames": 706,
+      "include": true,
+      "seed": 4500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_35",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 36,
+      "expected_num_frames": 609,
+      "include": true,
+      "seed": 4600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_36",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 37,
+      "expected_num_frames": 418,
+      "include": true,
+      "seed": 4700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_37",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 38,
+      "expected_num_frames": 401,
+      "include": true,
+      "seed": 4800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_38",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 39,
+      "expected_num_frames": 812,
+      "include": true,
+      "seed": 4900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_39",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 40,
+      "expected_num_frames": 291,
+      "include": true,
+      "seed": 5000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_40",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 41,
+      "expected_num_frames": 266,
+      "include": true,
+      "seed": 5100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_41",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 42,
+      "expected_num_frames": 420,
+      "include": true,
+      "seed": 5202,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_42",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 43,
+      "expected_num_frames": 797,
+      "include": true,
+      "seed": 5300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_43",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 44,
+      "expected_num_frames": 300,
+      "include": true,
+      "seed": 5400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_44",
+      "task_goals": [
+        "pick up the red cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 45,
+      "expected_num_frames": 574,
+      "include": true,
+      "seed": 5500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_45",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 46,
+      "expected_num_frames": 439,
+      "include": true,
+      "seed": 5600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_46",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 47,
+      "expected_num_frames": 703,
+      "include": true,
+      "seed": 5700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_47",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 48,
+      "expected_num_frames": 639,
+      "include": true,
+      "seed": 5800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_48",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 49,
+      "expected_num_frames": 584,
+      "include": true,
+      "seed": 5901,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_49",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 50,
+      "expected_num_frames": 305,
+      "include": true,
+      "seed": 6000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_50",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 51,
+      "expected_num_frames": 692,
+      "include": true,
+      "seed": 6100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_51",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 52,
+      "expected_num_frames": 286,
+      "include": true,
+      "seed": 6200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_52",
+      "task_goals": [
+        "pick up the red cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 53,
+      "expected_num_frames": 405,
+      "include": true,
+      "seed": 6300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_53",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 54,
+      "expected_num_frames": 293,
+      "include": true,
+      "seed": 6400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_54",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 55,
+      "expected_num_frames": 841,
+      "include": true,
+      "seed": 6500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_55",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 56,
+      "expected_num_frames": 532,
+      "include": true,
+      "seed": 6600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_56",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 57,
+      "expected_num_frames": 581,
+      "include": true,
+      "seed": 6700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_57",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 58,
+      "expected_num_frames": 316,
+      "include": true,
+      "seed": 6800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_58",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 59,
+      "expected_num_frames": 720,
+      "include": true,
+      "seed": 6900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_59",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 60,
+      "expected_num_frames": 439,
+      "include": true,
+      "seed": 7000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_60",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 61,
+      "expected_num_frames": 315,
+      "include": true,
+      "seed": 7100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_61",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 62,
+      "expected_num_frames": 437,
+      "include": true,
+      "seed": 7200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_62",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 63,
+      "expected_num_frames": 833,
+      "include": true,
+      "seed": 7300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_63",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 64,
+      "expected_num_frames": 432,
+      "include": true,
+      "seed": 7400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_64",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 65,
+      "expected_num_frames": 431,
+      "include": true,
+      "seed": 7500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_65",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 66,
+      "expected_num_frames": 573,
+      "include": true,
+      "seed": 7600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_66",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 67,
+      "expected_num_frames": 890,
+      "include": true,
+      "seed": 7700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_67",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 68,
+      "expected_num_frames": 555,
+      "include": true,
+      "seed": 7800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_68",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 69,
+      "expected_num_frames": 591,
+      "include": true,
+      "seed": 7900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_69",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 70,
+      "expected_num_frames": 303,
+      "include": true,
+      "seed": 8000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_70",
+      "task_goals": [
+        "pick up the red cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 71,
+      "expected_num_frames": 824,
+      "include": true,
+      "seed": 8100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_71",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 72,
+      "expected_num_frames": 279,
+      "include": true,
+      "seed": 8200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_72",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 73,
+      "expected_num_frames": 560,
+      "include": true,
+      "seed": 8300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_73",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 74,
+      "expected_num_frames": 546,
+      "include": true,
+      "seed": 8400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_74",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 75,
+      "expected_num_frames": 715,
+      "include": true,
+      "seed": 8500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_75",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 76,
+      "expected_num_frames": 303,
+      "include": true,
+      "seed": 8600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_76",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 77,
+      "expected_num_frames": 438,
+      "include": true,
+      "seed": 8700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_77",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 78,
+      "expected_num_frames": 318,
+      "include": true,
+      "seed": 8800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_78",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 79,
+      "expected_num_frames": 696,
+      "include": true,
+      "seed": 8900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_79",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 80,
+      "expected_num_frames": 323,
+      "include": true,
+      "seed": 9001,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_80",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 81,
+      "expected_num_frames": 564,
+      "include": true,
+      "seed": 9100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_81",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 82,
+      "expected_num_frames": 451,
+      "include": true,
+      "seed": 9200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_82",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 83,
+      "expected_num_frames": 723,
+      "include": true,
+      "seed": 9300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_83",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action four times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action four times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 84,
+      "expected_num_frames": 296,
+      "include": true,
+      "seed": 9400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_84",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 85,
+      "expected_num_frames": 539,
+      "include": true,
+      "seed": 9500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_85",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 86,
+      "expected_num_frames": 275,
+      "include": true,
+      "seed": 9600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_86",
+      "task_goals": [
+        "pick up the red cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 87,
+      "expected_num_frames": 863,
+      "include": true,
+      "seed": 9700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_87",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 88,
+      "expected_num_frames": 560,
+      "include": true,
+      "seed": 9800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_88",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 89,
+      "expected_num_frames": 307,
+      "include": true,
+      "seed": 9900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_89",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 90,
+      "expected_num_frames": 593,
+      "include": true,
+      "seed": 10000,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_90",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 91,
+      "expected_num_frames": 864,
+      "include": true,
+      "seed": 10100,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_91",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 92,
+      "expected_num_frames": 450,
+      "include": true,
+      "seed": 10200,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_92",
+      "task_goals": [
+        "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the blue cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 93,
+      "expected_num_frames": 472,
+      "include": true,
+      "seed": 10300,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_93",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 94,
+      "expected_num_frames": 554,
+      "include": true,
+      "seed": 10400,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_94",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action three times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action three times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 95,
+      "expected_num_frames": 807,
+      "include": true,
+      "seed": 10500,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_95",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 96,
+      "expected_num_frames": 449,
+      "include": true,
+      "seed": 10600,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_96",
+      "task_goals": [
+        "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the red cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 97,
+      "expected_num_frames": 437,
+      "include": true,
+      "seed": 10700,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_97",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action two times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action two times, then press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 98,
+      "expected_num_frames": 309,
+      "include": true,
+      "seed": 10800,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_98",
+      "task_goals": [
+        "pick up the green cube and place it on the target, then press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 99,
+      "expected_num_frames": 884,
+      "include": true,
+      "seed": 10900,
+      "split": "train",
+      "stable_id": "PickXtimes/episode_99",
+      "task_goals": [
+        "pick up the green cube and place it on the target, repeating this action five times, then press the button to stop",
+        "pick up the green cube and place it on the target, repeating this pick-and-place action five times, then press the button to stop"
+      ]
+    }
+  ],
+  "label_field": "info/simple_subgoal",
+  "prompt_selection": "setup/task_goal[0]",
+  "schema_version": "openpi.v5.generic-manifest.v1",
+  "source": "/iris/u/kewalk/robomme_benchmark/data/robomme_data_h5/record_dataset_PickXtimes.h5",
+  "source_bytes": 35814958880,
+  "split_seed": 0
+}

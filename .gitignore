@@ -40,3 +40,15 @@ v5
 # v7 worktree: read-only link to the v6 artefacts and the v7 artefact namespace (never commit)
 v6
 v7/
+# RoboMME / bean-scoop artefact folders (checkpoints, datasets, rollouts, logs); scripts and docs under */logs are tracked
+/robomme/checkpoints/
+/robomme/data/
+/robomme/rollouts/
+/robomme/replay/
+/robomme/cache/
+/robomme/expert_val/
+/robomme/diagnostics/
+/beans/checkpoints/
+*.log
+*.out
+*.pkl

@@ -82,6 +82,16 @@ V7_ASSETS_ROOT = V7_ROOT / "assets"
 V7_CHECKPOINTS_DIR = V7_ROOT / "checkpoints"
 V7_DIAGNOSTICS_DIR = V7_ROOT / "diagnostics"
 
+# RoboMME (cluster_robomme/README.md): worktree memory_project_robomme, branch `robomme` from v7 commit ab09cac
+# (2026-09-13). Everything task-specific (converted LeRobot datasets, label sidecars, norm stats, checkpoints, logs,
+# rollouts) lives under `robomme/`; the v6/v7 real-robot artefacts are not needed and only reachable read-only.
+ROBOMME_ROOT = pathlib.PurePosixPath("robomme")
+ROBOMME_ASSETS_ROOT = ROBOMME_ROOT / "assets"
+ROBOMME_CHECKPOINTS_DIR = ROBOMME_ROOT / "checkpoints"
+ROBOMME_DIAGNOSTICS_DIR = ROBOMME_ROOT / "diagnostics"
+ROBOMME_LEROBOT_DIR = ROBOMME_ROOT / "data" / "lerobot"
+ROBOMME_METADATA_DIR = ROBOMME_ROOT / "metadata"
+
 
 class ProjectRootError(ValueError):
     """Raised when a project-root override or project-relative path is invalid."""

@@ -429,6 +429,10 @@ class MemorySequenceSubtasks(DataTransformFn):
     prefill_history: bool = False
     prefill_max: int = 6
     write_delay_steps: int = 0
+    # 0920_v0 (memory_v7_write_every_step): the deployed policy rewrites the CURRENT note at every tick, which restores
+    # it to full strength; a note only decays once its successor starts. The analytic prefill therefore decays note i
+    # by the gap AFTER note i+1's onset (the gaps shift left by one) and the newest note not at all.
+    write_every_step: bool = False
 
     def _history_prefill(self, labels_before: list[str]) -> tuple[list[str], np.ndarray, str]:
         """`labels_before[j]` = the sentence produced at pre-window step j (j = 0 oldest, the
@@ -450,6 +454,8 @@ class MemorySequenceSubtasks(DataTransformFn):
         for i, a in enumerate(first_steps):
             nxt = first_steps[i + 1] if i + 1 < len(first_steps) else len(history)
             gaps.append(nxt - a - 1)
+        if self.write_every_step and gaps:
+            gaps = gaps[1:] + [0]
         # Keep the most recent entries when the history is longer than the buffer (the dropped
         # ones are the oldest, i.e. the most decayed).
         sentences, gaps = sentences[-self.prefill_max :], gaps[-self.prefill_max :]
@@ -737,6 +743,9 @@ class BuildMemorySequence(DataTransformFn):
     stride: int
     action_horizon: int
     block_steps: int
+    # RoboMME: the action chunk of step k starts at frame k*stride + offset (DataConfig.action_target_offset_frames);
+    # a step whose first target lies past the episode end is masked out.
+    action_target_offset_frames: int = 0
     subtask_lookahead: int = 0
     # Required for v3.5's second, item-level proof that every analytically omitted transition
     # is semantic O.  Empty preserves the legacy constructor/output path.
@@ -754,10 +763,12 @@ class BuildMemorySequence(DataTransformFn):
         if len(keep) == 0:
             raise ValueError("cannot compact a sparse memory sequence with no kept steps.")
         padded = np.concatenate([keep, np.full(num_steps - len(keep), keep[-1], dtype=np.int32)])
+        history_keys = tuple(k for k in data if k.startswith("observation/history_"))  # 0920_v0 history + history_valid
         for key in (
             "observation/image",
             "observation/left_wrist_image",
             "observation/right_wrist_image",
+            *history_keys,
             "observation/state",
             "actions",
             "subtask_valid",
@@ -783,15 +794,19 @@ class BuildMemorySequence(DataTransformFn):
         episode_length = int(np.asarray(data.pop("episode_length")).item())
         window = np.asarray(data.pop("memory_window")) if "memory_window" in data else None
 
-        for key in ("observation/image", "observation/left_wrist_image", "observation/right_wrist_image"):
-            data[key] = np.stack([_as_uint8_hwc(frame) for frame in np.asarray(data[key])])
+        history_keys = tuple(k for k in data if k.startswith("observation/history_") and k != "observation/history_valid")
+        for key in ("observation/image", "observation/left_wrist_image", "observation/right_wrist_image", *history_keys):
+            if key in data:  # RoboMME has no right wrist camera (RobommeInputs zero-fills it after the repack)
+                data[key] = np.stack([_as_uint8_hwc(frame) for frame in np.asarray(data[key])])
+        if "observation/history_valid" in data:  # 0920_v0: [T, H] validity of the past front frames
+            data["observation/history_valid"] = np.asarray(data["observation/history_valid"], dtype=bool)
         state = np.asarray(data["observation/state"], dtype=np.float32)
         data["observation/state"] = state
         num_steps = state.shape[0]
         data["actions"] = np.asarray(data["actions"], dtype=np.float32).reshape(num_steps, self.action_horizon, -1)
 
         step_frames = frame_index + np.arange(num_steps) * self.stride
-        data["seq_step_mask"] = step_frames < episode_length
+        data["seq_step_mask"] = step_frames + self.action_target_offset_frames < episode_length
 
         v35 = is_v35_memory_window(window)
         if v35:
@@ -1159,6 +1174,13 @@ class TokenizeMemorySubtaskInputs(DataTransformFn):
     # v5 A5 history prefill: width of the tokenized prefill/pending sentence rows
     # (Pi0Config.memory_v5_sentence_len). 0 = the transform never emits prefill fields.
     prefill_len: int = 0
+    # v7 prompt slot (09-18, Pi0Config.prompt_slot_len > 0): every step's context carries the NEWEST NOTE BEFORE THAT
+    # STEP in the "Last:" slot -- the previous step's label inside the window, the last prefilled sentence at the window
+    # start, `prev_null` when there is none (cold start) or with probability `prev_dropout` (keeps a no-note route). The
+    # transform also emits `token_slot_mask` and the null row so a stage-B model can overwrite the slot with its own note.
+    prev_subtask: bool = False
+    prev_dropout: float = 0.0
+    prev_null: str = "none"
 
     def __call__(self, data: DataDict) -> DataDict:
         if (prompt := data.pop("prompt", None)) is None:
@@ -1166,6 +1188,9 @@ class TokenizeMemorySubtaskInputs(DataTransformFn):
         if not isinstance(prompt, str):
             prompt = prompt.item()
         subtask = data.pop("subtask", None)
+        served_prev = data.pop("prev_subtask", None)  # inference: the server's newest committed note (text) or None
+        if served_prev is not None and not isinstance(served_prev, str):
+            served_prev = served_prev.item()
         prefill = data.pop("memory_v5_prefill", None)
         prefill_gaps = data.pop("memory_v5_prefill_gaps", None)
         pending = data.pop("memory_v5_pending", None)
@@ -1188,8 +1213,9 @@ class TokenizeMemorySubtaskInputs(DataTransformFn):
             # inference: pure ar=0 context, same as the no-label FAST subtask path. The state
             # mask ships along so the v3.4 instruction-only conditioner sees the identical
             # context selection at inference and training.
+            prev = (served_prev if served_prev is not None else self.prev_null) if self.prev_subtask else None
             tokens, token_mask, ar_mask, loss_mask, fast_mask, state_mask = self.tokenizer.tokenize(
-                prompt, state, None, None, return_state_mask=True
+                prompt, state, None, None, prev_subtask=prev, return_state_mask=True
             )
             return {
                 **data,
@@ -1206,16 +1232,24 @@ class TokenizeMemorySubtaskInputs(DataTransformFn):
         actions = data["actions"]
         if state.ndim != 2:
             raise ValueError("memory sequence training expects per-step state [T, s]")
+        n_steps = state.shape[0]
+        prev: list[str | None] = [None] * n_steps
+        if self.prev_subtask:
+            last_before = next((str(s) for s in reversed(list(prefill or [])) if str(s)), "")
+            prev = [last_before or self.prev_null] + [str(subtask[k - 1]) for k in range(1, n_steps)]
+            if self.prev_dropout > 0:
+                prev = [self.prev_null if np.random.rand() < self.prev_dropout else p for p in prev]
         steps = [
             self.tokenizer.tokenize_split(
-                prompt, state[k], str(subtask[k]), actions[k], self.causal_len, return_state_mask=True
+                prompt, state[k], str(subtask[k]), actions[k], self.causal_len,
+                return_state_mask=True, prev_subtask=prev[k], return_slot_mask=True,
             )
-            for k in range(state.shape[0])
+            for k in range(n_steps)
         ]
-        context, context_mask, causal, causal_mask, causal_fast, context_state = (
+        context, context_mask, causal, causal_mask, causal_fast, context_state, context_slot = (
             np.stack(x) for x in zip(*steps, strict=True)
         )
-        return {
+        out = {
             **data,
             "tokenized_prompt": context,
             "tokenized_prompt_mask": context_mask,
@@ -1228,6 +1262,12 @@ class TokenizeMemorySubtaskInputs(DataTransformFn):
             "tokenized_causal_mask": causal_mask,
             "causal_fast_mask": causal_fast,
         }
+        if self.prev_subtask:
+            null_tokens, null_mask = self.tokenizer.slot_null_row(self.prev_null)
+            out["token_slot_mask"] = context_slot
+            out["prompt_slot_null_tokens"] = null_tokens
+            out["prompt_slot_null_mask"] = null_mask
+        return out
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1386,6 +1426,33 @@ class SplitStateHistory(DataTransformFn):
         if state.ndim != 2 or state.shape[0] != self.history + 1:
             raise ValueError(f"expected state [{self.history + 1}, D] from the loader, got {state.shape}")
         return {**data, "state": state[-1], "state_history": state[:-1]}
+
+
+@dataclasses.dataclass(frozen=True)
+class SplitImageHistory(DataTransformFn):
+    """0920_v0 short visual history: the loader fetches the front camera `key` as an interleaved grid
+    [T * (frames + 1), C, h, w] (per memory tick: `frames` past frames oldest first, then the current frame; see
+    data_loader). Split it back into the current frames `key` [T, ...] plus `history_<i>` [T, ...] and the validity
+    `history_valid` [T, frames] (False where LeRobot clamped an offset before the episode start, from `<key>_is_pad`).
+    Runs on the raw item, before the repack."""
+
+    key: str
+    frames: int
+
+    def __call__(self, data: DataDict) -> DataDict:
+        grid = np.asarray(data[self.key])
+        per_step = self.frames + 1
+        if grid.ndim < 2 or grid.shape[0] % per_step:
+            raise ValueError(f"expected {self.key} as [T x {per_step}, ...] from the loader, got {grid.shape}")
+        steps = grid.shape[0] // per_step
+        grid = grid.reshape(steps, per_step, *grid.shape[1:])
+        pad_key = f"{self.key}_is_pad"
+        pad = np.asarray(data.pop(pad_key)).reshape(steps, per_step) if pad_key in data else np.zeros((steps, per_step), dtype=bool)
+        out = {**data, self.key: grid[:, -1]}
+        for i in range(self.frames):
+            out[f"history_{i}"] = grid[:, i]
+        out["history_valid"] = ~pad[:, : self.frames].astype(bool)
+        return out
 
 
 @dataclasses.dataclass(frozen=True)

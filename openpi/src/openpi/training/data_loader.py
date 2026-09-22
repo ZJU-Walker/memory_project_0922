@@ -199,6 +199,8 @@ def create_torch_dataset(
     dataset_root = data_config.lerobot_dataset_root
     dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(repo_id, root=dataset_root)
     use_memory = getattr(model_config, "predict_with_memory", False) and data_config.memory_stride_frames > 0
+    # RoboMME: observation row t supervises actions from row t + offset (DataConfig.action_target_offset_frames).
+    action_offset = data_config.action_target_offset_frames
     if use_memory:
         # Memory sequence training: each sample is T consecutive prediction steps anchored at
         # the sampled base frame -- per-step images/state at (base + k*stride), the flat action
@@ -209,16 +211,30 @@ def create_torch_dataset(
         stride = data_config.memory_stride_frames
         step_offsets = [k * stride / dataset_meta.fps for k in range(steps)]
         delta_timestamps = {
-            key: [(k * stride + j) / dataset_meta.fps for k in range(steps) for j in range(action_horizon)]
+            key: [(k * stride + j + action_offset) / dataset_meta.fps for k in range(steps) for j in range(action_horizon)]
             for key in data_config.action_sequence_keys
         }
-        for key in ("image", "left_wrist_image", "right_wrist_image", "state"):
+        # The dataset's own camera keys: YAM has three, RoboMME two (the right wrist is zero-filled by RobommeInputs).
+        for key in (*dataset_meta.camera_keys, "state"):
             delta_timestamps[key] = step_offsets
+        hist_n, hist_s = data_config.memory_image_history_frames, data_config.memory_image_history_stride
+        if hist_n > 0:
+            # 0920_v0: the front camera comes as an interleaved grid [T x (H past + current)]; SplitImageHistory below
+            # turns it back into the current frame plus H `history_<i>` keys (+ their `history_valid` flags).
+            hist_key = data_config.memory_image_history_key
+            if hist_key not in dataset_meta.camera_keys:
+                raise ValueError(f"memory_image_history_key {hist_key!r} is not a camera of the dataset ({dataset_meta.camera_keys}).")
+            delta_timestamps[hist_key] = [
+                (k * stride + o) / dataset_meta.fps
+                for k in range(steps)
+                for o in (*(-(hist_n - i) * hist_s for i in range(hist_n)), 0)
+            ]
         # NOTE: no task_index delta_timestamps -- lerobot requires a scalar task_index per item
         # (it .item()s it); the per-step subtask labels come from MemorySequenceSubtasks below.
     else:
         delta_timestamps = {
-            key: [t / dataset_meta.fps for t in range(action_horizon)] for key in data_config.action_sequence_keys
+            key: [(t + action_offset) / dataset_meta.fps for t in range(action_horizon)]
+            for key in data_config.action_sequence_keys
         }
         if data_config.subtask_from_task and data_config.subtask_lookahead > 0:
             # Deliver the *future* task_index: the subtask label that conditions this frame's chunk.
@@ -240,6 +256,11 @@ def create_torch_dataset(
     )
     if not use_memory and data_config.prompt_state_history > 0:
         dataset = TransformedDataset(dataset, [_transforms.SplitStateHistory(data_config.prompt_state_history)])
+    if use_memory and data_config.memory_image_history_frames > 0:
+        dataset = TransformedDataset(
+            dataset,
+            [_transforms.SplitImageHistory(key=data_config.memory_image_history_key, frames=data_config.memory_image_history_frames)],
+        )
 
     if data_config.prompt_from_task:
         dataset = TransformedDataset(dataset, [_transforms.PromptFromLeRobotTask(dataset_meta.tasks)])
@@ -316,6 +337,7 @@ def create_torch_dataset(
                     prefill_history=bool(getattr(model_config, "memory_v5_prefill_history", False)),
                     prefill_max=int(getattr(model_config, "memory_v5_prefill_max", 6)),
                     write_delay_steps=int(getattr(model_config, "memory_v5_write_delay_steps", 0)),
+                    write_every_step=bool(getattr(model_config, "memory_v7_write_every_step", False)),
                 )
             )
         fact_targets_table = None
@@ -1761,6 +1783,44 @@ def _still_decision_boost(
     return out, before, after
 
 
+def _history_power_reweight(
+    weights: np.ndarray,
+    *,
+    frame: np.ndarray,
+    episode: np.ndarray,
+    episode_tasks: Sequence[np.ndarray],
+    branches: Sequence[np.ndarray],
+    power: float,
+) -> tuple[np.ndarray, np.ndarray, dict[int, tuple[float, float]]]:
+    """RoboMME v3 (2026-09-19) generic later-history emphasis: multiply the weight of every start by
+    (1 + number of label changes in its episode up to and including the start frame) ** power, separately inside
+    each branch mask (every branch keeps its total mass, so the full/slice/critical split is untouched; starts
+    outside every branch are untouched). The rule counts label changes only; it never looks at the sentences.
+    Returns (new weights, changes-before-start per frame, {n_changes: (mass before, mass after)})."""
+    n_before = np.zeros(len(episode), dtype=np.int64)
+    for e, tasks in enumerate(episode_tasks):
+        tasks = np.asarray(tasks)
+        idx = np.nonzero(episode == e)[0]
+        if len(idx) == 0 or len(tasks) == 0:
+            continue
+        changed = np.concatenate([[0], (tasks[1:] != tasks[:-1]).astype(np.int64)])
+        n_before[idx] = np.cumsum(changed)[np.minimum(frame[idx], len(tasks) - 1)]
+    factor = np.power(1.0 + n_before.astype(np.float64), float(power))
+    out = weights.copy()
+    for mask in branches:
+        m = np.asarray(mask, dtype=bool) & (weights > 0)
+        total = float(weights[m].sum())
+        if total <= 0:
+            continue
+        scaled = weights[m] * factor[m]
+        out[m] = scaled * (total / float(scaled.sum()))
+    table = {
+        int(n): (float(weights[n_before == n].sum()), float(out[n_before == n].sum()))
+        for n in np.unique(n_before[weights > 0])
+    }
+    return out, n_before, table
+
+
 @dataclasses.dataclass(frozen=True)
 class _SequenceSamplingInfo:
     weights: np.ndarray
@@ -1812,7 +1872,12 @@ def _sequence_sampling_info(
 
     stride = data_config.memory_stride_frames
     length = info["length"][episode]
-    valid_steps = np.minimum((length - frame + stride - 1) // stride, max_steps).astype(np.int32)
+    # RoboMME next-action offset: match BuildMemorySequence's step mask exactly at bucket boundaries. A terminal
+    # observation without a future target gets no sampling mass; its bucket length stays a positive placeholder
+    # (the sampler validates every length before dropping zero-weight entries).
+    target_frames = length - frame - data_config.action_target_offset_frames
+    allowed = allowed & (target_frames > 0)
+    valid_steps = np.maximum(1, np.minimum((target_frames + stride - 1) // stride, max_steps)).astype(np.int32)
 
     phases = "evidence_start" in info
     window = _memory_critical_windows(info, data_config)
@@ -2048,6 +2113,16 @@ def _sequence_sampling_info(
                     idx = np.nonzero(mc_ok & (episode == e))[0]
                     weights[idx] = mc_prob / n_cells / len(members) / len(idx)
 
+    history_power = float(getattr(data_config, "memory_start_history_power", 0.0))
+    if history_power != 0.0:
+        weights, _n_before, history_table = _history_power_reweight(
+            weights, frame=frame, episode=episode, episode_tasks=info["episode_tasks"],
+            branches=(slice_ok, mc_ok), power=history_power,
+        )
+        logging.info(
+            "v3 later-history emphasis power %g: sampling mass by label changes before the start (before -> after): %s",
+            history_power, ", ".join(f"{n}: {b:.3f} -> {a:.3f}" for n, (b, a) in sorted(history_table.items())),
+        )
     boost = float(getattr(data_config, "memory_v6_still_decision_boost", 1.0))
     if boost != 1.0:
         required_ids = {int(i) for i, t in dataset_meta.tasks.items() if t in data_config.memory_required_subtasks}
@@ -2782,6 +2857,7 @@ _SEQUENCE_TIME_KEYS = frozenset(
         "token_loss_mask",
         "token_fast_mask",
         "token_state_mask",
+        "token_slot_mask",  # v7 prompt slot (09-18): per-step slot positions of the context; the [W] null rows are per-sequence
         "tokenized_causal",
         "tokenized_causal_mask",
         "causal_fast_mask",

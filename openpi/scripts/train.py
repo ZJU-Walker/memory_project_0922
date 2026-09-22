@@ -1231,6 +1231,22 @@ def _is_per_position_metric(key: str) -> bool:
     return _PER_POSITION_METRIC_SUFFIX.search(key) is not None
 
 
+def _is_diagnostic_metric(key: str) -> bool:
+    """Metrics dropped from W&B and the console when TrainConfig.log_diagnostics is False."""
+    return key.startswith("diagnostic/") or _is_per_position_metric(key)
+
+
+def _zero_weight_loss_terms(model_config) -> frozenset[str]:
+    """Loss terms whose weight is 0 in this config (user 09-21: the v3.5 side losses and the v5 separation term still showed
+    up as flat panels). They are computed as telemetry inside the loss but carry nothing; dropped with log_diagnostics=False."""
+    weights = {
+        "v35_write_side_loss": getattr(model_config, "memory_write_side_loss_weight", 0.0),
+        "v35_read_side_loss": getattr(model_config, "memory_read_side_loss_weight", 0.0),
+        "v5_separation_loss": getattr(model_config, "memory_v5_sentence_separation_weight", 0.0),
+    }
+    return frozenset(k for k, w in weights.items() if abs(float(w)) < 1e-3)  # the v6 template carries 1e-6 placeholders
+
+
 def _load_weights_and_validate(loader: _weight_loaders.WeightLoader, params_shape: at.Params) -> at.Params:
     """Loads and validates the weights. Returns a loaded subset of the weights."""
     loaded_params = loader.load(params_shape)
@@ -1300,6 +1316,11 @@ _V5_INFO_KEYS = (
     "v4_sem_injected_pre_cast_rms_sum",
     "v4_sem_injected_post_cast_rms_sum",
     "v5_sentence_changed_count",
+    "v7_onset_count",
+    "v7_grammar_rejected_count",
+    "v7_vocab_rejected_count",
+    "v7_retracted_count",
+    "v7_hard_token_count",
     "v5_sentence_confident_count",
     "v5_sentence_conf_sum",
     "v5_write_requested_count",
@@ -1772,6 +1793,9 @@ def train_step(
             # Subtask co-training: combine the flow and (weighted) token CE losses, log both.
             loss = jnp.mean(chunked_loss["flow"]) + model.ce_loss_weight * jnp.mean(chunked_loss["ce"])
             info = {"flow_loss": jnp.mean(chunked_loss["flow"]), "ce_loss": jnp.mean(chunked_loss["ce"])}
+            if "ce_lm" in chunked_loss:  # telemetry split of the token CE: sentence (LM) tokens vs FAST action tokens
+                info["lm_loss"] = jnp.mean(chunked_loss["ce_lm"])
+                info["fast_loss"] = jnp.mean(chunked_loss["ce_fast"])
             # v5 sentence-separation penalty (README §8 18:50): parameter-only, already averaged over the
             # reference vocabulary, so it enters the total once (not per micro-batch element).
             sep_weight = float(getattr(model, "memory_v5_sentence_separation_weight", 0.0) or 0.0)
@@ -1877,6 +1901,14 @@ def train_step(
 
     train_rng = jax.random.fold_in(rng, state.step)
     observation, actions = batch
+    if getattr(config, "label_write_schedule_steps", 0) > 0 and observation.seq_step_mask is not None:
+        # 0920_v0: the bank is written with the LABEL sentence with probability p(step) = max(0, 1 - step / N) per
+        # tick, the model's own decode otherwise (one run instead of stage A -> B). Constant across the batch.
+        p_label = jnp.clip(1.0 - state.step.astype(jnp.float32) / float(config.label_write_schedule_steps), 0.0, 1.0)
+        # one scalar per sequence: leading dims minus the step axis ([b], or [accum, b] under gradient accumulation)
+        observation = observation.replace(
+            seq_label_write_prob=jnp.full(observation.seq_step_mask.shape[:-1], p_label, dtype=jnp.float32)
+        )
 
     # Filter out frozen params.
     diff_state = nnx.DiffState(0, config.trainable_filter)
@@ -1998,6 +2030,9 @@ def train_step(
             loss = (flow_loss + model.ce_loss_weight * ce_loss) / accumulation_steps
             # These are additive contributions to the metrics of the effective global batch.
             info = {"flow_loss": flow_loss / accumulation_steps, "ce_loss": ce_loss / accumulation_steps}
+            if "ce_lm" in chunked_loss:  # telemetry split of the token CE: sentence (LM) tokens vs FAST action tokens
+                info["lm_loss"] = jnp.mean(chunked_loss["ce_lm"]) / accumulation_steps
+                info["fast_loss"] = jnp.mean(chunked_loss["ce_fast"]) / accumulation_steps
             # v5 sentence-separation penalty: divided by accumulation_steps like every other contribution,
             # so the accumulated total carries it exactly once.
             sep_weight = float(getattr(model, "memory_v5_sentence_separation_weight", 0.0) or 0.0)
@@ -2374,6 +2409,7 @@ def main(config: _config.TrainConfig):
     checkpoint_manager, resuming = _checkpoints.initialize_checkpoint_dir(
         config.checkpoint_dir,
         keep_period=config.keep_period,
+        max_to_keep=int(getattr(config, "checkpoint_max_to_keep", 1)),
         overwrite=config.overwrite,
         resume=config.resume,
         allow_step_zero_resume=v35_enabled,
@@ -2581,6 +2617,7 @@ def main(config: _config.TrainConfig):
     )
 
     infos = []
+    lr_schedule_fn = config.lr_schedule.create()  # logged next to the losses (same schedule the optimizer uses)
     for step in pbar:
         with sharding.set_mesh(mesh):
             if v35_runtime_guard:
@@ -2612,7 +2649,11 @@ def main(config: _config.TrainConfig):
                     reduced_info.update({f"{k}_p{i}": float(x) for i, x in enumerate(v)})
                 else:
                     reduced_info[f"{k}"] = float(v)
-            info_str = ", ".join(f"{k}={v:.4f}" for k, v in reduced_info.items() if not _is_per_position_metric(k))
+            reduced_info["lr"] = float(lr_schedule_fn(metric_step))
+            if not config.log_diagnostics:
+                dead = _zero_weight_loss_terms(config.model)
+                reduced_info = {k: v for k, v in reduced_info.items() if not _is_diagnostic_metric(k) and k not in dead}
+            info_str = ", ".join(f"{k}={v:.2e}" if k == "lr" else f"{k}={v:.4f}" for k, v in reduced_info.items() if not _is_per_position_metric(k))
             label = "Completed update" if config.checkpoint_by_completed_updates else "Step"
             pbar.write(f"{label} {metric_step}: {info_str}")
             wandb.log(reduced_info, step=metric_step)

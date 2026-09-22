@@ -1,0 +1,63 @@
+model.action_horizon = 50
+model.action_dim = 32
+model.max_token_len = 80
+model.prompt_slot_len = 0
+model.prompt_slot_dropout = 0.0
+model.simulated_delay = 15
+model.memory_seq_steps = 60
+model.memory_block_steps = 30
+model.memory_v7_no_visual_block = False
+model.memory_v4_visual_injection = False
+model.memory_v6_pointer_read = True
+model.memory_v5_query_prev_sentence = True
+model.memory_v5_query_standardize = True
+model.memory_mask_zero_tokens = True
+model.memory_blind_tokens = True
+model.memory_v5_oracle_writes = False
+model.memory_v7_write_every_step = False
+model.memory_v5_write_conf = 0.9
+model.memory_v7_write_debounce_steps = 1
+model.memory_v7_first_write_debounce_steps = None
+model.memory_v7_write_retract_steps = 0
+model.memory_v7_write_vocab_only = False
+model.memory_v7_write_grammar = ()
+model.memory_v5_prev_is_committed = True
+model.memory_v5_own_commit_label_content = True
+model.memory_v5_write_delay_steps = 0
+model.memory_v5_prefill_history = True
+model.memory_v5_prefill_max = 26
+model.memory_state_mask_prob = 0.0
+model.memory_v7_hard_token_ce_weight = 1.0
+model.memory_v7_onset_ce_weight = 1.0
+model.memory_v6_token_writes = True
+model.memory_v6_whiten_keys = True
+model.memory_v5_read_queries = 8
+model.memory_v4_dual_bank = True
+model.memory_v5_sentence_bank = True
+model.remat_policy = 'nothing_saveable'
+model.memory_v0920_input_read = False
+bank MemoryConfig(d_input=2048, d_key=512, hidden_dims=(), d_value=2048, theta_bias=-2.2, eta_bias=2.2, alpha_bias=-4.6, eta_scale=1.0, max_grad_norm=1.0, mlp_l2norm=True, blank_initial_output=True, drift_radius=None, state_cotangent_clip=10.0, kv_cotangent_clip=1.0, write_rule='delta_output', association_mode='pooled_frame', delta_rate=1.0, alpha_step=0.01, association_norm_floor=1e-06, hidden_norm_sq_floor=1e-06)
+data.memory_stride_frames = 15
+data.memory_min_slice_steps = 14
+data.memory_sequence_buckets = (20, 40, 60)
+data.memory_slice_prob = 0.9
+data.memory_critical_prob = 0.5
+data.memory_critical_start_pad = 75
+data.memory_start_history_power = 0.0
+data.memory_image_history_frames = 0
+data.repo_id = None
+data.lerobot_dataset_root = '/iris/u/kewalk/memory_project_v6/v6/data/lerobot/yam/boba_0911_v1'
+data.memory_v5_subtask_labels_path = '/iris/u/kewalk/memory_project_0920/openpi/cluster_v7/boba/boba_v5_subtask_labels_v2.json'
+data.memory_episode_manifest_path = '/iris/u/kewalk/memory_project_0920/openpi/cluster_v7/boba/boba_episode_manifest_v1.json'
+data.memory_manifest_split = 'train'
+data.memory_waiting_state_dim = 14
+data.prompt_from_task = False
+data.prompt_from_episode_meta = True
+data.subtask_from_task = True
+data.action_target_offset_frames = 0
+default_prompt None
+vocab 25 ('first, close boba bin', 'first, done', 'first, get cup', 'first, open boba bin', 'first, place cup', 'first, pour, 1 of 3', 'first, pour, 2 of 3', 'first, pour, 3 of 3', 'first, press tap to fill cup', 'first, put the scoop back', 'first, scoop, 1 of 3', 'first, scoop, 2 of 3', 'first, scoop, 3 of 3', 'second, close bean bin', 'second, done', 'second, get cup', 'second, open bean bin', 'second, place cup', 'second, pour, 1 of 1', 'second, press tap to fill cup', 'second, put the scoop back', 'second, scoop, 1 of 1', 'watch, bean right bin', 'watch, boba middle bin', 'watch, sago left bin')
+evidence 11 decision 6 ('first, scoop, 2 of 3', 'first, scoop, 3 of 3', 'first, put the scoop back', 'second, get cup', 'second, open bean bin', 'second, put the scoop back')
+train: batch 8 fsdp 1 steps 2001 lr CosineDecaySchedule(warmup_steps=100, peak_lr=5e-05, decay_steps=10000, decay_lr=5e-05) save 500 keep 500 workers 12 opt AdamW(b1=0.9, b2=0.95, eps=1e-08, weight_decay=1e-10, clip_gradient_norm=1.0) memory_grad_clip 5.0 ema None
+loader /iris/u/kewalk/memory_project_v6/v6/checkpoints/pi05_yam_boba0911_base/pi05_boba0911_base_rtc15_20260912_r1/9999/params | ckpt dir /iris/u/kewalk/memory_project_0920/v7/checkpoints | assets AssetsConfig(assets_dir='/iris/u/kewalk/memory_project_v6/v6/assets/pi05_yam_boba_0911_v1', asset_id=None)
+freeze_filter PathRegex(pattern=re.compile('.*(memory/|memory_gate|memory_inject_w|memory_sem_inject_w|memory_semantic/gate|memory_write_side_head|memory_read_side_head|read_query_compressor|write_query_compressor|write_query_conditioner|PaliG), sep='/') | label_write_schedule_steps 0 | project openpi

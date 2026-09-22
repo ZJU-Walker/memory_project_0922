@@ -18,6 +18,7 @@ import json
 import pathlib
 import shutil
 import subprocess
+import textwrap
 import time
 
 import cv2
@@ -28,6 +29,7 @@ import numpy as np
 import sentencepiece
 
 import openpi.models.model as _model
+import openpi.models.pi0 as _pi0
 import openpi.shared.project_paths as project_paths
 import openpi.training.config as _config
 import openpi.training.data_loader as data_loader_lib
@@ -51,6 +53,7 @@ class StepRecord:
     bank: list[str]
     sem_read_rms: float
     qk_cos_max: float
+    retracted: bool = False  # v7: this step erased the newest note (flip-back rule) instead of writing
 
 
 def _decode_text(sp, tokens):
@@ -138,9 +141,16 @@ def make_decode_fn(model, max_decode_steps: int):
         def step(carry):
             tokens, mask, prob, done, previous, cache, index = carry
             token_emb = model.PaliGemma.llm(previous[:, None], method="embed")
+            step_attn = model._v32_step_mask(prefix_mask, index, memory_valid=memory_valid)  # noqa: SLF001
+            patterns = getattr(model, "memory_v7_digit_blind_patterns", ())
+            if patterns:  # v7 digit blinding, same rule as Pi0._sample_with_memory_v32
+                rows = _pi0.digit_blind_rows(tokens, patterns)
+                row = jnp.take_along_axis(rows, jnp.broadcast_to(index - 1, (batch, 1)), axis=1)
+                own = jnp.broadcast_to(gen_base + index - 1, (batch, 1))
+                step_attn = model._v7_digit_blind(step_attn, row, own, prefix_len)  # noqa: SLF001
             (out, _), cache = model.PaliGemma.llm(
                 [token_emb, None],
-                mask=model._v32_step_mask(prefix_mask, index, memory_valid=memory_valid),  # noqa: SLF001
+                mask=step_attn,
                 positions=jnp.broadcast_to(gen_base + index - 1, (batch, 1)),
                 kv_cache=cache,
                 cache_position=gen_base + index - 1,
@@ -178,7 +188,7 @@ def main() -> None:
     parser.add_argument("--episode-index", type=int, required=True, help="LeRobot episode index (manifest episode_index)")
     parser.add_argument("--write-retry", action="store_true",
                         help="retry-until-committed change detector (prev = last COMMITTED sentence); default = the config's memory_v5_prev_is_committed")
-    parser.add_argument("--write-mode", choices=("self", "self_nodup", "self_stable", "oracle", "oracle_evidence"), default="self",
+    parser.add_argument("--write-mode", choices=("self", "self_nodup", "self_stable", "self_debounce", "oracle", "oracle_evidence"), default="self",
                         help="self: own decoded sentences; oracle: every label change; oracle_evidence: labels only for the "
                              "frames BEFORE the closing segment (the notes), own sentences from the closing segment on -- the "
                              "recall test: with correct notes in the bank, does the model restate the target's note and decide?")
@@ -198,8 +208,18 @@ def main() -> None:
                         help="episode manifest (default: the frozen v36 bins manifest); v5 generic manifests work too")
     parser.add_argument("--sidecar", type=pathlib.Path, default=None,
                         help="v5 sentence sidecar (default: the bins sidecar)")
+    parser.add_argument("--debounce-steps", type=int, default=2,
+                        help="self_stable / self_debounce: commit a sentence only after it was produced on this many consecutive steps")
     parser.add_argument("--max-decode-steps", type=int, default=24)
     parser.add_argument("--fps", type=float, default=30.0)
+    parser.add_argument("--set-param", action="append", default=[], metavar="PATH=VALUE",
+                        help="overwrite a scalar leaf of the restored params before loading, e.g. "
+                        "memory_v6_pointer_beta/value=10 (counterfactual: r3's beta never recovered from its reset)")
+    parser.add_argument("--tag-suffix", default="", help="appended to the output tag (json/mp4 names)")
+    parser.add_argument("--retract-steps", type=int, default=None,
+                        help="v7 flip-back retraction window in self modes (default: the config's memory_v7_write_retract_steps)")
+    parser.add_argument("--vocab-only", type=int, default=None,
+                        help="1/0: write only complete reference sentences in self modes (default: the config's memory_v7_write_vocab_only)")
     parser.add_argument("--stride", type=int, default=0,
                         help="override the memory stride in FRAMES (0 = the config's memory_stride_frames, 5 for the beans "
                         "models = 167 ms ticks at 30 Hz). 8 emulates the robot client at --hz 20 with a replan every 5 "
@@ -210,7 +230,15 @@ def main() -> None:
 
     t0 = time.time()
     cfg = _config.get_config(args.config_name)
-    model = cfg.model.load(_model.restore_params(args.params, restore_type=np.ndarray))
+    params = _model.restore_params(args.params, restore_type=np.ndarray)
+    for spec in args.set_param:
+        path, val = spec.split("=", 1); node = params
+        keys = [k for k in path.split("/") if k != "value"]  # restore_params strips nnx's trailing "value"
+        if keys[0] not in node and "params" in node: node = node["params"]
+        for k in keys[:-1]: node = node[k]
+        old = node[keys[-1]]; node[keys[-1]] = np.asarray(float(val), dtype=old.dtype).reshape(np.shape(old))
+        print(f"set-param {path}: {old} -> {node[keys[-1]]}")
+    model = cfg.model.load(params)
     model.eval()
     data_config = cfg.data.create(cfg.assets_dirs, cfg.model)
     if args.stride > 0 and args.stride != data_config.memory_stride_frames:
@@ -239,16 +267,25 @@ def main() -> None:
     frame_sentence = np.empty(length, dtype=object)
     for seg in segments:
         frame_sentence[seg["start"] : seg["end"] + 1] = seg["sentence"]
-    raw_dir = pathlib.Path(episode["raw_dir"])
-    if not raw_dir.is_absolute():
-        raw_root = pathlib.Path(manifest.get("raw_root", "."))
-        if not raw_root.is_absolute():
-            raw_root = manifest_path.parent / raw_root
-        raw_dir = raw_root / raw_dir
-    video_path = (raw_dir / "top_camera_rgb.mp4").resolve()
+    if "raw_dir" in episode:
+        raw_dir = pathlib.Path(episode["raw_dir"])
+        if not raw_dir.is_absolute():
+            raw_root = pathlib.Path(manifest.get("raw_root", "."))
+            if not raw_root.is_absolute():
+                raw_root = manifest_path.parent / raw_root
+            raw_dir = raw_root / raw_dir
+        video_path = (raw_dir / "top_camera_rgb.mp4").resolve()
+    else:
+        # RoboMME (cluster_robomme/README.md): no raw demo directory; the front camera is the LeRobot "image" video
+        # of the configured dataset (lossless H264, one frame per dataset row), the prompt is setup/task_goal[0].
+        video_path = (
+            pathlib.Path(data_config.lerobot_dataset_root) / "videos" / f"chunk-{args.episode_index // 1000:03d}"
+            / "image" / f"episode_{args.episode_index:06d}.mp4"
+        ).resolve()
+    episode_prompt = episode.get("prompt") or (episode.get("task_goals") or [""])[0]
     # bins: target_side names the answer; generic manifests carry a class label instead (e.g. "x=3").
     episode_target = episode.get("target_side") or episode.get("class") or ""
-    print(f"episode {args.episode_index} {episode['stable_id']} prompt={episode['prompt']!r} target={episode_target} "
+    print(f"episode {args.episode_index} {episode['stable_id']} prompt={episode_prompt!r} target={episode_target} "
           f"frames={length} start={start} video={video_path} (setup {time.time() - t0:.0f}s)", flush=True)
 
     stride = data_config.memory_stride_frames
@@ -271,6 +308,19 @@ def main() -> None:
     bank: list[str] = []
     bank_keys: list[np.ndarray] = []
     last_cand_text = None  # self_stable: the previous step's candidate sentence (debounce)
+    cand_streak = 0  # consecutive steps that produced the same candidate (--debounce-steps)
+    grammar_rejections = 0  # v7 phase-grammar gate: candidates refused because their phase cannot follow the bank's newest
+    # v7 (09-17) generic write rules, same as the training scan: vocabulary-only writes and flip-back retraction
+    retract_k = int(getattr(cfg.model, "memory_v7_write_retract_steps", 0)) if args.retract_steps is None else int(args.retract_steps)
+    vocab_only = bool(getattr(cfg.model, "memory_v7_write_vocab_only", False)) if args.vocab_only is None else bool(args.vocab_only)
+    ref_rows = {tuple(int(t) for t in row) for row in cfg.model.memory_v5_reference_tokens}
+    sem_out_name = model.memory_semantic._output_weight_name
+    rho_one = float(1.0 - model.memory_semantic.config.alpha_step)
+    last_delta = None  # w3 delta of the newest committed note
+    commit_age = 10**6  # steps since the newest note entered (huge = nothing retractable)
+    committed_tok = []  # token rows of the notes in `bank` (parallel list; every-step writes keep it unused)
+    retractions = 0
+    vocab_rejections = 0
     records: list[StepRecord] = []
     frozen = None  # --intervention freeze: the first step's (observation, state_token_mask)
     last_still = None  # --intervention freeze_decision: the last pre-decision step's (observation, state_token_mask)
@@ -376,7 +426,8 @@ def main() -> None:
                 # PaliGemma ids: 2731 = " left", 1833 = " right" (the sidecar's side words).
                 flipped = np.where(cur == 2731, 1833, np.where(cur == 1833, 2731, cur))
                 cur = flipped.astype(np.int32)
-            changed = bool(np.any(cur != prev_tokens)) and bool(span.any())
+            write_every = bool(getattr(cfg.model, "memory_v7_write_every_step", False))  # v7 gradual bank
+            changed = (bool(np.any(cur != prev_tokens)) or write_every) and bool(span.any())
             commit = changed and confident and args.intervention != "blank"
             # self_nodup (2026-09-12 23:25, B/500 battery): every boba sentence occurs once per episode, so a
             # candidate that is already in the bank is a transient regression to an old sentence (the
@@ -386,15 +437,55 @@ def main() -> None:
                 commit = False
             # self_stable = self_nodup + debounce: commit only a sentence produced on two consecutive steps (the
             # empty-bank start flickers 'first, place cup' / 'press tap' for single steps before 'watch, sago').
-            if commit and args.write_mode == "self_stable" and cand_text != last_cand_text:
+            # self_debounce (RoboMME 09-15): the debounce alone, duplicates allowed -- the official PickXtimes place
+            # sentence legitimately repeats every cycle, which self_stable's no-duplicate rule blocks.
+            cand_streak = cand_streak + 1 if cand_text == last_cand_text else 1
+            if commit and args.write_mode in ("self_stable", "self_debounce") and cand_streak < args.debounce_steps:
                 commit = False
+            # v7: a model trained with a debounce applies the same rule in plain self mode
+            if commit and args.write_mode == "self" and cand_streak < int(getattr(cfg.model, "memory_v7_write_debounce_steps", 1)):
+                commit = False
+            # v7 phase-grammar gate (09-16): the candidate's first token must be allowed to follow the newest COMMITTED
+            # sentence's first token (prev_tokens; -1 = empty bank -> the labels' initial phases). Same rule as the
+            # training scan (Pi0.v7_grammar_allows); rejected candidates are retried at the next steps.
+            grammar = tuple(getattr(cfg.model, "memory_v7_write_grammar", ()))
+            if commit and args.write_mode == "self" and grammar:
+                prev_first, cur_first = int(prev_tokens[0, 0]), int(cur[0, 0])
+                allowed = (cur_first in tuple(getattr(cfg.model, "memory_v7_write_grammar_initial", ()))) if prev_first < 0 \
+                    else ((prev_first, cur_first) in {(int(a), int(b)) for a, b in grammar})
+                if not allowed:
+                    commit = False
+                    grammar_rejections += 1
             last_cand_text = cand_text
+            retracted_now = False
+            if commit and args.write_mode.startswith("self") and vocab_only and tuple(int(t) for t in cur[0][span]) not in ref_rows:
+                commit = False
+                vocab_rejections += 1
+            if (commit and args.write_mode.startswith("self") and retract_k > 0 and not write_every and last_delta is not None
+                    and len(committed_tok) >= 2 and commit_age + 1 <= retract_k and np.array_equal(cur, committed_tok[-2])):
+                # A -> B -> A within retract_k steps: erase B instead of writing A again (training scan rule)
+                commit = False
+                retracted_now = True
+            w3_before = np.asarray(sem_state.fast_weights[sem_out_name], dtype=np.float32)
             sem_state, applied, key = write(model, jnp.asarray(cur), jnp.asarray(span[None]), sem_state, jnp.asarray([commit]))
             applied = bool(np.asarray(applied)[0])
+            if retracted_now:
+                w3 = np.asarray(sem_state.fast_weights[sem_out_name], dtype=np.float32) - (rho_one ** (commit_age + 1)) * last_delta
+                sem_state = model.memory_semantic._canonical_delta_state(sem_state, jnp.asarray(w3))
+                bank.pop(); bank_keys.pop(); committed_tok.pop()
+                last_delta = None; commit_age = 10**6; retractions += 1
+            elif applied and not write_every:
+                last_delta = np.asarray(sem_state.fast_weights[sem_out_name], dtype=np.float32) - rho_one * w3_before
+                commit_age = 0
+                committed_tok.append(cur.copy())
+            else:
+                commit_age = min(commit_age + 1, 10**6)
             if applied or not prev_is_committed:
                 prev_tokens = cur
+            if retracted_now:
+                prev_tokens = committed_tok[-1].copy()  # the note before B is the newest again
             written_text = _decode_text(sp, cur[0][span]) if commit else ""
-            if applied:
+            if applied and not (write_every and bank and bank[-1] == written_text):  # every-step writes: list distinct runs
                 bank.append(written_text)
                 bank_keys.append(np.asarray(key)[0])
             qk = 0.0
@@ -405,9 +496,9 @@ def main() -> None:
             gt_target = str(frame_sentence[min(frame + lookahead, length - 1)])
             records.append(
                 StepRecord(step_index, frame, gt_now, gt_target, pred, conf, changed, applied, bool(decision_mask[t]),
-                           bool(write_mask[t]), list(bank), float(np.asarray(sem_rms)[0]), qk)
+                           bool(write_mask[t]), list(bank), float(np.asarray(sem_rms)[0]), qk, retracted=retracted_now)
             )
-            flag = "W" if applied else " "
+            flag = "W" if applied else ("R" if retracted_now else " ")
             d = "D" if decision_mask[t] else " "
             print(f"[{step_index:3d} f{frame:4d} {d}{flag}] pred={pred!r} conf={conf:.2f} | target={gt_target!r} | bank={len(bank)}", flush=True)
             step_index += 1
@@ -426,7 +517,7 @@ def main() -> None:
     summary = {
         "episode_index": args.episode_index,
         "stable_id": episode["stable_id"],
-        "prompt": episode["prompt"],
+        "prompt": episode_prompt,
         "target_side": target_side,
         "target": episode_target,
         "write_mode": args.write_mode,
@@ -440,11 +531,15 @@ def main() -> None:
         "evidence_pred_exact": sum(1 for r in records if r.evidence and r.pred == r.gt_target),
         "evidence_steps": sum(1 for r in records if r.evidence),
         "writes": sum(1 for r in records if r.written),
+        "grammar_rejections": grammar_rejections,
+        "retractions": retractions,
+        "vocab_rejections": vocab_rejections,
         "final_bank": bank,
         "records": [dataclasses.asdict(r) for r in records],
     }
     tag = f"ep{args.episode_index:02d}_{args.write_mode}" + ("" if args.intervention == "none" else f"_{args.intervention}") \
-        + ("" if args.stride <= 0 else f"_stride{args.stride}")
+        + ("" if args.debounce_steps == 2 or args.write_mode not in ("self_stable", "self_debounce") else f"_d{args.debounce_steps}") \
+        + ("" if args.stride <= 0 else f"_stride{args.stride}") + args.tag_suffix
     (args.output_dir / f"{tag}.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"decision steps {summary['decision_side_correct']}/{summary['decision_steps']} correct "
           f"({'true side' if target_side else 'exact sentence'}); "
@@ -456,7 +551,9 @@ def main() -> None:
     if not cap.isOpened():
         raise SystemExit(f"cannot open {video_path}")
     width, height = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    band = 150
+    if width < 640:  # RoboMME 256-px frames: upscale 3x so the wrapped captions fit (cluster_robomme/rerender_video.py)
+        width, height = width * 3, height * 3
+    band = 24 * 9 + 16
     out_path = args.output_dir / f"{tag}.mp4"
     ffmpeg = shutil.which("ffmpeg")
     proc = subprocess.Popen(
@@ -477,14 +574,18 @@ def main() -> None:
             break
         if frame_id in by_frame:
             current = by_frame[frame_id]
+        # RoboMME (09-15): 256-px frames are upscaled so the captions fit, and every caption line wraps (before, the
+        # text ran off the right edge and only the first words were visible). Wider frames (YAM) are unchanged.
         canvas = np.zeros((height + band, width, 3), dtype=np.uint8)
-        canvas[:height] = img
+        canvas[:height] = img if (width, height) == (img.shape[1], img.shape[0]) else cv2.resize(img, (width, height), interpolation=cv2.INTER_NEAREST)
         y = height + 22
-        def put(text, color=(255, 255, 255), scale=0.55):
+        def put(text, color=(255, 255, 255), scale=0.55, max_lines=2):
             nonlocal y
-            cv2.putText(canvas, text[:110], (8, y), font, scale, color, 1, cv2.LINE_AA)
-            y += 24
-        put(f"{episode['stable_id']}  prompt: {episode['prompt']}  frame {frame_id}  [{args.write_mode} writes{'' if args.intervention == 'none' else ' / ' + args.intervention}]", (200, 200, 200), 0.5)
+            chars = max(20, int(width / (9.6 * scale / 0.55)))
+            for line in textwrap.wrap(text, chars)[:max_lines] or [""]:
+                cv2.putText(canvas, line, (8, y), font, scale, color, 1, cv2.LINE_AA)
+                y += 24
+        put(f"{episode['stable_id']}  prompt: {episode_prompt}  frame {frame_id}  [{args.write_mode} writes{'' if args.intervention == 'none' else ' / ' + args.intervention}]", (200, 200, 200), 0.5)
         put(f"GT phase : {frame_sentence[frame_id]}", (255, 255, 255))
         if current is not None:
             ok_pred = current.pred == current.gt_target

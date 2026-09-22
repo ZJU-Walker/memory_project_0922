@@ -523,6 +523,7 @@ class TitansMemory(nnx.Module):
         state: MemoryState,
         k: at.Float[at.Array, "b n dk"],
         v: at.Float[at.Array, "b n dv"],
+        rate: float | None = None,
     ) -> tuple[MemoryState, dict[str, at.Array]]:
         """Decay then directly commit one pooled association into the output matrix.
 
@@ -566,7 +567,7 @@ class TitansMemory(nnx.Module):
         hidden_safe = jnp.where(jnp.isfinite(hidden), hidden, jnp.zeros_like(hidden))
         residual_safe = jnp.where(jnp.isfinite(raw_pre_residual), raw_pre_residual, jnp.zeros_like(raw_pre_residual))
         denominator = jnp.where(hidden_valid, hidden_norm_sq, jnp.ones_like(hidden_norm_sq))
-        rate = jax.lax.stop_gradient(jnp.asarray(self.config.delta_rate, dtype=jnp.float32))
+        rate = jax.lax.stop_gradient(jnp.asarray(self.config.delta_rate if rate is None else rate, dtype=jnp.float32))
         candidate_delta = (
             rate
             * jnp.einsum("bh,bd->bhd", hidden_safe, residual_safe, precision=jax.lax.Precision.HIGHEST)
@@ -628,6 +629,7 @@ class TitansMemory(nnx.Module):
         commit_mask: at.Bool[at.Array, "b f"],
         *,
         slot_loop: str = "unrolled",
+        rate: float | None = None,
     ) -> tuple[MemoryState, dict[str, at.Array]]:
         """One memory step committing up to ``f`` independent associations (v4 semantic bank).
 
@@ -664,7 +666,7 @@ class TitansMemory(nnx.Module):
         old_w3 = state.fast_weights[self._output_weight_name].astype(jnp.float32)
         w3 = _per_sample(rho, old_w3) * old_w3
         state_finite = jnp.all(jnp.isfinite(w3), axis=(-2, -1))
-        rate = jax.lax.stop_gradient(jnp.asarray(self.config.delta_rate, dtype=jnp.float32))
+        rate = jax.lax.stop_gradient(jnp.asarray(self.config.delta_rate if rate is None else rate, dtype=jnp.float32))
 
         def commit_slot(w3_cur, k_i, v_i, mask_i):
             """One association against the CURRENT w3 (post-decay, post earlier same-step commits)."""

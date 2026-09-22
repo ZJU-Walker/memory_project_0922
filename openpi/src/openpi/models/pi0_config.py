@@ -301,6 +301,97 @@ class Pi0Config(_model.BaseModelConfig):
     # still window as the main place where "open bin k" is learned, so the arm motion stops being the trigger.
     # 1.0 = unchanged; 0.0 = no supervision once the arm moves.
     memory_v6_decision_ce_weight_after_motion: float = 1.0
+    # v7 robomme (09-16 04:30): up-weight the sentence CE on ONSET steps = steps whose label sentence (sentence span
+    # only; FAST tokens ignored) differs from the previous step's label. Under the label-history prefill every
+    # non-onset row is solved by copying the newest bank entry (~13 of 14 rows per pick); the onset row is the only
+    # one that needs "newest pick + 1", and free-running rollouts copy. 1.0 = unchanged (step 0 of a window never
+    # counts as an onset).
+    memory_v7_onset_ce_weight: float = 1.0
+    # v7 robomme (09-16 15:30): also apply the onset weight to the N steps BEFORE each label change (the last place
+    # steps before a pick). Why: r6/600 double-counts when it announces the next pick 9-13 steps early during the
+    # place; the bank then already holds pick k at the onset and "+1" fires again. 0 = off.
+    memory_v7_onset_ce_pre_steps: int = 0
+    # v7 robomme (09-16 12:00) gradual bank: write on EVERY confident step (not only on a sentence change) so a held
+    # sentence is reinforced write after write while a one-step flicker leaves only a partial trace; meant to be paired
+    # with memory_semantic.delta_rate < 1 (the history prefill always writes at rate 1). False = unchanged.
+    memory_v7_write_every_step: bool = False
+    # v7 robomme debounce in TRAINING: commit only a sentence the model has produced this many steps in a row (the
+    # eval's self_debounce rule, so the model trains with the writes it will actually make). 1 = unchanged.
+    memory_v7_write_debounce_steps: int = 1
+    # 09-17 20:12 (user): confirmation for the FIRST note only - while the bank is empty a sentence must be decoded this
+    # many steps in a row before it is written (None = memory_v7_write_debounce_steps). Serving rule (serve_yam_memory).
+    memory_v7_first_write_debounce_steps: int | None = None
+    # v7 prompt slot (09-18, user: "put the subtask in the prompt so it follows the prompt"): > 0 = the context carries the
+    # previous sentence as a fixed-width slot of `prompt_slot_len` standalone token ids after "..., Last:" (tokenizer
+    # `prev_slot_len`). Non-memory runs fill it from the label `prompt_prev_subtask_stride` frames earlier (DataConfig);
+    # memory runs fill it from the previous step's label (`prompt_slot_dropout` -> "none"), and with
+    # `memory_v7_prompt_slot_from_bank` (stage B) the training scan overwrites it with the model's own newest committed
+    # note (`memory_v7_prompt_slot_bank_dropout` -> "none"), exactly what the served model puts there.
+    prompt_slot_len: int = 0
+    prompt_slot_dropout: float = 0.0
+    memory_v7_prompt_slot_from_bank: bool = False
+    memory_v7_prompt_slot_bank_dropout: float = 0.0
+    # 0920_v0 (user 09-20 20:18-21:30): the sentence bank is read ONCE per tick with the 8 LEARNED queries only (no
+    # prompt / previous-note conditioning), the 8 read tokens are appended to the INPUT and are visible in every block
+    # (no layer-8 split), there is no pointer bonus and no "Last:" slot, and the old visual bank is never computed.
+    # `memory_v0920_input_rms`: target RMS of an injected token; None = the RMS of the embedder rows of the reference
+    # sentences, measured in the forward pass (the tokens live next to word embeddings, so they get their scale).
+    memory_v0920_input_read: bool = False
+    memory_v0920_input_rms: float | None = None
+    # Short visual history as prefix tokens: `memory_v0920_history_frames` extra image keys `history_<i>_rgb` (oldest
+    # first) go through the unchanged image tower, are average-pooled by `memory_v0920_history_pool` per axis on the
+    # 16x16 patch grid (2 -> 64 tokens) and get a learned per-slot time embedding (zero-init). 0 = off.
+    memory_v0920_history_frames: int = 0
+    memory_v0920_history_pool: int = 2
+    # training only: with this probability per sample ALL history frames of the window are masked, so a single-frame
+    # route survives (copycat guard); the ablation at test time is the same mask flip.
+    memory_v0920_history_dropout: float = 0.0
+    # 0920_v1 (09-21, user: "remove history image so still 2 images"): with memory_v0920_history_frames == 0 the
+    # observation carries the two real cameras only -- RobommeInputs drops the masked right-wrist slot and inputs_spec
+    # names two images. That slot never took part in attention (image_mask False), so this only removes its 256
+    # padding tokens per tick and one image-tower pass.
+    memory_v0920_drop_blank_camera: bool = False
+    # speed (09-21): run the frozen image tower once for all ticks before the sequence scan (batched, stop-gradient) instead
+    # of inside the rematted tick body, where its forward is recomputed in the backward pass. Same math, different kernel
+    # batching (not bit-identical). Training only; inference is unchanged.
+    memory_v0920_vision_outside_scan: bool = False
+    # v7 (09-18, user: "fully remove the visual bank ... keep the tokens clean"): drop the 16 visual-bank columns from
+    # the injected block; only the sentence-bank read tokens are injected. The visual bank still runs (unused).
+    memory_v7_no_visual_block: bool = False
+    # v7 robomme (09-16 16:30) PHASE-GRAMMAR write gate, derived from the training labels: a candidate sentence may
+    # enter the bank only if its first token (the phase word: pick/place/press/...) may follow the first token of the
+    # NEWEST committed sentence in the label sequences (`memory_v7_write_grammar` = allowed (previous, current) first
+    # token pairs; `memory_v7_write_grammar_initial` = first tokens allowed into an empty bank). Why: every r2-r6
+    # double count starts with "pick k+1" produced for 2 steps right after the release of place k (the frames are the
+    # same as the invisible label boundary); it is committed before "place" is, then "place" follows it and the bank
+    # reads like a whole extra cycle. PickXtimes labels: pick->place, place->pick, place->press, press->all, start=pick,
+    # so a pick can enter only after a place did, once. Rejected candidates are retried (prev_is_committed). () = off.
+    memory_v7_write_grammar: tuple[tuple[int, int], ...] = ()
+    memory_v7_write_grammar_initial: tuple[int, ...] = ()
+    # v7 robomme (09-16 16:50) per-PHASE sentence CE weight: (first token id of the label sentence, weight) pairs; a
+    # step whose label sentence starts with that token has its sentence CE multiplied (stacks with the onset weight).
+    # Why: the teacher-forced probe (cluster_robomme/probe_press_tf.py, r6/600) scores the "press the button" rows 0/7
+    # even with the label-prefilled bank: ~630 press rows per epoch against ~4000 pick/place rows whose answer the copy
+    # bonus supplies never got learned, and every free run says "pick k" through the press phase. () = unchanged.
+    memory_v7_kind_ce_weights: tuple[tuple[int, float], ...] = ()
+    # v7 robomme (09-17, robomme_0916_v0) GENERIC write/loss rules (no sentence, phase or position is named):
+    # `memory_v7_write_retract_steps` (K): if within K steps after a note B entered the bank the candidate is the note
+    # that was newest BEFORE B (an A -> B -> A flip-back), B is erased (its exact write delta, decayed like the bank,
+    # is subtracted) instead of A being written again. Every r2-r6 double count began with a 2-step "pick k+1" at the
+    # release of the place that was committed and taken back one step later; a real phase here lasts >= 5 steps. 0 = off.
+    memory_v7_write_retract_steps: int = 0
+    # `memory_v7_write_vocab_only`: a candidate enters the bank only if it equals one of the reference sentences
+    # (memory_v5_reference_tokens) token for token. Under teacher forcing a wrong FIRST word yields a hybrid ("pick" +
+    # the rest of the label's place sentence) that no rollout ever produces; at test the same rule drops truncated and
+    # garbage decodes. False = unchanged.
+    memory_v7_write_vocab_only: bool = False
+    # `memory_v7_hard_token_ce_weight`: per-TOKEN weight on the sentence CE for SENTENCE tokens whose teacher-forced
+    # argmax (pointer bonus included) differs from the label token; action (FAST) tokens are never weighted. The
+    # per-step CE averages ~10 sentence tokens with ~40 action tokens, so the count word is 1 token in 50 and the
+    # step-level onset weight scales all 50 alike; this puts the weight on the words that are actually wrong (the count
+    # word at a new pick, the phase word at the press, the release frames), decided at every step from the model's own
+    # prediction, and it fades by itself once a word is learned. 1.0 = unchanged.
+    memory_v7_hard_token_ce_weight: float = 1.0
     # v6.5: zero the action (flow) loss on still-tail steps (Observation.seq_still_tail_mask from the data config's
     # memory_v6_tail_sentences); the sentence CE there is untouched
     memory_v6_flow_mask_still_tail: bool = False
@@ -325,6 +416,16 @@ class Pi0Config(_model.BaseModelConfig):
     # Reference token rows (each a tuple of token ids, trailing newline included) for the
     # standardization statistics. Static config; the v5 configs use the sidecar's 8 sentences.
     memory_v5_reference_tokens: tuple[tuple[int, ...], ...] = ()
+    # v7 digit blinding (cluster_v7/README.md §6, 2026-09-14): the causal position that PREDICTS a number token of a
+    # sentence (e.g. the "▁" before the k of "scoop, k of 3") attends to no image column at any layer, reads the raw
+    # (layer-0) embeddings of the context/memory/earlier sentence tokens once, and afterwards only to itself, so the
+    # number can come from the bank read and the text, never from the picture. Positions are found by matching
+    # `memory_v7_digit_blind_patterns` (token-id suffixes ending at the predicting position) against the causal tokens;
+    # with an empty tuple and the flag on, the patterns are derived from `memory_v5_reference_tokens`: the
+    # `memory_v7_digit_blind_context` tokens that precede every digit token in every reference sentence.
+    memory_v7_digit_blind: bool = False
+    memory_v7_digit_blind_patterns: tuple[tuple[int, ...], ...] = ()
+    memory_v7_digit_blind_context: int = 3
     # A3 (cluster_v5/README.md §8, 2026-09-02 23:49): in ORACLE mode a label sentence that starts
     # with `memory_v5_bank_waiting_prefix` is written to the bank as `memory_v5_bank_waiting_tokens`
     # (the side-stripped "wait\n"). The lookahead-shifted decision label otherwise lands in the
@@ -447,6 +548,21 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("query_compressed writes require the v3.2 architecture.")
             else:
                 raise ValueError(f"unsupported memory_architecture: {self.memory_architecture!r}.")
+            if self.memory_v0920_input_read:
+                if not self.memory_v5_sentence_bank:
+                    raise ValueError("memory_v0920_input_read needs the sentence bank (memory_v5_sentence_bank).")
+                if not self.memory_v7_no_visual_block:
+                    raise ValueError("memory_v0920_input_read needs memory_v7_no_visual_block (no visual columns).")
+                if self.memory_v6_pointer_read:
+                    raise ValueError("memory_v0920_input_read has no pointer bonus (memory_v6_pointer_read must be False).")
+                if self.prompt_slot_len or self.memory_v7_prompt_slot_from_bank:
+                    raise ValueError("memory_v0920_input_read has no prompt slot.")
+                if self.memory_v0920_history_frames < 0 or self.memory_v0920_history_pool < 1:
+                    raise ValueError("memory_v0920_history_frames must be >= 0 and memory_v0920_history_pool >= 1.")
+                if 16 % self.memory_v0920_history_pool:
+                    raise ValueError("memory_v0920_history_pool must divide the 16x16 patch grid.")
+                if not 0.0 <= self.memory_v0920_history_dropout < 1.0:
+                    raise ValueError("memory_v0920_history_dropout must lie in [0, 1).")
             if self.memory_task_conditioned_write and self.memory_architecture != "v32_layer8_dual_query":
                 raise ValueError("memory_task_conditioned_write requires the v3.2 dual-query architecture.")
             if self.memory_seq_steps < 1:
@@ -595,8 +711,9 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("the v4 semantic bank requires pooled-frame delta_output memory.")
                 if not self.memory_semantic.blank_initial_output:
                     raise ValueError("the v4 semantic bank requires blank_initial_output=True for exact-zero reset.")
-                if self.memory_semantic.delta_rate != 1.0:
-                    raise ValueError("v4-Base freezes memory_semantic.delta_rate=1.0.")
+                if self.memory_semantic.delta_rate != 1.0 and not getattr(self, "memory_v7_write_every_step", False):
+                    # v7 robomme gradual bank (09-16): a partial rate is allowed only with every-step writes.
+                    raise ValueError("v4-Base freezes memory_semantic.delta_rate=1.0 (except with memory_v7_write_every_step).")
                 # v4-Base runs both banks on one sparse clock so a skipped span collapses with a
                 # single per-bank factor of the same gap length. Compare in FP32 like the v3.5
                 # alpha pin (checkpoint identities record the fp32 runtime value).
@@ -627,8 +744,9 @@ class Pi0Config(_model.BaseModelConfig):
                         raise ValueError("memory_v5_sentence_bank has no fact head: fact-loss weights must be 0.")
                     if self.memory_fact_oracle_writes:
                         raise ValueError("memory_v5_sentence_bank uses memory_v5_oracle_writes, not the v4 fact oracle.")
-                    if not 0.0 < self.memory_v5_write_conf < 1.0:
-                        raise ValueError("memory_v5_write_conf must lie strictly inside (0, 1).")
+                    # 0.0 = no confidence gate (0920_v0: write every tick with no rule); 1.0 would never write
+                    if not 0.0 <= self.memory_v5_write_conf < 1.0:
+                        raise ValueError("memory_v5_write_conf must lie inside [0, 1).")
                     if not 1 <= self.memory_v5_sentence_len <= self.causal_token_len:
                         raise ValueError("memory_v5_sentence_len must lie in [1, causal_token_len].")
                     if self.memory_v5_read_queries < 1:
@@ -719,18 +837,16 @@ class Pi0Config(_model.BaseModelConfig):
         image_spec = jax.ShapeDtypeStruct([*lead, *_model.IMAGE_RESOLUTION, 3], jnp.float32)
         image_mask_spec = jax.ShapeDtypeStruct(lead, jnp.bool_)
 
+        image_names = ["base_0_rgb", "left_wrist_0_rgb", "right_wrist_0_rgb"]
+        if self.memory_v0920_history_frames > 0:
+            # 0920_v0: the past front frames (the blank third camera is dropped by RobommeInputs in that setup)
+            image_names = ["base_0_rgb", "left_wrist_0_rgb"] + [f"history_{i}_rgb" for i in range(self.memory_v0920_history_frames)]
+        elif self.memory_v0920_drop_blank_camera:
+            image_names = ["base_0_rgb", "left_wrist_0_rgb"]  # 0920_v1: the two real cameras, no blank slot
         with at.disable_typechecking():
             observation_spec = _model.Observation(
-                images={
-                    "base_0_rgb": image_spec,
-                    "left_wrist_0_rgb": image_spec,
-                    "right_wrist_0_rgb": image_spec,
-                },
-                image_masks={
-                    "base_0_rgb": image_mask_spec,
-                    "left_wrist_0_rgb": image_mask_spec,
-                    "right_wrist_0_rgb": image_mask_spec,
-                },
+                images={name: image_spec for name in image_names},
+                image_masks={name: image_mask_spec for name in image_names},
                 state=jax.ShapeDtypeStruct([*lead, self.action_dim], jnp.float32),
                 tokenized_prompt=jax.ShapeDtypeStruct([*lead, self.max_token_len], jnp.int32),
                 tokenized_prompt_mask=jax.ShapeDtypeStruct([*lead, self.max_token_len], bool),
@@ -880,3 +996,26 @@ class Pi0Config(_model.BaseModelConfig):
         if not filters:
             return nnx.Nothing
         return nnx.All(*filters)
+
+
+_PALIGEMMA_DIGIT_TOKENS = frozenset({235276, 235274, 235284, 235304, 235310, 235308, 235318, 235324, 235321, 235315})  # "0".."9"
+
+
+def digit_blind_patterns(config) -> tuple[tuple[int, ...], ...]:
+    """Token-id suffixes that end at a position predicting a digit (see Pi0Config.memory_v7_digit_blind)."""
+    if not getattr(config, "memory_v7_digit_blind", False):
+        return ()
+    if config.memory_v7_digit_blind_patterns:
+        return tuple(tuple(int(t) for t in row) for row in config.memory_v7_digit_blind_patterns)
+    n = int(config.memory_v7_digit_blind_context)
+    if n < 1:
+        raise ValueError("memory_v7_digit_blind_context must be >= 1")
+    patterns: set[tuple[int, ...]] = set()
+    for row in config.memory_v5_reference_tokens:
+        row = tuple(int(t) for t in row)
+        for i, tok in enumerate(row):
+            if tok in _PALIGEMMA_DIGIT_TOKENS and i >= n:
+                patterns.add(row[i - n : i])
+    if not patterns:
+        raise ValueError("memory_v7_digit_blind is on but no reference sentence contains a digit token.")
+    return tuple(sorted(patterns))

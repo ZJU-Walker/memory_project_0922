@@ -111,6 +111,7 @@ def initialize_checkpoint_dir(
     checkpoint_dir: epath.Path | str,
     *,
     keep_period: int | None,
+    max_to_keep: int = 1,  # v7 robomme (09-16): newest N kept besides the keep_period multiples
     overwrite: bool,
     resume: bool,
     allow_step_zero_resume: bool = False,
@@ -140,7 +141,7 @@ def initialize_checkpoint_dir(
             "params": ocp.PyTreeCheckpointHandler(),
         },
         options=ocp.CheckpointManagerOptions(
-            max_to_keep=1,
+            max_to_keep=max_to_keep,
             keep_period=keep_period,
             create=False,
             async_options=ocp.AsyncOptions(timeout_secs=7200),

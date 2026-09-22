@@ -94,6 +94,11 @@ class DataConfig:
     # sequence is defined by the `action_horizon` field in the model config. This should be adjusted if your
     # LeRobot dataset is using different keys to represent the action.
     action_sequence_keys: Sequence[str] = ("actions",)
+    # RoboMME (cluster_robomme/README.md): the benchmark recorder stores each row's observation AFTER applying
+    # that row's action (RecordWrapper.step: obs = super().step(action), then both are written to the same
+    # timestep), so the observation at row t supervises the actions starting at row t+1 (the gripper width is
+    # already closing on the row of the first close command). 0 keeps the legacy alignment for every other dataset.
+    action_target_offset_frames: int = 0
 
     # If true, will use the LeRobot dataset task to define the prompt.
     prompt_from_task: bool = False
@@ -162,6 +167,19 @@ class DataConfig:
     # Memory-critical starts are drawn uniformly from this many frames before the evidence
     # phase (memory is blank shortly before the answer becomes visible).
     memory_critical_start_pad: int = 75
+    # RoboMME v3 (2026-09-19, user: "very poor from second to 3rd [pick] or even more, so we can also consider train
+    # more on the later pick up"): generic later-history emphasis. Inside the slice branch and inside the
+    # memory-critical branch, a sequence start is drawn in proportion to (1 + number of label CHANGES in its episode
+    # before the start frame) ** power; each branch keeps its total mass, full-trajectory starts (frame 0, zero
+    # changes) are untouched. The rule counts changes only and never reads the sentences. 0 = off.
+    memory_start_history_power: float = 0.0
+    # 0920_v0 short visual history (robomme/docs/0920_v0_plan.md A/B): per memory tick the loader also fetches this many
+    # PAST frames of the front camera (`memory_image_history_key`), `memory_image_history_stride` frames apart, oldest first
+    # (4 x 4 at a 20-frame tick = t-16, t-12, t-8, t-4). They reach the model as image keys `history_<i>_rgb` with a
+    # per-step mask that is False before the episode start (LeRobot clamps those offsets to frame 0). 0 = off.
+    memory_image_history_frames: int = 0
+    memory_image_history_stride: int = 4
+    memory_image_history_key: str = "image"
     # v6.3 (2026-09-09, user: "upsample the decision moments without arm moving"): multiply the sampling weight of every
     # sequence start whose step grid covers at least one STILL decision frame, i.e. a frame in
     # [first dataset decision frame - memory_v6_still_decision_frames, first dataset decision frame). With the lead30
@@ -260,6 +278,12 @@ class DataConfig:
     datasets: Sequence[droid_rlds_dataset.RLDSDataset] = ()
 
     def __post_init__(self) -> None:
+        if self.action_target_offset_frames < 0:
+            raise ValueError("action_target_offset_frames must be nonnegative.")
+        if self.memory_image_history_frames < 0 or (self.memory_image_history_frames > 0 and self.memory_image_history_stride <= 0):
+            raise ValueError("memory_image_history_frames must be >= 0 with a positive memory_image_history_stride.")
+        if self.memory_image_history_frames > 0 and self.memory_stride_frames <= 0:
+            raise ValueError("memory_image_history_frames needs the memory sequence loader (memory_stride_frames > 0).")
         if self.memory_e_tail_guard_frames < 0:
             raise ValueError("memory_e_tail_guard_frames must be nonnegative.")
         if not 0.0 <= self.memory_sparse_skip_o_prob <= 1.0:
@@ -287,6 +311,8 @@ class DataConfig:
                 raise ValueError("memory_v5_generic_task has no stationary waiting core; unset memory_waiting_max_speed.")
             if not self.memory_subtask_vocab:
                 raise ValueError("memory_v5_generic_task requires memory_subtask_vocab (the task's sentence vocabulary).")
+        if self.memory_start_history_power < 0:
+            raise ValueError("memory_start_history_power must be >= 0 (0 = off).")
         if not self.memory_v35_enabled:
             return
         if self.memory_stride_frames != 15:
@@ -371,13 +397,17 @@ class ModelTransformFactory(GroupFactory):
                             _transforms.InjectDefaultPrompt(self.default_prompt),
                             _transforms.ResizeImages(224, 224),
                             _transforms.TokenizeMemorySubtaskInputs(
-                                _tokenizer.FASTSubtaskTokenizer(model_config.max_token_len),
+                                _tokenizer.FASTSubtaskTokenizer(
+                                    model_config.max_token_len, prev_slot_len=getattr(model_config, "prompt_slot_len", 0)
+                                ),
                                 causal_len=model_config.causal_token_len,
                                 prefill_len=(
                                     model_config.memory_v5_sentence_len
                                     if getattr(model_config, "memory_v5_prefill_history", False)
                                     else 0
                                 ),
+                                prev_subtask=getattr(model_config, "prompt_slot_len", 0) > 0,
+                                prev_dropout=float(getattr(model_config, "prompt_slot_dropout", 0.0)),
                             ),
                             _transforms.PadStatesAndActions(model_config.action_dim),
                         ],
@@ -390,7 +420,9 @@ class ModelTransformFactory(GroupFactory):
                             _transforms.InjectDefaultPrompt(self.default_prompt),
                             _transforms.ResizeImages(224, 224),
                             _transforms.TokenizeFASTSubtaskInputs(
-                                _tokenizer.FASTSubtaskTokenizer(model_config.max_token_len),
+                                _tokenizer.FASTSubtaskTokenizer(
+                                    model_config.max_token_len, prev_slot_len=getattr(model_config, "prompt_slot_len", 0)
+                                ),
                             ),
                             _transforms.PadStatesAndActions(model_config.action_dim),
                         ],
@@ -652,6 +684,11 @@ class LeRobotYamDataConfig(DataConfigFactory):
             structure["subtask"] = "subtask"
         if base_config.prompt_from_episode_meta:
             structure["prompt"] = "prompt"
+        if use_memory and base_config.memory_image_history_frames > 0:
+            # 0920_v0: the past front-camera frames split off by SplitImageHistory and their validity [T, H]
+            for i in range(base_config.memory_image_history_frames):
+                structure[f"observation/history_{i}"] = f"history_{i}"
+            structure["observation/history_valid"] = "history_valid"
         # v7 phase context: carry the loader-side fields through the repack and normalize the past
         # states exactly like the current one (alias of the "state" stats; Normalize is non-strict).
         if base_config.prompt_state_history > 0 or base_config.prompt_prev_subtask:
@@ -767,6 +804,7 @@ class LeRobotYamDataConfig(DataConfigFactory):
                 0,
                 _transforms.BuildMemorySequence(
                     stride=base_config.memory_stride_frames,
+                    action_target_offset_frames=base_config.action_target_offset_frames,
                     action_horizon=model_config.action_horizon,
                     block_steps=model_config.memory_block_steps,
                     subtask_lookahead=base_config.subtask_lookahead,
@@ -968,6 +1006,12 @@ class TrainConfig:
 
     # How often (in steps) to log training metrics.
     log_interval: int = 100
+    # 0920_v0: the bank is written with the LABEL sentence with probability p(step) = max(0, 1 - step / N) and with the
+    # model's own decode otherwise (one run instead of stage A -> B). 0 = off (the model config's own/oracle choice).
+    label_write_schedule_steps: int = 0
+    # False drops every `diagnostic/...` and per-position metric from W&B and the console, keeping the loss terms
+    # (total, flow, token CE and its LM / FAST split, side losses), the norms, the sequence stats and the lr.
+    log_diagnostics: bool = True
     # How often (in steps) to save checkpoints.
     save_interval: int = 1000
     # Opt-in exact rung semantics: save an initialization snapshot at 0 and label every later
@@ -977,6 +1021,8 @@ class TrainConfig:
     checkpoint_steps: tuple[int, ...] = ()
     # If set, any existing checkpoints matching step % keep_period == 0 will not be deleted.
     keep_period: int | None = 5000
+    # v7 robomme (09-16): how many of the newest checkpoints to keep besides the keep_period multiples (orbax max_to_keep).
+    checkpoint_max_to_keep: int = 1
 
     # If true, will overwrite the checkpoint directory if it already exists.
     overwrite: bool = False
@@ -6214,6 +6260,19 @@ _CONFIGS.extend(
         ),
     ]
 )
+
+# RoboMME (cluster_robomme/README.md, 2026-09-13): task-specific data adapters and the PickXtimes configs built on the
+# v7 boba recipe. The module imports this one (fully defined above) and only appends configs; nothing else changes.
+from openpi.training import robomme_config as _robomme_config  # noqa: E402
+
+_CONFIGS.extend(_robomme_config.get_configs({config.name: config for config in _CONFIGS}))
+from openpi.training import robomme_0920_config as _robomme_0920_config  # noqa: E402
+
+_CONFIGS.extend(_robomme_0920_config.get_configs({config.name: config for config in _CONFIGS}))
+# Bean scoop with the 0920 v1 structure (beans_0920_config.py, 2026-09-21): uses _v7_boba_mem_variant above; appends only.
+from openpi.training import beans_0920_config as _beans_0920_config  # noqa: E402
+
+_CONFIGS.extend(_beans_0920_config.get_configs())
 
 _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 

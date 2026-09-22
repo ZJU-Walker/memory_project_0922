@@ -163,6 +163,58 @@ class FASTSubtaskTokenizer(FASTTokenizer):
     HISTORY_KEY = "Past"
     PREV_KEY = "Last"
 
+    def __init__(self, max_len: int = 256, fast_tokenizer_path: str = "physical-intelligence/fast", prev_slot_len: int = 0):
+        super().__init__(max_len, fast_tokenizer_path)
+        # v7 prompt slot (09-18): > 0 = the previous sentence enters the context as a FIXED-WIDTH slot of its STANDALONE
+        # token ids after "..., Last:" (the same ids the causal decoder produces and the sentence bank stores), so a
+        # served model can fill the slot from its own newest note. 0 = the legacy text form ", Last: <sentence>".
+        self.prev_slot_len = int(prev_slot_len)
+
+    def _encode_context(
+        self,
+        prompt: str,
+        state: np.ndarray,
+        state_history: np.ndarray | None,
+        prev_subtask: str | None,
+        *,
+        return_state_mask: bool,
+    ) -> tuple[list[int], list[bool], list[bool] | None, list[bool]]:
+        """Token ids of the ar=0 context, their validity, the state-digit span mask (or None) and the slot mask.
+        Legacy (no slot): one encode of `_build_prefix`, every token valid, empty slot mask. Slot form:
+        [bos + "Task: ..., State: ..., Last:"] + [prev_slot_len slot positions: standalone sentence ids, pad invalid] + [";\n"].
+        Padding inside the slot is masked out, so attention and positions equal those of the compact sequence."""
+        if prev_subtask is None or self.prev_slot_len <= 0:
+            prefix, spans = self._build_prefix(prompt, state, state_history, prev_subtask)
+            tokens = self._paligemma_tokenizer.encode(prefix, add_bos=True)
+            span = self._state_span_mask(prefix, spans, tokens).tolist() if return_state_mask else None
+            return tokens, [True] * len(tokens), span, [False] * len(tokens)
+        head, spans = self._build_prefix(prompt, state, state_history, None)
+        if not head.endswith(";\n"):
+            raise ValueError("unexpected context terminator; the prompt slot expects the ';\\n' convention")
+        head = head[:-2] + f", {self.PREV_KEY}:"
+        head_ids = self._paligemma_tokenizer.encode(head, add_bos=True)
+        span = self._state_span_mask(head, spans, head_ids).tolist() if return_state_mask else None
+        cleaned = prev_subtask.lower().strip().replace("_", " ")
+        sent = self._paligemma_tokenizer.encode(cleaned) if cleaned else []
+        if len(sent) > self.prev_slot_len:
+            logging.warning(f"previous sentence ({len(sent)} tokens) exceeds the prompt slot ({self.prev_slot_len}), truncating.")
+            sent = sent[: self.prev_slot_len]
+        pad = self.prev_slot_len - len(sent)
+        tail = self._paligemma_tokenizer.encode(";\n")
+        tokens = head_ids + sent + [0] * pad + tail
+        valid = [True] * len(head_ids) + [True] * len(sent) + [False] * pad + [True] * len(tail)
+        slot = [False] * len(head_ids) + [True] * self.prev_slot_len + [False] * len(tail)
+        if span is not None:
+            span = span + [False] * (self.prev_slot_len + len(tail))
+        return tokens, valid, span, slot
+
+    def slot_null_row(self, null: str = "none") -> tuple[np.ndarray, np.ndarray]:
+        """The slot content standing for 'no note yet' ([prev_slot_len] ids + validity), standalone-encoded like the slot."""
+        ids = self._paligemma_tokenizer.encode(null.lower().strip())[: self.prev_slot_len]
+        tokens = np.zeros((self.prev_slot_len,), dtype=np.int32); mask = np.zeros((self.prev_slot_len,), dtype=bool)
+        tokens[: len(ids)] = ids; mask[: len(ids)] = True
+        return tokens, mask
+
     @staticmethod
     def _discretize(state: np.ndarray) -> np.ndarray:
         # Convention: state gets discretized into 256 discrete bins (assumed range after normalization: [-1, 1])
@@ -218,9 +270,9 @@ class FASTSubtaskTokenizer(FASTTokenizer):
         prev_subtask: str | None = None,
         return_state_mask: bool = False,
     ) -> tuple[np.ndarray, ...]:
-        prefix, spans = self._build_prefix(prompt, state, state_history, prev_subtask)
-        prefix_tokens = self._paligemma_tokenizer.encode(prefix, add_bos=True)
-        state_span = self._state_span_mask(prefix, spans, prefix_tokens) if return_state_mask else None
+        prefix_tokens, prefix_valid, state_span, _slot = self._encode_context(
+            prompt, state, state_history, prev_subtask, return_state_mask=return_state_mask
+        )
 
         # Subtask segment, terminated by "\n" (the stop signal when generating the subtask).
         subtask_tokens = []
@@ -241,13 +293,13 @@ class FASTSubtaskTokenizer(FASTTokenizer):
         # AR mask is 0 on the prefix (bidirectional attention) and 1 on the subtask + FAST branches
         # (causal attention); the CE loss covers exactly the causal region.
         tokens = prefix_tokens + subtask_tokens + fast_tokens
-        token_mask = [True] * len(tokens)
+        token_mask = list(prefix_valid) + [True] * (len(subtask_tokens) + len(fast_tokens))
         ar_mask = [0] * len(prefix_tokens) + [1] * (len(subtask_tokens) + len(fast_tokens))
         loss_mask = [False] * len(prefix_tokens) + [True] * (len(subtask_tokens) + len(fast_tokens))
         fast_mask = [False] * (len(prefix_tokens) + len(subtask_tokens)) + [True] * len(fast_tokens)
         state_mask = None
         if state_span is not None:
-            state_mask = state_span.tolist() + [False] * (len(subtask_tokens) + len(fast_tokens))
+            state_mask = list(state_span) + [False] * (len(subtask_tokens) + len(fast_tokens))
 
         # Pad tokens to max length
         tokens_len = len(tokens)
@@ -311,6 +363,8 @@ class FASTSubtaskTokenizer(FASTTokenizer):
         causal_len: int,
         *,
         return_state_mask: bool = False,
+        prev_subtask: str | None = None,
+        return_slot_mask: bool = False,
     ) -> tuple[np.ndarray, ...]:
         """Memory-layout variant (Pi0Config.predict_with_memory): the ar=0 context and the causal
         subtask+FAST segment as two separate left-aligned buffers, matching the training/inference
@@ -320,12 +374,12 @@ class FASTSubtaskTokenizer(FASTTokenizer):
         Returns (context_tokens[max_len], context_mask, causal_tokens[causal_len], causal_mask,
         causal_fast_mask), plus context_state_mask[max_len] when ``return_state_mask``.
         """
-        context_str, spans = self._build_prefix(prompt, state)
-        context = self._paligemma_tokenizer.encode(context_str, add_bos=True)
-        state_span = self._state_span_mask(context_str, spans, context) if return_state_mask else None
+        context, context_valid, state_span, slot_flags = self._encode_context(
+            prompt, state, None, prev_subtask, return_state_mask=return_state_mask
+        )
         if len(context) > self._max_len:
             logging.warning(f"Context length ({len(context)}) exceeds max length ({self._max_len}), truncating.")
-            context = context[: self._max_len]
+            context, context_valid, slot_flags = context[: self._max_len], context_valid[: self._max_len], slot_flags[: self._max_len]
             if state_span is not None:
                 state_span = state_span[: self._max_len]
 
@@ -350,18 +404,23 @@ class FASTSubtaskTokenizer(FASTTokenizer):
         context_tokens = np.zeros(self._max_len, dtype=np.int32)
         context_tokens[: len(context)] = context
         context_mask = np.zeros(self._max_len, dtype=bool)
-        context_mask[: len(context)] = True
+        context_mask[: len(context)] = context_valid
+        context_slot_mask = np.zeros(self._max_len, dtype=bool)
+        context_slot_mask[: len(context)] = slot_flags
         causal_tokens = np.zeros(causal_len, dtype=np.int32)
         causal_tokens[: len(causal)] = causal
         causal_mask = np.zeros(causal_len, dtype=bool)
         causal_mask[: len(causal)] = True
         causal_fast_mask = np.zeros(causal_len, dtype=bool)
         causal_fast_mask[: len(causal)] = fast_flags
+        out = [context_tokens, context_mask, causal_tokens, causal_mask, causal_fast_mask]
         if return_state_mask:
             context_state_mask = np.zeros(self._max_len, dtype=bool)
             context_state_mask[: len(state_span)] = state_span
-            return context_tokens, context_mask, causal_tokens, causal_mask, causal_fast_mask, context_state_mask
-        return context_tokens, context_mask, causal_tokens, causal_mask, causal_fast_mask
+            out.append(context_state_mask)
+        if return_slot_mask:
+            out.append(context_slot_mask)
+        return tuple(out)
 
 
 ###########################################################################

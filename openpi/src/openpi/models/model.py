@@ -146,9 +146,16 @@ class Observation(Generic[ArrayT]):
     # Used by the input-level state masking (plan 5.2) and the instruction-only conditioner
     # context (plan 5.9). Emitted by the tokenizer for every memory-layout item.
     token_state_mask: at.Bool[ArrayT, "*b l"] | None = None
+    # v7 prompt slot (09-18): the "Last:" slot positions of the context and the 'no note' slot content, per step.
+    token_slot_mask: at.Bool[ArrayT, "*b l"] | None = None
+    prompt_slot_null_tokens: at.Int[ArrayT, "*sb slot_w"] | None = None
+    prompt_slot_null_mask: at.Bool[ArrayT, "*sb slot_w"] | None = None
     # Plan 5.2: True for segments whose state tokens are replaced by the learned null embedding
     # at the input -- sampled ONCE PER SEGMENT in the data pipeline (train-only).
     seq_state_masked: at.Bool[ArrayT, "*sb"] | None = None
+    # 0920_v0: per-sample probability that a tick writes the LABEL sentence instead of the model's own decode
+    # (train.py fills it from the training step; None = the config's static oracle/own choice).
+    seq_label_write_prob: at.Float[ArrayT, "*sb"] | None = None
     # Plan 5.1: per-step subtask class index in the aux vocabulary (-1 = unknown/unlabeled).
     seq_subtask_class: at.Int[ArrayT, "*sb st"] | None = None
     # Section 6 probe-ladder supervision: the segment's side label (0/1 from the waiting-phase
@@ -224,7 +231,11 @@ class Observation(Generic[ArrayT]):
             seq_probe_mask=data.get("seq_probe_mask"),
             seq_probe_visible=data.get("seq_probe_visible"),
             token_state_mask=data.get("token_state_mask"),
+            token_slot_mask=data.get("token_slot_mask"),
+            prompt_slot_null_tokens=data.get("prompt_slot_null_tokens"),
+            prompt_slot_null_mask=data.get("prompt_slot_null_mask"),
             seq_state_masked=data.get("seq_state_masked"),
+            seq_label_write_prob=data.get("seq_label_write_prob"),
             seq_subtask_class=data.get("seq_subtask_class"),
             seq_side_label=data.get("seq_side_label"),
             seq_evidence_mask=data.get("seq_evidence_mask"),

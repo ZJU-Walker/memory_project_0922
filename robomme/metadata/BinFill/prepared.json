@@ -1,0 +1,162 @@
+{
+  "actions": "absolute joint_action[0:8], gripper -1 close/+1 open",
+  "episodes": 100,
+  "frames": 60282,
+  "local_dataset": "/scr/kewalk/robomme_0920/lerobot/BinFill",
+  "manifest_sha256": "cbb6133fc37f2c818ec9abbb0e024678c83fa6803331ee3c7846387a6373efd4",
+  "max_sentence_tokens": 7,
+  "norm_stats_sha256": "9aabc98004bb3fcd2a1fe7bcda5eac7fff4294bb0be5aae6a527538f3f72e89c",
+  "reference_tokens": [
+    [
+      668,
+      13333,
+      8735,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      1370,
+      3868,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      1370,
+      4433,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      1370,
+      3118,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      12201,
+      3868,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      12201,
+      4433,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      12201,
+      3118,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      2257,
+      3868,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      2257,
+      4433,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      2257,
+      3118,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      4906,
+      3868,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      4906,
+      4433,
+      28660,
+      108
+    ],
+    [
+      18075,
+      908,
+      573,
+      4906,
+      3118,
+      28660,
+      108
+    ],
+    [
+      11355,
+      573,
+      6086,
+      108
+    ],
+    [
+      1065,
+      665,
+      1280,
+      573,
+      8881,
+      108
+    ]
+  ],
+  "sentences": [
+    "All tasks completed",
+    "pick up the first blue cube",
+    "pick up the first green cube",
+    "pick up the first red cube",
+    "pick up the fourth blue cube",
+    "pick up the fourth green cube",
+    "pick up the fourth red cube",
+    "pick up the second blue cube",
+    "pick up the second green cube",
+    "pick up the second red cube",
+    "pick up the third blue cube",
+    "pick up the third green cube",
+    "pick up the third red cube",
+    "press the button",
+    "put it into the bin"
+  ],
+  "source": "/iris/u/kewalk/robomme_benchmark/data/robomme_data_h5/record_dataset_BinFill.h5",
+  "source_bytes": 40186950704,
+  "state": "joint_state[0:7] + gripper_state[0:1] (finger width in meters)",
+  "subtasks_sha256": "3b4d5e6f8e1bf458fe875e4407e46a906e1fd9aef375375469def91f8f4620ad",
+  "task": "BinFill",
+  "video": "lossless RGB H264, 30fps indexing"
+}

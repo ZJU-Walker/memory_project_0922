@@ -52,6 +52,45 @@ def make_attn_mask(input_mask, mask_ar):
     return jnp.logical_and(attn_mask, valid_mask)
 
 
+def digit_blind_rows(causal_tokens, patterns):
+    """bool[b, L]: causal positions p whose token suffix (..., tokens[p]) equals one of `patterns` (tuples of token
+    ids, each ending at the position that PREDICTS a digit). Padding/zero tokens never match a real pattern."""
+    causal_tokens = jnp.asarray(causal_tokens)
+    rows = jnp.zeros(causal_tokens.shape, dtype=bool)
+    length = causal_tokens.shape[-1]
+    for pattern in patterns:
+        n = len(pattern)
+        if n == 0 or n > length:
+            continue
+        hit = jnp.ones(causal_tokens.shape, dtype=bool)
+        for k, tok in enumerate(reversed(pattern)):  # k = 0 is the pattern's last token, at position p
+            shifted = jnp.roll(causal_tokens, k, axis=-1)
+            shifted = jnp.where(jnp.arange(length) >= k, shifted, -1)  # positions before the pattern start
+            hit = hit & (shifted == int(tok))
+        rows = rows | hit
+    return rows
+
+
+def apply_digit_blind(layer_mask, blind_rows, own_cols, image_cols, sem_cols, memory_layer):
+    """v7 digit blinding on a layer-wise attention mask [depth, b, t, s] (Pi0Config.memory_v7_digit_blind).
+    For the query rows flagged in `blind_rows` [b, t]:
+      * block 0: the row's own mask minus `image_cols` [s] -- one read of RAW embeddings (text context, earlier
+        sentence tokens), which carry no image information before the first attention;
+      * blocks 1..memory_layer: the row's own column only (`own_cols` [b, t], int index into s);
+      * blocks > memory_layer: own column + the sentence-bank slots `sem_cols` [s] that the row's mask already
+        allows (with memory_blind_tokens those slots never attend to images, so they stay image-free).
+    The 16 visual memory slots (past pictures) are never visible to a blind row. Other rows are untouched."""
+    depth = layer_mask.shape[0]
+    s_len = layer_mask.shape[-1]
+    blind = blind_rows[None, :, :, None]  # [1, b, t, 1]
+    self_only = jnp.arange(s_len)[None, None, None, :] == own_cols[None, :, :, None]
+    layer = jnp.arange(depth).reshape(depth, 1, 1, 1)
+    raw_read = layer_mask & ~image_cols[None, None, None, :]
+    bank_read = (layer_mask & sem_cols[None, None, None, :]) | self_only
+    blind_mask = jnp.where(layer == 0, raw_read, jnp.where(layer <= memory_layer, self_only, bank_read))
+    return jnp.where(blind, blind_mask, layer_mask)
+
+
 def make_memory_step_mask(prefix_mask, prefix_ar, mem_len, causal_len):
     """Attention mask [b, mem, prefix+mem+causal] for the incremental memory-append step: the
     memory tokens attend to the valid ar=0 context (images + prompt/state) and bidirectionally
@@ -456,6 +495,7 @@ class Pi0(_model.BaseModel):
         self.pi05 = config.pi05
         self.simulated_delay = config.simulated_delay
         self.predict_subtask = config.predict_subtask
+        self.prompt_slot_len = int(getattr(config, "prompt_slot_len", 0) or 0)  # v7 prompt slot (09-18), all model kinds
         self.ce_loss_weight = config.ce_loss_weight
         paligemma_config = _gemma.get_config(config.paligemma_variant)
         action_expert_config = _gemma.get_config(config.action_expert_variant)
@@ -521,6 +561,10 @@ class Pi0(_model.BaseModel):
             self.memory_freeze_injection_gate = config.memory_freeze_injection_gate
             self.memory_conditioner_context = config.memory_conditioner_context
             self.memory_blind_tokens = config.memory_blind_tokens
+            # v7 digit blinding (cluster_v7/README.md §6): token-id suffixes of the causal positions that predict a digit.
+            self.memory_v7_digit_blind_patterns = pi0_config.digit_blind_patterns(config)
+            if getattr(self, "memory_v7_digit_blind_patterns", ()) and not config.memory_blind_tokens:
+                raise ValueError("memory_v7_digit_blind needs memory_blind_tokens (image-free memory slots).")
             self.memory_mask_zero_tokens = config.memory_mask_zero_tokens
             self.memory_reseed_ce = config.memory_reseed_ce
             self.memory_state_mask_prob = config.memory_state_mask_prob
@@ -674,7 +718,27 @@ class Pi0(_model.BaseModel):
                     self.memory_v5_prefill_history = bool(config.memory_v5_prefill_history)
                     self.memory_v5_prefill_max = int(config.memory_v5_prefill_max)
                     self.memory_v5_write_conf = config.memory_v5_write_conf
+                    self.memory_v7_write_every_step = bool(getattr(config, "memory_v7_write_every_step", False))
+                    self.memory_v7_write_debounce_steps = int(getattr(config, "memory_v7_write_debounce_steps", 1))
+                    self.memory_v7_write_grammar = tuple(
+                        (int(a), int(b)) for a, b in getattr(config, "memory_v7_write_grammar", ())
+                    )
+                    self.memory_v7_write_grammar_initial = tuple(int(t) for t in getattr(config, "memory_v7_write_grammar_initial", ()))
+                    self.memory_v7_kind_ce_weights = tuple(
+                        (int(t), float(w)) for t, w in getattr(config, "memory_v7_kind_ce_weights", ())
+                    )
+                    self.memory_v7_write_retract_steps = int(getattr(config, "memory_v7_write_retract_steps", 0))
+                    self.memory_v7_write_vocab_only = bool(getattr(config, "memory_v7_write_vocab_only", False))
+                    self.memory_v7_hard_token_ce_weight = float(getattr(config, "memory_v7_hard_token_ce_weight", 1.0))
+                    if self.memory_v7_write_retract_steps > 0 and config.memory_semantic.write_rule != "delta_output":
+                        raise ValueError("memory_v7_write_retract_steps needs the delta-rule sentence bank (write_rule='delta_output').")
                     self.memory_v5_sentence_len = config.memory_v5_sentence_len
+                    self.memory_v7_onset_ce_weight = float(getattr(config, "memory_v7_onset_ce_weight", 1.0))
+                    # v7 prompt slot / visual-block removal (09-18)
+                    self.memory_v7_prompt_slot_from_bank = bool(getattr(config, "memory_v7_prompt_slot_from_bank", False))
+                    self.memory_v7_prompt_slot_bank_dropout = float(getattr(config, "memory_v7_prompt_slot_bank_dropout", 0.0))
+                    self.memory_v7_no_visual_block = bool(getattr(config, "memory_v7_no_visual_block", False))
+                    self.memory_v7_onset_ce_pre_steps = int(getattr(config, "memory_v7_onset_ce_pre_steps", 0))
                     self.memory_v5_read_queries = config.memory_v5_read_queries
                     # r2 pooling (Pi0Config.memory_v5_pooling): reference-standardized token states,
                     # [standardized mean ⊕ trainable attention pooling]. The reference rows are static
@@ -726,14 +790,26 @@ class Pi0(_model.BaseModel):
                         )
                         / jnp.sqrt(jnp.float32(paligemma_config.width))
                     )
-                    self.memory_sem_read_conditioner = MemoryQueryConditioner(
-                        num_queries=config.memory_v5_read_queries,
-                        width=paligemma_config.width,
-                        num_heads=config.memory_query_heads,
-                        compute_dtype=jnp.dtype(config.dtype),
-                        qk_norm=config.memory_qk_norm,
-                        rngs=rngs,
-                    )
+                    if not config.memory_v0920_input_read:
+                        self.memory_sem_read_conditioner = MemoryQueryConditioner(
+                            num_queries=config.memory_v5_read_queries,
+                            width=paligemma_config.width,
+                            num_heads=config.memory_query_heads,
+                            compute_dtype=jnp.dtype(config.dtype),
+                            qk_norm=config.memory_qk_norm,
+                            rngs=rngs,
+                        )
+                    # 0920_v0 (Pi0Config.memory_v0920_*): fixed-query read at the input, optional pooled image history.
+                    self.memory_v0920_input_read = bool(config.memory_v0920_input_read)
+                    self.memory_v0920_input_rms = config.memory_v0920_input_rms
+                    self.memory_v0920_history_frames = int(config.memory_v0920_history_frames)
+                    self.memory_v0920_history_pool = int(config.memory_v0920_history_pool)
+                    self.memory_v0920_history_dropout = float(config.memory_v0920_history_dropout)
+                    self.memory_v0920_vision_outside_scan = bool(getattr(config, "memory_v0920_vision_outside_scan", False))
+                    if self.memory_v0920_history_frames > 0:
+                        self.memory_v0920_history_time = nnx.Param(
+                            jnp.zeros((self.memory_v0920_history_frames, paligemma_config.width), dtype=jnp.float32)
+                        )
                     self.memory_sem_query_proj = nnx.Linear(
                         paligemma_config.width, config.memory_semantic.d_key, use_bias=False, rngs=rngs
                     )
@@ -872,6 +948,8 @@ class Pi0(_model.BaseModel):
 
         if early.shape != late.shape:
             raise ValueError(f"early and late attention masks must match; got {early.shape} and {late.shape}.")
+        if getattr(self, "memory_v0920_input_read", False):
+            early = late  # 0920_v0: no layer split, the memory columns are keys for every block
         depth = self.PaliGemma.llm.module.configs[0].depth
         use_late = (jnp.arange(depth) > self.memory_layer).reshape((depth,) + (1,) * early.ndim)
         return jnp.where(use_late, late[None], early[None])
@@ -881,6 +959,17 @@ class Pi0(_model.BaseModel):
         if mask.shape[-1] > capacity:
             raise ValueError(f"attention mask width {mask.shape[-1]} exceeds cache capacity {capacity}.")
         return jnp.pad(mask, ((0, 0), (0, 0), (0, capacity - mask.shape[-1])))
+
+    def _top_camera_token_count(self, num_img: int, images) -> int:
+        """Tokens of one regular camera. Every regular camera contributes T tokens and (0920_v0) every `history_*`
+        key T / pool^2, so T = num_img / (regular + history / pool^2); with no history keys this is the old
+        num_img // n_cameras."""
+        names = list(images)
+        n_hist = sum(1 for n in names if n.startswith("history_")) if getattr(self, "memory_v0920_history_frames", 0) > 0 else 0
+        if n_hist == 0:
+            return num_img // len(names)
+        pool = int(getattr(self, "memory_v0920_history_pool", 1))
+        return int(round(num_img / (len(names) - n_hist + n_hist / float(pool * pool))))
 
     @property
     def _memory_token_total(self) -> int:
@@ -893,6 +982,8 @@ class Pi0(_model.BaseModel):
             extra = self.memory_v5_read_queries
         else:
             extra = self.memory_fact_slots
+        if getattr(self, "memory_v7_no_visual_block", False):
+            return extra  # v7 (09-18): sentence-bank read tokens only, no visual columns in the sequence
         return self.memory_query_tokens + extra
 
     def _v32_content_gate(self) -> at.Array:
@@ -1371,6 +1462,48 @@ class Pi0(_model.BaseModel):
             return own_sentence
         return jnp.where(span, label_sentence.astype(own_sentence.dtype), jnp.zeros_like(own_sentence))
 
+    def v7_grammar_allows(self, prev_first: at.Int[at.Array, " b"], cur_first: at.Int[at.Array, " b"]) -> at.Bool[at.Array, " b"]:
+        """Phase-grammar write gate (Pi0Config.memory_v7_write_grammar): True where the candidate sentence's first
+        token may follow the newest committed sentence's first token; an empty bank (prev < 0) admits the initial
+        phases. All-True when the grammar is off, so every earlier config is unchanged."""
+        pairs = tuple(getattr(self, "memory_v7_write_grammar", ()))
+        if not pairs:
+            return jnp.ones_like(cur_first, dtype=bool)
+        initial = tuple(getattr(self, "memory_v7_write_grammar_initial", ()))
+        prev_first = prev_first.astype(jnp.int32)
+        cur_first = cur_first.astype(jnp.int32)
+        allowed = jnp.zeros_like(cur_first, dtype=bool)
+        for a, b in pairs:
+            allowed = allowed | ((prev_first == a) & (cur_first == b))
+        empty = prev_first < 0
+        first_ok = jnp.zeros_like(cur_first, dtype=bool)
+        for t in initial:
+            first_ok = first_ok | (cur_first == t)
+        return jnp.where(empty, first_ok, allowed)
+
+    def v7_kind_ce_weight(self, label_first: at.Int[at.Array, " b"]) -> at.Float[at.Array, " b"]:
+        """Per-phase sentence CE multiplier (Pi0Config.memory_v7_kind_ce_weights) from the label sentence's first
+        token (the left-aligned causal buffer, teacher forced). Ones when the knob is off."""
+        pairs = tuple(getattr(self, "memory_v7_kind_ce_weights", ()))
+        weight = jnp.ones(label_first.shape, dtype=jnp.float32)
+        if not pairs:
+            return weight
+        label_first = label_first.astype(jnp.int32)
+        for token, w in pairs:
+            weight = jnp.where(label_first == int(token), jnp.float32(w), weight)
+        return weight
+
+    def v7_vocab_match(self, sentence: at.Int[at.Array, "b s"], span: at.Bool[at.Array, "b s"]) -> at.Bool[at.Array, " b"]:
+        """True where the span-masked sentence equals one reference sentence token for token, same length
+        (Pi0Config.memory_v7_write_vocab_only). The reference rows already carry the trailing newline, as the
+        sentence span does."""
+        rows, rmask = self.v5_reference_token_rows(int(sentence.shape[-1]))
+        sent = jnp.where(span, sentence.astype(jnp.int32), 0)[:, None, :]
+        ref = jnp.where(rmask, rows.astype(jnp.int32), 0)[None]
+        same_tokens = jnp.all(sent == ref, axis=-1)
+        same_len = jnp.sum(span.astype(jnp.int32), axis=-1)[:, None] == jnp.sum(rmask.astype(jnp.int32), axis=-1)[None]
+        return jnp.any(same_tokens & same_len, axis=-1)
+
     def v5_commit_sentence(
         self,
         state: _memory.MemoryState,
@@ -1458,6 +1591,7 @@ class Pi0(_model.BaseModel):
         tokens: at.Int[at.Array, "b s"],
         token_mask: at.Bool[at.Array, "b s"],
         commit: at.Bool[at.Array, " b"],
+        rate: float | None = None,
     ) -> tuple[_memory.MemoryState, dict[str, at.Array], at.Float[at.Array, "b 1 dk"]]:
         """One sentence commit as `s` token associations (or exactly one decay step when `commit` is False),
         plus the mean token key (unit-norm) for the diagnostic key ring."""
@@ -1465,7 +1599,7 @@ class Pi0(_model.BaseModel):
         # `f` = padded sentence length (48): the slot loop must be a scan, an unrolled loop of 48 bank updates inside
         # the 40-step training scan (and 16x in the history prefill) made the first v6 compile run > 40 min.
         new_state, aux = self.memory_semantic.delta_write_kv_multi(
-            state, keys, values, slots & commit[:, None], slot_loop="scan"
+            state, keys, values, slots & commit[:, None], slot_loop="scan", rate=rate
         )
         pooled = _memory.l2_normalize(jnp.sum(keys * slots.astype(jnp.float32)[..., None], axis=1, keepdims=True))
         return new_state, aux, pooled
@@ -1757,7 +1891,11 @@ class Pi0(_model.BaseModel):
             sem_post_cast = sem_injected.astype(prefix_tokens.dtype)
             sem_post_cast_rms = jnp.sqrt(jnp.mean(jnp.square(sem_post_cast.astype(jnp.float32)), axis=(1, 2)))
             sem_content = sem_injected + self.memory_sem_slot_embedding.value[None]
-            memory_tokens = jnp.concatenate([memory_tokens, sem_content.astype(prefix_tokens.dtype)], axis=1)
+            if getattr(self, "memory_v7_no_visual_block", False):
+                # v7 (09-18): the visual bank still evolves (writes below) but its 16 columns are not in the sequence
+                memory_tokens = sem_content.astype(prefix_tokens.dtype)
+            else:
+                memory_tokens = jnp.concatenate([memory_tokens, sem_content.astype(prefix_tokens.dtype)], axis=1)
             sem_outputs = {
                 **sem_extra,
                 "sem_retrieved": sem_retrieved,
@@ -1789,6 +1927,115 @@ class Pi0(_model.BaseModel):
             "injected_pre_cast_rms": injected_pre_cast_rms,
             "injected_post_cast_rms": injected_post_cast_rms,
             **oracle_aux,
+            "prefix_mask": prefix_mask,
+            "prefix_ar": prefix_ar,
+            "capacity": jnp.asarray(capacity, dtype=jnp.int32),
+        }
+
+    # ------------------------------------------------------------------------------------
+    # 0920_v0: the sentence bank is read once per tick with the 8 fixed learned queries, the 8 tokens are appended to
+    # the INPUT and every block sees them; no layer split, no pointer, no prompt slot (Pi0Config.memory_v0920_*).
+    # ------------------------------------------------------------------------------------
+    def _v0920_input_scale(self) -> at.Array:
+        """Target RMS of one injected memory token: the config value, else the RMS of the embedder rows of the
+        reference sentences (the tokens sit next to word embeddings at the input, so they take their scale)."""
+        fixed = getattr(self, "memory_v0920_input_rms", None)
+        if fixed is not None:
+            return jnp.asarray(float(fixed), dtype=jnp.float32)
+        ids = jnp.asarray([t for row in self.memory_v5_reference_tokens for t in row], dtype=jnp.int32)[None]
+        emb = self.PaliGemma.llm(ids, method="embed").astype(jnp.float32)
+        return jax.lax.stop_gradient(jnp.sqrt(jnp.mean(jnp.square(emb)) + 1e-12))
+
+    def v0920_read_tokens(
+        self, semantic_state: _memory.MemoryState, batch: int, dtype: jnp.dtype, *, zero_read: bool = False
+    ) -> tuple[at.Array, at.Array, at.Array, at.Array, at.Array, at.Array]:
+        """8 learned queries -> unit 512-d -> bank -> 8 x 2048 reads -> fixed RMS, tanh gate, + slot embedding.
+
+        Returns (tokens[b, r, d] in `dtype`, valid[b, r], retrieved[b, r, d] fp32, queries[b, r, dk] fp32,
+        pre-cast rms[b], post-cast rms[b]). An empty bank reads exactly zero and (with memory_mask_zero_tokens) its
+        tokens are exactly zero and masked.
+        """
+        base = self.memory_sem_read_query_bank.value.astype(jnp.float32)
+        queries = _memory.l2_normalize(self.memory_sem_query_proj(base).astype(jnp.float32))
+        queries = jnp.broadcast_to(queries[None], (batch,) + queries.shape)
+        retrieved = self.memory_semantic.read_key(semantic_state, queries).astype(jnp.float32)
+        if zero_read:
+            retrieved = jnp.zeros_like(retrieved)
+        target = self._v0920_input_scale()
+        rms = jnp.sqrt(jnp.mean(jnp.square(retrieved), axis=-1, keepdims=True) + 1e-12)
+        # the same relative floor as the layer-8 injection (tau / c): a near-zero read is never amplified
+        floor = target * (float(self.memory_sem_injection_tau) / float(self.memory_sem_injection_c))
+        injected = jnp.tanh(self.memory_sem_inject_w.value) * (retrieved * (target / jnp.maximum(rms, floor)))
+        content = injected + self.memory_sem_slot_embedding.value[None].astype(jnp.float32)
+        tokens = content.astype(dtype)
+        if getattr(self, "memory_mask_zero_tokens", False):
+            valid = jnp.any(tokens != 0, axis=-1)
+        else:
+            valid = jnp.ones(tokens.shape[:2], dtype=bool)
+        pre_rms = jnp.sqrt(jnp.mean(jnp.square(injected), axis=(1, 2)))
+        post_rms = jnp.sqrt(jnp.mean(jnp.square(tokens.astype(jnp.float32)), axis=(1, 2)))
+        return tokens, valid, retrieved, queries, pre_rms, post_rms
+
+    def _v0920_prepare_prefix(
+        self,
+        prefix_tokens: at.Array,
+        prefix_mask: at.Array,
+        prefix_ar: at.Array,
+        semantic_state: _memory.MemoryState | None,
+        *,
+        top_token_count: int,
+        zero_read: bool = False,
+    ) -> dict[str, at.Array | _gemma.KVCache | None]:
+        """One pass through ALL blocks over [prefix | 8 memory tokens] (memory rows blind, memory columns visible to
+        every row). Returns the dict the v3.2 call sites consume; the visual-bank entries are zeros (that bank is
+        not read, not in the sequence, and its write receives zero tokens = a plain decay)."""
+        if semantic_state is None:
+            raise ValueError("memory_v0920_input_read needs the sentence bank state at every call site.")
+        batch, prefix_len = prefix_mask.shape
+        mem_len = self._memory_token_total
+        capacity = prefix_len + mem_len + self.causal_token_len
+        width = prefix_tokens.shape[-1]
+        tokens8, valid8, sem_retrieved, sem_queries, pre_rms, post_rms = self.v0920_read_tokens(
+            semantic_state, batch, prefix_tokens.dtype, zero_read=zero_read
+        )
+        if tokens8.shape[1] != mem_len:
+            raise ValueError(f"expected {mem_len} memory tokens, got {tokens8.shape[1]}.")
+        split_tokens = jnp.concatenate([prefix_tokens, tokens8], axis=1)
+        split_mask = jnp.concatenate([prefix_mask, valid8], axis=1)
+        split_ar = jnp.concatenate([prefix_ar, jnp.zeros((batch, mem_len), dtype=prefix_ar.dtype)], axis=1)
+        mask = self._pad_attention_columns(self._v32_split_late_mask(split_mask, split_ar, prefix_len), capacity)
+        positions = jnp.concatenate(
+            [jnp.cumsum(prefix_mask, axis=1) - 1, prefix_len + jnp.broadcast_to(jnp.arange(mem_len), (batch, mem_len))],
+            axis=1,
+        )
+        cache = self._v32_empty_cache(batch, capacity, prefix_tokens.dtype)
+        (final_prefix, _), cache = self.PaliGemma.llm(
+            [split_tokens, None], mask=mask, positions=positions, kv_cache=cache, cache_position=0
+        )
+        h8_all = final_prefix[:, :prefix_len]
+        zeros_vis = jnp.zeros((batch, self.memory_query_tokens, width), dtype=jnp.float32)
+        zeros_b = jnp.zeros((batch,), dtype=jnp.float32)
+        return {
+            "sem_queries": sem_queries,
+            "sem_retrieved": sem_retrieved,
+            "sem_injected_pre_cast_rms": pre_rms.astype(jnp.float32),
+            "sem_injected_post_cast_rms": post_rms.astype(jnp.float32),
+            "cache": cache,
+            "final_prefix": final_prefix,
+            "h8_all": h8_all,
+            "h8_top": h8_all[:, :top_token_count].astype(jnp.float32),
+            "memory_tokens": tokens8,
+            "memory_valid": valid8,
+            "read_queries": zeros_vis,
+            "write_queries": None,
+            "write_tokens": zeros_vis,
+            "retrieved": zeros_vis,
+            "injected_pre_cast_rms": pre_rms.astype(jnp.float32),
+            "injected_post_cast_rms": post_rms.astype(jnp.float32),
+            "v35_oracle_injection_active": jnp.zeros((batch,), dtype=bool),
+            "v35_oracle_injection_valid": jnp.zeros((batch,), dtype=bool),
+            "v35_oracle_target_rms": zeros_b,
+            "v35_oracle_actual_rms": zeros_b,
             "prefix_mask": prefix_mask,
             "prefix_ar": prefix_ar,
             "capacity": jnp.asarray(capacity, dtype=jnp.int32),
@@ -1885,6 +2132,29 @@ class Pi0(_model.BaseModel):
             "final_prefix": final_prefix,
         }
 
+    @staticmethod
+    def v7_apply_prompt_slot(
+        tokens: at.Array, token_mask: at.Array, slot_mask: at.Array, prev_sentence: at.Array,
+        null_tokens: at.Array, null_mask: at.Array, drop: at.Array,
+    ) -> tuple[at.Array, at.Array]:
+        """Write the newest committed note into the context's "Last:" slot (v7 prompt slot, 09-18).
+
+        tokens/token_mask/slot_mask: [b, L] (slot_mask marks the W contiguous slot positions of each row);
+        prev_sentence: [b, S] causal row of the newest committed note (ids > 0 valid, last valid id = the "\n"
+        terminator, which is dropped; no valid id = empty bank -> the null row); null_tokens/null_mask: [b, W];
+        drop: [b] bool -> the null row too. Returns the rewritten (tokens, token_mask); slot padding stays masked."""
+        w = null_tokens.shape[-1]
+        sent = prev_sentence[:, :w]
+        n_valid = jnp.sum(prev_sentence > 0, axis=-1)                              # includes the terminator
+        keep = jnp.arange(w)[None, :] < jnp.maximum(n_valid - 1, 0)[:, None]        # sentence ids without "\n"
+        use_null = (n_valid <= 1) | drop
+        slot_tok = jnp.where(use_null[:, None], null_tokens, jnp.where(keep, sent, 0)).astype(tokens.dtype)
+        slot_ok = jnp.where(use_null[:, None], null_mask, keep)
+        idx = jnp.clip(jnp.cumsum(slot_mask, axis=1) - 1, 0, w - 1)                 # 0..W-1 along each row's slot
+        new_tok = jnp.take_along_axis(slot_tok, idx, axis=1)
+        new_ok = jnp.take_along_axis(slot_ok, idx, axis=1)
+        return jnp.where(slot_mask, new_tok, tokens), jnp.where(slot_mask, new_ok, token_mask)
+
     def _v32_memory_columns(self, batch: int, memory_valid: at.Array | None) -> at.Array:
         """Late-block key visibility of the memory block: every slot (v3.x geometry) or the
         interface's per-slot validity (``memory_mask_zero_tokens``, see
@@ -1925,6 +2195,16 @@ class Pi0(_model.BaseModel):
         late = jnp.concatenate([prefix_mask, memory_cols, gen_valid], axis=1)
         return self._v32_layer_mask(early[:, None, :], late[:, None, :])
 
+    def _v7_digit_blind(self, layer_mask: at.Array, blind_rows: at.Array, own_cols: at.Array, prefix_len: int) -> at.Array:
+        """Apply Pi0Config.memory_v7_digit_blind to a layer-wise causal/step mask (see apply_digit_blind)."""
+        s_len = layer_mask.shape[-1]
+        cols = jnp.arange(s_len)
+        num_img = prefix_len - self.max_token_len
+        image_cols = cols < num_img
+        sem_start = prefix_len + (0 if getattr(self, "memory_v7_no_visual_block", False) else self.memory_query_tokens)
+        sem_cols = (cols >= sem_start) & (cols < prefix_len + self._memory_token_total)
+        return apply_digit_blind(layer_mask, blind_rows, own_cols, image_cols, sem_cols, self.memory_layer)
+
     def _v32_suffix_mask(
         self,
         prefix_mask: at.Array,
@@ -1963,23 +2243,49 @@ class Pi0(_model.BaseModel):
         if action_prefix.delay.shape != (batch_size,) or action_prefix.prefix_length.shape != (batch_size,):
             raise ValueError("action_prefix delay and prefix_length must both have shape [batch].")
 
+    def _image_tower_tokens(self, name: str, images: at.Array) -> at.Array:
+        """The frozen image tower on one camera key: [n, H, W, 3] -> [n, tokens, width]. 0920_v0 history keys
+        (`history_<i>_rgb`) are average-pooled by `memory_v0920_history_pool` per axis over the 16x16 patch grid
+        (-> 64 tokens); the learned time embedding is added later, in embed_prefix, so it stays differentiable."""
+        image_tokens, _ = self.PaliGemma.img(images, train=False)
+        if name.startswith("history_") and getattr(self, "memory_v0920_history_frames", 0) > 0:
+            pool = int(getattr(self, "memory_v0920_history_pool", 1))
+            if pool > 1:
+                bsz, n_tok, dim = image_tokens.shape
+                side = int(round(n_tok**0.5))
+                grid = image_tokens.reshape(bsz, side // pool, pool, side // pool, pool, dim)
+                image_tokens = grid.mean(axis=(2, 4)).reshape(bsz, (side // pool) ** 2, dim)
+        return image_tokens
+
     @at.typecheck
     def embed_prefix(
-        self, obs: _model.Observation
+        self, obs: _model.Observation, image_tokens: dict[str, at.Array] | None = None
     ) -> tuple[at.Float[at.Array, "b s emb"], at.Bool[at.Array, "b s"], at.Int[at.Array, "b s"]]:
+        """`image_tokens` (0920_v0, Pi0Config.memory_v0920_vision_outside_scan): per camera key the tower output
+        [b, tokens, width] computed once for every tick BEFORE the sequence scan (frozen tower, stop-gradient), so the
+        rematted tick body does not rerun SigLIP; keys not in the dict go through the tower here."""
         input_mask = []
         ar_mask = []
         tokens = []
         # embed images
         for name in obs.images:
-            image_tokens, _ = self.PaliGemma.img(obs.images[name], train=False)
+            if image_tokens is not None and name in image_tokens:
+                image_toks = image_tokens[name]
+            else:
+                image_toks = self._image_tower_tokens(name, obs.images[name])
+            if name.startswith("history_") and getattr(self, "memory_v0920_history_frames", 0) > 0:
+                # 0920_v0: a past front-camera frame gets its slot's learned time embedding (zero-init); its image_mask
+                # (False before the episode start) hides it like any other camera.
+                slot = int(name.split("_")[1])
+                image_toks = image_toks + self.memory_v0920_history_time.value[slot].astype(image_toks.dtype)[None, None, :]
+            image_tokens_out = image_toks
 
-            tokens.append(image_tokens)
+            tokens.append(image_tokens_out)
             input_mask.append(
                 einops.repeat(
                     obs.image_masks[name],
                     "b -> b s",
-                    s=image_tokens.shape[1],
+                    s=image_tokens_out.shape[1],
                 )
             )
             # image tokens attend to each other --> AR mask = 0
@@ -4122,6 +4428,8 @@ class Pi0(_model.BaseModel):
         forced_subtask_mask: at.Bool[at.Array, "b cl"] | None,
         zero_read: bool,
         write_mode: str,
+        fast_decode: bool = False,
+        fast_stop_token: int = -1,
         v35_transition_valid: bool | at.Bool[at.Array, " b"] | None,
         v35_write_mask: bool | at.Bool[at.Array, " b"] | None,
         v35_oracle_direction: at.Float[at.Array, "b d"] | None,
@@ -4146,7 +4454,7 @@ class Pi0(_model.BaseModel):
         write an O/D frame merely by retaining the legacy ``write_mode='normal'`` default.
         """
 
-        preprocessed = _model.preprocess_observation(None, observation, train=False)
+        preprocessed = _model.preprocess_observation(None, observation, train=False, image_keys=tuple(observation.images))
         batch = preprocessed.state.shape[0]
         self._check_action_prefix_shapes(action_prefix, batch)
         if (forced_subtask_tokens is None) != (forced_subtask_mask is None):
@@ -4162,23 +4470,28 @@ class Pi0(_model.BaseModel):
         prefix_tokens, prefix_mask, prefix_ar = self.embed_prefix(preprocessed)
         prefix_len = prefix_mask.shape[1]
         num_img = prefix_len - self.max_token_len
-        top_tokens = num_img // len(preprocessed.images)
+        top_tokens = self._top_camera_token_count(num_img, preprocessed.images)
         mem_len = self._memory_token_total
         gen_base = prefix_len + mem_len
-        prepared = self._v32_prepare_memory_prefix(
-            prefix_tokens,
-            prefix_mask,
-            prefix_ar,
-            memory_state,
-            top_token_count=top_tokens,
-            zero_read=zero_read,
-            state_token_mask=preprocessed.token_state_mask,
-            v35_oracle_direction=v35_oracle_direction,
-            v35_oracle_injected_rms=v35_oracle_injected_rms,
-            semantic_state=semantic_state,
-            v5_prev_tokens=v5_prev_tokens,
-            v5_prev_mask=v5_prev_mask,
-        )
+        if getattr(self, "memory_v0920_input_read", False):
+            prepared = self._v0920_prepare_prefix(
+                prefix_tokens, prefix_mask, prefix_ar, semantic_state, top_token_count=top_tokens, zero_read=zero_read
+            )
+        else:
+            prepared = self._v32_prepare_memory_prefix(
+                prefix_tokens,
+                prefix_mask,
+                prefix_ar,
+                memory_state,
+                top_token_count=top_tokens,
+                zero_read=zero_read,
+                state_token_mask=preprocessed.token_state_mask,
+                v35_oracle_direction=v35_oracle_direction,
+                v35_oracle_injected_rms=v35_oracle_injected_rms,
+                semantic_state=semantic_state,
+                v5_prev_tokens=v5_prev_tokens,
+                v5_prev_mask=v5_prev_mask,
+            )
         kv_cache = prepared["cache"]
         final_prefix = prepared["final_prefix"]
         write_tokens = prepared["write_tokens"]
@@ -4353,7 +4666,9 @@ class Pi0(_model.BaseModel):
             tokens = tokens.at[:, index].set(jnp.where(done, tokens[:, index], token))
             probs = probs.at[:, index].set(jnp.where(done, probs[:, index], prob))
             mask = mask.at[:, index].set(~done)
-            return tokens, mask, probs, done | (token == stop_token) | (token == PALIGEMMA_EOS_TOKEN)
+            # fast_decode: run on through the FAST branch and stop at its "|"; otherwise stop at the terminator
+            end_token = fast_stop_token if fast_decode else stop_token
+            return tokens, mask, probs, done | (token == end_token) | (token == PALIGEMMA_EOS_TOKEN)
 
         gen_tokens, gen_mask, gen_prob, done = record(
             gen_tokens, gen_mask, gen_prob, jnp.zeros(batch, dtype=bool), token0, prob0, 0
@@ -4365,9 +4680,16 @@ class Pi0(_model.BaseModel):
         def decode_step(carry):
             tokens, mask, probs, done, previous, cache, index = carry
             token_emb = self.PaliGemma.llm(previous[:, None], method="embed")
+            step_attn = self._v32_step_mask(prefix_mask, index, memory_valid=memory_valid)
+            if getattr(self, "memory_v7_digit_blind_patterns", ()):
+                # the query row is the token at index-1; blind it when the tokens so far end in a digit pattern
+                rows = digit_blind_rows(tokens, getattr(self, "memory_v7_digit_blind_patterns", ()))
+                row = jnp.take_along_axis(rows, jnp.broadcast_to(index - 1, (batch, 1)), axis=1)
+                own = jnp.broadcast_to(gen_base + index - 1, (batch, 1))
+                step_attn = self._v7_digit_blind(step_attn, row, own, prefix_len)
             (out, _), cache = self.PaliGemma.llm(
                 [token_emb, None],
-                mask=self._v32_step_mask(prefix_mask, index, memory_valid=memory_valid),
+                mask=step_attn,
                 positions=jnp.broadcast_to(gen_base + index - 1, (batch, 1)),
                 kv_cache=cache,
                 cache_position=gen_base + index - 1,
@@ -4389,7 +4711,15 @@ class Pi0(_model.BaseModel):
             cache_position=gen_base + generated - 1,
         )
 
-        causal_live = jnp.arange(self.causal_token_len)[None] < jnp.sum(gen_mask, axis=-1)[:, None]
+        # The sentence is the generated run up to and including the first terminator. With fast_decode the buffer
+        # continues with the FAST branch; the flow suffix never attends to it (training excludes the FAST tokens
+        # from the suffix view) and the memory write only receives the sentence. Without fast_decode, sent_mask
+        # equals gen_mask, so nothing changes.
+        positions = jnp.arange(self.causal_token_len)[None]
+        is_stop = (gen_tokens == stop_token) & gen_mask
+        sent_len = jnp.where(jnp.any(is_stop, axis=-1), jnp.argmax(is_stop, axis=-1) + 1, jnp.sum(gen_mask, axis=-1))
+        sent_mask = gen_mask & (positions < sent_len[:, None])
+        causal_live = positions < sent_len[:, None]
         dt = -1.0 / num_steps
         if noise is None:
             noise = jax.random.normal(rng, (batch, self.action_horizon, self.action_dim))
@@ -4417,10 +4747,10 @@ class Pi0(_model.BaseModel):
             return carry[1] >= -dt / 2
 
         actions, _ = jax.lax.while_loop(keep_denoising, denoise, (noise, 1.0))
-        extra = {"token_prob": gen_prob}
+        extra = {"token_prob": gen_prob, "fast_tokens": gen_tokens, "fast_mask": gen_mask & ~sent_mask}
         if semantic_state is not None and "sem_queries" in prepared:
             extra["sem_queries"] = prepared["sem_queries"]
-        return finish(actions, gen_tokens, gen_mask, extra=extra)
+        return finish(actions, gen_tokens, sent_mask, extra=extra)
 
     def sample_with_memory(
         self,
@@ -4436,6 +4766,8 @@ class Pi0(_model.BaseModel):
         forced_subtask_tokens: at.Int[at.Array, "b cl"] | None = None,
         forced_subtask_mask: at.Bool[at.Array, "b cl"] | None = None,
         zero_read: bool = False,
+        fast_decode: bool = False,
+        fast_stop_token: int = -1,
         allow_write: bool = True,
         write_mode: str | None = None,
         v35_transition_valid: bool | at.Bool[at.Array, " b"] | None = None,
@@ -4450,6 +4782,12 @@ class Pi0(_model.BaseModel):
         v5_prev_mask: at.Bool[at.Array, "b s"] | None = None,
     ) -> tuple[_model.Actions, _memory.MemoryState, dict[str, at.Array]]:
         """Memory-conditioned fused inference: one prefill + an incremental memory append.
+
+        ``fast_decode`` (09-18 replay diagnostics): keep decoding past the sentence terminator through the
+        trained FAST branch ("Action: " + action tokens + "|", stop at ``fast_stop_token``); the extra tokens are
+        returned as ``aux["fast_tokens"]``/``aux["fast_mask"]`` and are invisible to the flow suffix and to the
+        memory write, so the expert actions and the sentence are those of a plain decode. Needs
+        ``max_decode_steps`` up to ``causal_token_len``.
 
         v5 sentence-bank models (cluster_v5/README.md) additionally take ``semantic_state`` (the
         semantic fast-weight bank, threaded by the caller) and, for the A6 query conditioning,
@@ -4525,6 +4863,8 @@ class Pi0(_model.BaseModel):
                 forced_subtask_mask=forced_subtask_mask,
                 zero_read=zero_read,
                 write_mode=write_mode,
+                fast_decode=fast_decode,
+                fast_stop_token=fast_stop_token,
                 v35_transition_valid=v35_transition_valid,
                 v35_write_mask=v35_write_mask,
                 v35_oracle_direction=v35_oracle_direction,
@@ -4552,7 +4892,7 @@ class Pi0(_model.BaseModel):
         # the legacy v3/v3.1 body below branches on allow_write; keep it consistent with an
         # explicitly passed write_mode
         allow_write = write_mode == "normal"
-        preprocessed = _model.preprocess_observation(None, observation, train=False)
+        preprocessed = _model.preprocess_observation(None, observation, train=False, image_keys=tuple(observation.images))
         batch = preprocessed.state.shape[0]
         self._check_action_prefix_shapes(action_prefix, batch)
         if (forced_subtask_tokens is None) != (forced_subtask_mask is None):
@@ -4938,6 +5278,58 @@ class Pi0(_model.BaseModel):
         }
         if observation.token_state_mask is not None:
             xs["token_state_mask"] = step_first(observation.token_state_mask)
+        if getattr(self, "memory_v0920_input_read", False):
+            # 0920_v0: the per-step image masks reach the scan (a history frame before the episode start, and the
+            # blank camera if present, are absent from attention). Training only: with memory_v0920_history_dropout
+            # per sample every history frame of the window is masked (copycat guard).
+            image_valid = {k: step_first(v).astype(bool) for k, v in observation.image_masks.items()}
+            drop_p = float(getattr(self, "memory_v0920_history_dropout", 0.0))
+            if train and drop_p > 0.0:
+                drop = jax.random.uniform(jax.random.fold_in(rng, 0x48495354), (b,)) < drop_p
+                image_valid = {k: (v & ~drop[None, :]) if k.startswith("history_") else v for k, v in image_valid.items()}
+            xs["image_valid"] = image_valid
+        if getattr(self, "memory_v0920_vision_outside_scan", False):
+            # 0920_v0 speed: the frozen image tower runs ONCE over all ticks (batched [b*t]) outside the rematted tick
+            # body, under stop-gradient (nothing upstream of the pixels is trainable); the scan receives the tokens.
+            # History keys are already pooled here; the time embedding is added inside embed_prefix.
+            tower = {}
+            for name, img in images.items():
+                flat = img.reshape((b * t,) + tuple(img.shape[2:]))
+                out = jax.lax.stop_gradient(self._image_tower_tokens(name, flat))
+                tower[name] = out.reshape((b, t) + tuple(out.shape[1:]))
+            xs["image_tokens"] = {k: step_first(v) for k, v in tower.items()}
+        if observation.seq_label_write_prob is not None:
+            # 0920_v0 label-write schedule (TrainConfig.label_write_schedule_steps): per sample and step, the LABEL
+            # sentence is written with this probability, the model's own decode otherwise.
+            label_rng = jax.random.fold_in(rng, 0x4C41424C)
+            xs["label_u"] = jax.random.uniform(label_rng, (t, b))
+            xs["label_write_prob"] = jnp.broadcast_to(
+                observation.seq_label_write_prob.astype(jnp.float32)[None, :], (t, b)
+            )
+        slot_from_bank = bool(getattr(self, "memory_v7_prompt_slot_from_bank", False))
+        if slot_from_bank:
+            if not v5_on:
+                raise ValueError("memory_v7_prompt_slot_from_bank needs the v5 sentence bank (the note comes from prev_sentence).")
+            if observation.token_slot_mask is None or observation.prompt_slot_null_tokens is None:
+                raise ValueError("memory_v7_prompt_slot_from_bank needs token_slot_mask and the slot null row (Pi0Config.prompt_slot_len > 0).")
+            xs["token_slot_mask"] = step_first(observation.token_slot_mask)
+            slot_rng = jax.random.fold_in(rng, 0x534C4F54)
+            xs["slot_drop"] = jax.random.uniform(slot_rng, (t, b)) < float(getattr(self, "memory_v7_prompt_slot_bank_dropout", 0.0))
+            slot_null_tokens = jnp.asarray(observation.prompt_slot_null_tokens).astype(jnp.int32)
+            slot_null_mask = jnp.asarray(observation.prompt_slot_null_mask).astype(bool)
+        if v5_on:
+            # v7 onset mask: the label SENTENCE tokens (causal positions that are neither padding nor FAST action
+            # tokens; a short sentence is followed by FAST tokens inside the first sentence_len positions, so the raw
+            # token compare fired on nearly every step, 09-16 12:13) differ from the previous step's. Step 0 never.
+            s_len = int(self.memory_v5_sentence_len)
+            sent_mask = (observation.tokenized_causal_mask & ~observation.causal_fast_mask)[:, :, :s_len]
+            sent = jnp.where(sent_mask, observation.tokenized_causal[:, :, :s_len], 0)
+            changed = jnp.any(sent[:, 1:] != sent[:, :-1], axis=-1)
+            onset = jnp.concatenate([jnp.zeros((b, 1), dtype=bool), changed], axis=1)  # [b, t]
+            pre_n = int(getattr(self, "memory_v7_onset_ce_pre_steps", 0))
+            for n in range(1, pre_n + 1):  # the n steps before a change are weighted too (v7, 09-16 15:30)
+                onset = onset | jnp.concatenate([onset[:, n:], jnp.zeros((b, n), dtype=bool)], axis=1) if n == 1 else onset | jnp.concatenate([jnp.concatenate([jnp.zeros((b, 1), dtype=bool), changed], axis=1)[:, n:], jnp.zeros((b, n), dtype=bool)], axis=1)
+            xs["onset_mask"] = step_first(onset)
         if self.simulated_delay is not None:
             delay_rng = jax.random.fold_in(rng, 0x525443)
             xs["delay"] = jax.random.randint(delay_rng, (t, b), 0, self.simulated_delay + 1)
@@ -5062,6 +5454,11 @@ class Pi0(_model.BaseModel):
                     pending_sentence,
                     pending_span,
                     pending_conf,
+                    last_cand_sentence,
+                    cand_streak,
+                    last_delta,
+                    commit_age,
+                    prev_prev_sentence,
                 ) = carry
             elif v4_on:
                 state, sem_state, sem_written, runtime_state_valid, runtime_credit_reachable = carry
@@ -5112,16 +5509,24 @@ class Pi0(_model.BaseModel):
                         sem_gap_state,
                         sem_state,
                     )
+            step_tokens, step_token_mask = x["tokens"], x["token_mask"]
+            if slot_from_bank:
+                # v7 prompt slot from the bank (09-18, stage B): the context's "Last:" slot shows the model's OWN newest
+                # committed note (prev_sentence under prev_is_committed), "none" when the bank is empty or dropped out --
+                # the deployed input. The label-filled slot from the loader is overwritten, never read.
+                step_tokens, step_token_mask = self.v7_apply_prompt_slot(
+                    step_tokens, step_token_mask, x["token_slot_mask"], prev_sentence, slot_null_tokens, slot_null_mask, x["slot_drop"]
+                )
             obs_k = _model.Observation(
                 images=x["images"],
-                image_masks={k: jnp.ones(b, dtype=bool) for k in x["images"]},
+                image_masks=x["image_valid"] if "image_valid" in x else {k: jnp.ones(b, dtype=bool) for k in x["images"]},
                 state=x["state"],
-                tokenized_prompt=x["tokens"],
-                tokenized_prompt_mask=x["token_mask"],
+                tokenized_prompt=step_tokens,
+                tokenized_prompt_mask=step_token_mask,
             )
-            prefix_tokens, prefix_mask, prefix_ar = self.embed_prefix(obs_k)
+            prefix_tokens, prefix_mask, prefix_ar = self.embed_prefix(obs_k, image_tokens=x.get("image_tokens"))
             num_img = prefix_mask.shape[1] - self.max_token_len
-            top_tokens = num_img // len(x["images"])
+            top_tokens = self._top_camera_token_count(num_img, x["images"])
             prefix_len = prefix_mask.shape[1]
             mem_len = self._memory_token_total
             state_token_mask = x.get("token_state_mask")
@@ -5161,16 +5566,21 @@ class Pi0(_model.BaseModel):
                     v5_read_kwargs = {"v5_prev_tokens": pending_sentence, "v5_prev_mask": pending_span}
                 else:
                     v5_read_kwargs = {"v5_prev_tokens": jnp.maximum(prev_sentence, 0), "v5_prev_mask": prev_sentence > 0}
-            prepared = self._v32_prepare_memory_prefix(
-                masked_prefix_tokens,
-                prefix_mask,
-                prefix_ar,
-                read_state,
-                top_token_count=top_tokens,
-                state_token_mask=state_token_mask,
-                semantic_state=read_sem_state,
-                **v5_read_kwargs,
-            )
+            if getattr(self, "memory_v0920_input_read", False):
+                prepared = self._v0920_prepare_prefix(
+                    masked_prefix_tokens, prefix_mask, prefix_ar, read_sem_state, top_token_count=top_tokens
+                )
+            else:
+                prepared = self._v32_prepare_memory_prefix(
+                    masked_prefix_tokens,
+                    prefix_mask,
+                    prefix_ar,
+                    read_state,
+                    top_token_count=top_tokens,
+                    state_token_mask=state_token_mask,
+                    semantic_state=read_sem_state,
+                    **v5_read_kwargs,
+                )
             if dual_view:
                 # Plan 5.2 gold-standard variant: memory-state evolution from the FULL view
                 # (deployment-identical write dynamics); CE/flow and their own retrieval from
@@ -5201,9 +5611,14 @@ class Pi0(_model.BaseModel):
             causal_mask_k = x["causal_mask"]
             causal_emb = self.PaliGemma.llm(x["causal"], method="embed")
             causal_positions = jnp.broadcast_to(prefix_len + mem_len + jnp.arange(causal_len)[None], (b, causal_len))
+            causal_attn = self._v32_causal_mask(prefix_mask, causal_mask_k, memory_valid=prepared["memory_valid"])
+            if getattr(self, "memory_v7_digit_blind_patterns", ()):
+                # teacher forced: the label tokens say which causal rows predict a digit
+                blind_rows = digit_blind_rows(x["causal"], getattr(self, "memory_v7_digit_blind_patterns", ())) & causal_mask_k
+                causal_attn = self._v7_digit_blind(causal_attn, blind_rows, causal_positions, prefix_len)
             (causal_out, _), kv_cache = self.PaliGemma.llm(
                 [causal_emb, None],
-                mask=self._v32_causal_mask(prefix_mask, causal_mask_k, memory_valid=prepared["memory_valid"]),
+                mask=causal_attn,
                 positions=causal_positions,
                 kv_cache=kv_cache,
                 cache_position=prefix_len + mem_len,
@@ -5228,6 +5643,27 @@ class Pi0(_model.BaseModel):
             log_probs = jax.nn.log_softmax(logits, axis=-1)
             token_logp = jnp.take_along_axis(log_probs, x["causal"][..., None], axis=-1)[..., 0]
             ce = -jnp.sum(token_logp * causal_mask_k, axis=-1) / jnp.clip(jnp.sum(causal_mask_k, axis=-1), 1)
+            # Telemetry only (09-20): the same token CE split into the sentence (LM) tokens and the FAST action
+            # tokens, as raw sums + token counts so train.py can pool them exactly. Not part of the objective.
+            lm_tokens_k = causal_mask_k & ~x["causal_fast"]
+            fast_tokens_k = causal_mask_k & x["causal_fast"]
+            ce_lm_sum = jax.lax.stop_gradient(-jnp.sum(token_logp * lm_tokens_k, axis=-1))
+            ce_fast_sum = jax.lax.stop_gradient(-jnp.sum(token_logp * fast_tokens_k, axis=-1))
+            # v7 (09-17) per-token hard-word weight (Pi0Config.memory_v7_hard_token_ce_weight): sentence tokens whose
+            # argmax (pointer bonus included, the same prediction the write rule uses) misses the label count x hard_w;
+            # action tokens and the telemetry `ce` are untouched. The trained term is `ce_train`.
+            hard_w = float(getattr(self, "memory_v7_hard_token_ce_weight", 1.0))
+            if hard_w != 1.0:
+                sentence_tokens = causal_mask_k & ~x["causal_fast"]
+                wrong_token = jax.lax.stop_gradient(jnp.argmax(log_probs, axis=-1) != x["causal"]) & sentence_tokens
+                token_weight = jnp.where(wrong_token, jnp.float32(hard_w), jnp.float32(1.0))
+                ce_train = -jnp.sum(token_logp * causal_mask_k * token_weight, axis=-1) / jnp.clip(
+                    jnp.sum(causal_mask_k, axis=-1), 1
+                )
+                hard_token_count = jnp.sum(wrong_token, axis=-1).astype(jnp.float32)
+            else:
+                ce_train = ce
+                hard_token_count = jnp.zeros(ce.shape, dtype=jnp.float32)
 
             time_k = x["time"]
             rtc_loss_mask = None
@@ -5277,6 +5713,12 @@ class Pi0(_model.BaseModel):
 
                 state = jax.tree.map(select_transition, write_state, decay_state, state)
                 commit_success = write_requested & write_aux["commit_applied"]
+                if getattr(self, "memory_v0920_input_read", False):
+                    # 0920_v0 (bug found 09-21 00:55): the visual bank is inert (its write tokens are zeros, which the
+                    # delta rule never "commits"), yet runtime_state_valid -- and with it the CE and flow loss of every
+                    # DECISION tick -- was still keyed on a visual-bank commit. The sentence bank is what is read now;
+                    # a valid transition is all a decision tick needs.
+                    commit_success = write_requested
                 next_runtime_state_valid = runtime_state_valid | commit_success
                 next_runtime_credit_reachable = runtime_credit_reachable | commit_success
                 if v5_on:
@@ -5328,13 +5770,56 @@ class Pi0(_model.BaseModel):
                     else:
                         cur_sentence = jnp.where(sent_span, jax.lax.stop_gradient(pred_sentence), 0)
                         sentence_confident = sentence_conf >= self.memory_v5_write_conf
+                    if "label_u" in x:
+                        # 0920_v0: label-write schedule -- the label sentence enters the bank for the drawn samples
+                        # (always "confident"); the others write the model's own decode under the usual gates.
+                        use_label = x["label_u"] < x["label_write_prob"]
+                        cur_sentence = jnp.where(use_label[:, None], jnp.where(sent_span, label_sentence, 0), cur_sentence)
+                        sentence_confident = jnp.where(use_label, True, sentence_confident)
                     # A4 one-step write delay: what is written now is what was produced one step ago.
                     produced_sentence, produced_span, produced_confident = cur_sentence, write_span, sentence_confident
                     if getattr(self, "memory_v5_write_delay_steps", 0) == 1:
                         cur_sentence, write_span, sentence_confident = pending_sentence, pending_span, pending_conf
                         has_span = jnp.any(write_span, axis=-1)
                     sentence_changed = jnp.any(cur_sentence != prev_sentence, axis=-1) & has_span
-                    sem_write_requested = sentence_changed & sentence_confident & transition_valid
+                    # v7 robomme write rules (09-16): every-step writes (gradual bank, delta_rate < 1) and/or a
+                    # debounce (commit only a sentence produced N steps in a row = the eval's self_debounce rule).
+                    write_trigger = (sentence_changed | has_span) if getattr(self, "memory_v7_write_every_step", False) else sentence_changed
+                    cand_same = jnp.all(cur_sentence == last_cand_sentence, axis=-1) & has_span
+                    next_cand_streak = jnp.where(cand_same, cand_streak + 1, jnp.where(has_span, 1, 0)).astype(jnp.int32)
+                    next_cand_streak = jnp.where(transition_valid, next_cand_streak, cand_streak)
+                    next_last_cand_sentence = jnp.where(transition_valid[:, None], cur_sentence, last_cand_sentence)
+                    streak_ok = next_cand_streak >= int(getattr(self, "memory_v7_write_debounce_steps", 1))
+                    sem_write_requested = write_trigger & sentence_confident & transition_valid & streak_ok
+                    # v7 phase-grammar gate (09-16 16:30, Pi0Config.memory_v7_write_grammar): the candidate's first
+                    # token must be allowed to follow the newest COMMITTED sentence's first token (prev_sentence under
+                    # prev_is_committed; the -1 sentinel = empty bank -> the labels' initial phases). A rejected
+                    # candidate stays "changed" and is retried at the next steps, exactly like an unconfident one.
+                    grammar_ok = (self.v7_grammar_allows(prev_sentence[:, 0], cur_sentence[:, 0])
+                                  if getattr(self, "memory_v7_write_grammar", ()) else jnp.ones_like(sem_write_requested))
+                    grammar_rejected = sem_write_requested & ~grammar_ok
+                    sem_write_requested = sem_write_requested & grammar_ok
+                    # v7 (09-17, robomme_0916_v0) generic gates: vocabulary-only writes and flip-back retraction
+                    # (Pi0Config.memory_v7_write_vocab_only / memory_v7_write_retract_steps).
+                    if getattr(self, "memory_v7_write_vocab_only", False):
+                        vocab_ok = self.v7_vocab_match(cur_sentence, write_span)
+                    else:
+                        vocab_ok = jnp.ones((b,), dtype=bool)
+                    vocab_rejected = sem_write_requested & ~vocab_ok
+                    sem_write_requested = sem_write_requested & vocab_ok
+                    retract_k = int(getattr(self, "memory_v7_write_retract_steps", 0))
+                    if retract_k > 0:
+                        # the candidate is the note that was newest before the newest one, and the newest one is young
+                        flipback = (
+                            sem_write_requested & sentence_changed
+                            & jnp.all(cur_sentence == prev_prev_sentence, axis=-1)
+                            & (commit_age + 1 <= retract_k)
+                        )
+                    else:
+                        flipback = jnp.zeros((b,), dtype=bool)
+                    sem_write_requested = sem_write_requested & ~flipback
+                    sem_out_name = self.memory_semantic._output_weight_name
+                    w3_before = sem_state.fast_weights[sem_out_name].astype(jnp.float32)
                     # v6.2: what enters the bank. Own writes store the model's own sentence; with
                     # memory_v5_own_commit_label_content the model still decides WHEN (change,
                     # confidence, retry on cur/prev = its own sentences) but the bank receives the
@@ -5352,6 +5837,14 @@ class Pi0(_model.BaseModel):
                         sem_write_state, sem_aux = self.v5_semantic_write(
                             sem_state, sem_keys, sem_values, sem_write_requested
                         )
+                    w3_written = sem_write_state.fast_weights[sem_out_name].astype(jnp.float32)
+                    if retract_k > 0:
+                        # erase B exactly: the bank decayed (commit_age + 1) times since B entered (this step's decay
+                        # included), so B's stored delta is subtracted with the same factor.
+                        rho_age = self.memory_semantic._delta_decay_factor((commit_age + 1).astype(jnp.int32))
+                        w3_retracted = w3_written - rho_age[:, None, None] * last_delta
+                        w3_written = jnp.where(flipback[:, None, None], w3_retracted, w3_written)
+                        sem_write_state = self.memory_semantic._canonical_delta_state(sem_write_state, w3_written)
                     sem_state = jax.tree.map(
                         lambda new, old: jnp.where(
                             transition_valid.reshape((b,) + (1,) * (new.ndim - 1)), new, old
@@ -5361,11 +5854,29 @@ class Pi0(_model.BaseModel):
                     )
                     sem_commit = sem_aux["commit_applied"][:, 0] & transition_valid
                     next_sem_written = sem_written | sem_commit
+                    retracted = flipback & transition_valid
                     if getattr(self, "memory_v5_prev_is_committed", False):
                         # retry-until-committed: prev = the last sentence that actually entered the bank
                         next_prev_sentence = jnp.where(sem_commit[:, None], cur_sentence, prev_sentence)
                     else:
                         next_prev_sentence = jnp.where(transition_valid[:, None], cur_sentence, prev_sentence)
+                    # after a retraction the note before B is the newest again
+                    next_prev_sentence = jnp.where(retracted[:, None], prev_prev_sentence, next_prev_sentence)
+                    # retraction bookkeeping: the delta this step's commit added (decayed state -> written state),
+                    # how many steps ago the newest note entered, and the note before the newest.
+                    rho_one = self.memory_semantic._delta_decay_factor(jnp.ones((b,), dtype=jnp.int32))
+                    delta_now = w3_written - rho_one[:, None, None] * w3_before
+                    next_last_delta = jnp.where(
+                        sem_commit[:, None, None], delta_now,
+                        jnp.where(retracted[:, None, None], jnp.zeros_like(last_delta), last_delta),
+                    )
+                    next_commit_age = jnp.where(
+                        sem_commit, 0, jnp.where(transition_valid, jnp.minimum(commit_age + 1, 1_000_000), commit_age)
+                    ).astype(jnp.int32)
+                    next_prev_prev_sentence = jnp.where(
+                        sem_commit[:, None], prev_sentence,
+                        jnp.where(retracted[:, None], jnp.full_like(prev_prev_sentence, -1), prev_prev_sentence),
+                    )
                     # Padded/invalid steps keep the pending sentence so a gap does not drop a write.
                     next_pending_sentence = jnp.where(transition_valid[:, None], produced_sentence, pending_sentence)
                     next_pending_span = jnp.where(transition_valid[:, None], produced_span, pending_span)
@@ -5422,8 +5933,14 @@ class Pi0(_model.BaseModel):
             outputs = {
                 # v6.3: down-weight the sentence CE on the dataset-flagged (arm-moving) decision steps; the still
                 # decision steps of the lead30 labels are not flagged and keep full weight.
-                "ce": ce * validf * jnp.where(
+                # v7 (09-16): the onset weight and the per-phase weight do not stack; a step gets the larger of the two.
+                "ce": ce_train * validf * jnp.where(
                     x["decision_mask"], float(getattr(self, "memory_v6_decision_ce_weight_after_motion", 1.0)), 1.0
+                ) * jnp.maximum(
+                    (jnp.where(x["onset_mask"], float(getattr(self, "memory_v7_onset_ce_weight", 1.0)), 1.0)
+                     if "onset_mask" in x else jnp.ones_like(validf)),
+                    (self.v7_kind_ce_weight(x["causal"][:, 0]) if getattr(self, "memory_v7_kind_ce_weights", ())
+                     else jnp.ones((x["causal"].shape[0],), dtype=jnp.float32)),
                 ),
                 # v6.5: no action supervision on still-tail steps (tail sentence said, arm not yet moving in the demo)
                 "flow": flow * validf * (
@@ -5432,6 +5949,12 @@ class Pi0(_model.BaseModel):
                     else 1.0
                 ),
                 "valid": validf,
+                "ce_lm_sum": ce_lm_sum * validf,
+                "lm_token_count": jnp.sum(lm_tokens_k, axis=-1).astype(jnp.float32) * validf,
+                "ce_fast_sum": ce_fast_sum * validf,
+                "fast_token_count": jnp.sum(fast_tokens_k, axis=-1).astype(jnp.float32) * validf,
+                "v7_onset": (x["onset_mask"].astype(jnp.float32) * validf) if "onset_mask" in x else validf * 0.0,
+                "v7_hard_token": hard_token_count * validf,  # sentence tokens the model gets wrong (per-token weight rows)
                 # Core-steepness telemetry (v34_run1/2 postmortems): the raw inner write
                 # gradient norm ramped ~0.5-2.8 (healthy) -> 45-53 before both explosion
                 # cycles. Observation only -- stop-gradient keeps it out of the objective.
@@ -5551,6 +6074,9 @@ class Pi0(_model.BaseModel):
                             "v5_sentence_confident": (sentence_confident & transition_valid).astype(jnp.float32),
                             "v5_sentence_conf": sentence_conf * transition_validf,
                             "v5_write_requested": sem_write_requested.astype(jnp.float32),
+                            "v7_grammar_rejected": grammar_rejected.astype(jnp.float32),
+                            "v7_vocab_rejected": vocab_rejected.astype(jnp.float32),
+                            "v7_retracted": retracted.astype(jnp.float32),
                             "v5_bank_rewritten": (bank_rewritten & sem_write_requested).astype(jnp.float32),
                             "v5_token_acc_evidence": sentence_token_acc * evidence_active,
                             "v5_exact_evidence": sentence_exact.astype(jnp.float32) * evidence_active,
@@ -5710,6 +6236,11 @@ class Pi0(_model.BaseModel):
                     next_pending_sentence,
                     next_pending_span,
                     next_pending_conf,
+                    next_last_cand_sentence,
+                    next_cand_streak,
+                    next_last_delta,
+                    next_commit_age,
+                    next_prev_prev_sentence,
                 ), outputs
             if v4_on:
                 return (
@@ -5756,7 +6287,7 @@ class Pi0(_model.BaseModel):
                     row_tokens = jnp.where(row_mask, prefill_tokens[:, p, :sent_len], 0)
                     if getattr(self, "memory_v6_token_writes", False):
                         written_state, row_aux, row_keys = self.v6_semantic_write_tokens(
-                            sem_init_state, row_tokens, row_mask, row_valid
+                            sem_init_state, row_tokens, row_mask, row_valid, rate=1.0  # label history: full strength
                         )
                         row_aux = {**row_aux, "commit_applied": jnp.any(row_aux["commit_applied"], axis=-1, keepdims=True)}
                     else:
@@ -5787,18 +6318,26 @@ class Pi0(_model.BaseModel):
                 else:
                     # Undelayed: the last produced sentence is already in the history.
                     init_prev_sentence = jnp.where(pending_valid[:, None], pending_tokens, init_prev_sentence)
+            v0_state_valid = bool(getattr(self, "memory_v0920_input_read", False))  # 0920_v0: no visual bank to wait for
             initial_carry = (
                 initial_state,
                 sem_init_state,
                 sem_init_written,
-                jnp.zeros((b,), dtype=bool),
-                jnp.zeros((b,), dtype=bool),
+                jnp.full((b,), v0_state_valid, dtype=bool),
+                jnp.full((b,), v0_state_valid, dtype=bool),
                 init_prev_sentence,
                 init_key_ring,
                 init_ring_count,
                 init_pending_sentence,
                 init_pending_span,
                 init_pending_conf,
+                jnp.zeros((b, int(self.memory_v5_sentence_len)), dtype=jnp.int32),  # v7 last candidate sentence
+                jnp.zeros((b,), dtype=jnp.int32),  # v7 candidate streak
+                # v7 retraction state: delta of the newest note (zero: prefilled label notes are never retracted),
+                # its age (huge at the window start), and the note before the newest (-1 sentinel).
+                jnp.zeros_like(sem_init_state.fast_weights[self.memory_semantic._output_weight_name], dtype=jnp.float32),
+                jnp.full((b,), 1_000_000, dtype=jnp.int32),
+                jnp.full((b, int(self.memory_v5_sentence_len)), -1, dtype=jnp.int32),
             )
         elif v4_on:
             initial_carry = (
@@ -5818,6 +6357,9 @@ class Pi0(_model.BaseModel):
         losses = {
             "flow": jnp.sum(ys["flow"], axis=0) / n_valid,
             "ce": jnp.sum(ys["ce"], axis=0) / n_valid,
+            # Telemetry: per-sample token-weighted CE of the sentence tokens and of the FAST tokens (unweighted).
+            "ce_lm": jnp.sum(ys["ce_lm_sum"], axis=0) / jnp.maximum(jnp.sum(ys["lm_token_count"], axis=0), 1.0),
+            "ce_fast": jnp.sum(ys["ce_fast_sum"], axis=0) / jnp.maximum(jnp.sum(ys["fast_token_count"], axis=0), 1.0),
             # Preserve raw numerators/counts so train.py can pool exactly across unequal
             # sequence lengths, samples, microbatches, and logging windows.
             "write_grad_norm_sum": jnp.sum(ys["write_grad_norm"], axis=0),
@@ -5959,6 +6501,11 @@ class Pi0(_model.BaseModel):
             losses.update(
                 {
                     "v5_sentence_changed_count": jnp.sum(ys["v5_sentence_changed"]),
+                    "v7_onset_count": jnp.sum(ys["v7_onset"]),  # label onsets per batch (v7 onset CE weight rows)
+                    "v7_grammar_rejected_count": jnp.sum(ys["v7_grammar_rejected"]),  # writes the phase grammar blocked
+                    "v7_vocab_rejected_count": jnp.sum(ys["v7_vocab_rejected"]),  # candidates outside the vocabulary
+                    "v7_retracted_count": jnp.sum(ys["v7_retracted"]),  # notes erased by the flip-back rule
+                    "v7_hard_token_count": jnp.sum(ys["v7_hard_token"]),  # wrong sentence tokens (per-token weight)
                     "v5_sentence_confident_count": jnp.sum(ys["v5_sentence_confident"]),
                     "v5_sentence_conf_sum": jnp.sum(ys["v5_sentence_conf"]),
                     "v5_write_requested_count": jnp.sum(ys["v5_write_requested"]),
@@ -6241,6 +6788,7 @@ class Pi0(_model.BaseModel):
         synthetic temporal cue or jitter the evidence-to-decision trajectory.
         """
         out = {}
+        key_rngs: dict[str, at.Array] = {}
         for key, image in images.items():
             b, t = image.shape[:2]
             image01 = image / 2.0 + 0.5
@@ -6254,6 +6802,11 @@ class Pi0(_model.BaseModel):
                 ]
             transforms += [augmax.ColorJitter(brightness=0.3, contrast=0.4, saturation=0.5)]
             rng, sub_rng = jax.random.split(rng)
+            if key.startswith("history_") and getattr(self, "memory_v0920_history_frames", 0) > 0:
+                # 0920_v0: a past front frame takes the SAME sampled transform as the current front frame, so the
+                # history carries motion only, never an augmentation difference (dict order is sorted: base first).
+                sub_rng = key_rngs.get("base_0_rgb", sub_rng)
+            key_rngs[key] = sub_rng
             transform = augmax.Chain(*transforms)
             if getattr(self, "memory_time_consistent_augmentation", False):
                 sample_rngs = jax.random.split(sub_rng, b)

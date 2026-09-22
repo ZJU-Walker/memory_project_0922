@@ -1,0 +1,3212 @@
+{
+  "episodes": [
+    {
+      "class": "easy",
+      "episode_index": 0,
+      "expected_num_frames": 550,
+      "include": true,
+      "seed": 4000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_0",
+      "split": "train",
+      "stable_id": "BinFill/episode_0",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 1,
+      "expected_num_frames": 366,
+      "include": true,
+      "seed": 4100,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_1",
+      "split": "train",
+      "stable_id": "BinFill/episode_1",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 2,
+      "expected_num_frames": 883,
+      "include": true,
+      "seed": 4200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_2",
+      "split": "train",
+      "stable_id": "BinFill/episode_2",
+      "task_goals": [
+        "put two red cubes and two green cubes into the bin, then press the button to stop",
+        "put two red cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 3,
+      "expected_num_frames": 940,
+      "include": true,
+      "seed": 4301,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_3",
+      "split": "train",
+      "stable_id": "BinFill/episode_3",
+      "task_goals": [
+        "put one blue cube and three green cubes into the bin, then press the button to stop",
+        "put one blue cube and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 4,
+      "expected_num_frames": 625,
+      "include": true,
+      "seed": 4401,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_4",
+      "split": "train",
+      "stable_id": "BinFill/episode_4",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 5,
+      "expected_num_frames": 378,
+      "include": true,
+      "seed": 4500,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_5",
+      "split": "train",
+      "stable_id": "BinFill/episode_5",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 6,
+      "expected_num_frames": 622,
+      "include": true,
+      "seed": 4600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_6",
+      "split": "train",
+      "stable_id": "BinFill/episode_6",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 7,
+      "expected_num_frames": 785,
+      "include": true,
+      "seed": 4701,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_7",
+      "split": "train",
+      "stable_id": "BinFill/episode_7",
+      "task_goals": [
+        "put two red cubes and two blue cubes into the bin, then press the button to stop",
+        "put two red cubes and two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 8,
+      "expected_num_frames": 462,
+      "include": true,
+      "seed": 4800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_8",
+      "split": "train",
+      "stable_id": "BinFill/episode_8",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 9,
+      "expected_num_frames": 629,
+      "include": true,
+      "seed": 4900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_9",
+      "split": "train",
+      "stable_id": "BinFill/episode_9",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 10,
+      "expected_num_frames": 635,
+      "include": true,
+      "seed": 5000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_10",
+      "split": "train",
+      "stable_id": "BinFill/episode_10",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 11,
+      "expected_num_frames": 584,
+      "include": true,
+      "seed": 5100,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_11",
+      "split": "train",
+      "stable_id": "BinFill/episode_11",
+      "task_goals": [
+        "put two red cubes and one green cube into the bin, then press the button to stop",
+        "put two red cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 12,
+      "expected_num_frames": 273,
+      "include": true,
+      "seed": 5200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_12",
+      "split": "train",
+      "stable_id": "BinFill/episode_12",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 13,
+      "expected_num_frames": 402,
+      "include": true,
+      "seed": 5300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_13",
+      "split": "train",
+      "stable_id": "BinFill/episode_13",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 14,
+      "expected_num_frames": 645,
+      "include": true,
+      "seed": 5401,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_14",
+      "split": "train",
+      "stable_id": "BinFill/episode_14",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 15,
+      "expected_num_frames": 994,
+      "include": true,
+      "seed": 5501,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_15",
+      "split": "train",
+      "stable_id": "BinFill/episode_15",
+      "task_goals": [
+        "put three red cubes and one blue cube into the bin, then press the button to stop",
+        "put three red cubes and one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 16,
+      "expected_num_frames": 424,
+      "include": true,
+      "seed": 5601,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_16",
+      "split": "train",
+      "stable_id": "BinFill/episode_16",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 17,
+      "expected_num_frames": 276,
+      "include": true,
+      "seed": 5700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_17",
+      "split": "train",
+      "stable_id": "BinFill/episode_17",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 18,
+      "expected_num_frames": 782,
+      "include": true,
+      "seed": 5801,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_18",
+      "split": "train",
+      "stable_id": "BinFill/episode_18",
+      "task_goals": [
+        "put four green cubes into the bin, then press the button to stop",
+        "put four green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 19,
+      "expected_num_frames": 775,
+      "include": true,
+      "seed": 5900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_19",
+      "split": "train",
+      "stable_id": "BinFill/episode_19",
+      "task_goals": [
+        "put one red cube, two blue cubes and one green cube into the bin, then press the button to stop",
+        "put one red cube, two blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 20,
+      "expected_num_frames": 711,
+      "include": true,
+      "seed": 6000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_20",
+      "split": "train",
+      "stable_id": "BinFill/episode_20",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 21,
+      "expected_num_frames": 639,
+      "include": true,
+      "seed": 6100,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_21",
+      "split": "train",
+      "stable_id": "BinFill/episode_21",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 22,
+      "expected_num_frames": 811,
+      "include": true,
+      "seed": 6200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_22",
+      "split": "train",
+      "stable_id": "BinFill/episode_22",
+      "task_goals": [
+        "put three blue cubes and one green cube into the bin, then press the button to stop",
+        "put three blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 23,
+      "expected_num_frames": 856,
+      "include": true,
+      "seed": 6300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_23",
+      "split": "train",
+      "stable_id": "BinFill/episode_23",
+      "task_goals": [
+        "put two blue cubes and two green cubes into the bin, then press the button to stop",
+        "put two blue cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 24,
+      "expected_num_frames": 272,
+      "include": true,
+      "seed": 6400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_24",
+      "split": "train",
+      "stable_id": "BinFill/episode_24",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 25,
+      "expected_num_frames": 625,
+      "include": true,
+      "seed": 6500,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_25",
+      "split": "train",
+      "stable_id": "BinFill/episode_25",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 26,
+      "expected_num_frames": 664,
+      "include": true,
+      "seed": 6603,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_26",
+      "split": "train",
+      "stable_id": "BinFill/episode_26",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 27,
+      "expected_num_frames": 964,
+      "include": true,
+      "seed": 6700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_27",
+      "split": "train",
+      "stable_id": "BinFill/episode_27",
+      "task_goals": [
+        "put three blue cubes and two green cubes into the bin, then press the button to stop",
+        "put three blue cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 28,
+      "expected_num_frames": 657,
+      "include": true,
+      "seed": 6800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_28",
+      "split": "train",
+      "stable_id": "BinFill/episode_28",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 29,
+      "expected_num_frames": 617,
+      "include": true,
+      "seed": 6901,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_29",
+      "split": "train",
+      "stable_id": "BinFill/episode_29",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 30,
+      "expected_num_frames": 467,
+      "include": true,
+      "seed": 7001,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_30",
+      "split": "train",
+      "stable_id": "BinFill/episode_30",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 31,
+      "expected_num_frames": 842,
+      "include": true,
+      "seed": 7101,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_31",
+      "split": "train",
+      "stable_id": "BinFill/episode_31",
+      "task_goals": [
+        "put three red cubes and one green cube into the bin, then press the button to stop",
+        "put three red cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 32,
+      "expected_num_frames": 606,
+      "include": true,
+      "seed": 7200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_32",
+      "split": "train",
+      "stable_id": "BinFill/episode_32",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 33,
+      "expected_num_frames": 292,
+      "include": true,
+      "seed": 7300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_33",
+      "split": "train",
+      "stable_id": "BinFill/episode_33",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 34,
+      "expected_num_frames": 828,
+      "include": true,
+      "seed": 7400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_34",
+      "split": "train",
+      "stable_id": "BinFill/episode_34",
+      "task_goals": [
+        "put two red cubes and two blue cubes into the bin, then press the button to stop",
+        "put two red cubes and two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 35,
+      "expected_num_frames": 650,
+      "include": true,
+      "seed": 7501,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_35",
+      "split": "train",
+      "stable_id": "BinFill/episode_35",
+      "task_goals": [
+        "put one red cube and two blue cubes into the bin, then press the button to stop",
+        "put one red cube and two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 36,
+      "expected_num_frames": 286,
+      "include": true,
+      "seed": 7600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_36",
+      "split": "train",
+      "stable_id": "BinFill/episode_36",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 37,
+      "expected_num_frames": 270,
+      "include": true,
+      "seed": 7700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_37",
+      "split": "train",
+      "stable_id": "BinFill/episode_37",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 38,
+      "expected_num_frames": 427,
+      "include": true,
+      "seed": 7800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_38",
+      "split": "train",
+      "stable_id": "BinFill/episode_38",
+      "task_goals": [
+        "put one red cube and one green cube into the bin, then press the button to stop",
+        "put one red cube and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 39,
+      "expected_num_frames": 597,
+      "include": true,
+      "seed": 7900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_39",
+      "split": "train",
+      "stable_id": "BinFill/episode_39",
+      "task_goals": [
+        "put two red cubes and one blue cube into the bin, then press the button to stop",
+        "put two red cubes and one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 40,
+      "expected_num_frames": 447,
+      "include": true,
+      "seed": 8000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_40",
+      "split": "train",
+      "stable_id": "BinFill/episode_40",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 41,
+      "expected_num_frames": 457,
+      "include": true,
+      "seed": 8100,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_41",
+      "split": "train",
+      "stable_id": "BinFill/episode_41",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 42,
+      "expected_num_frames": 672,
+      "include": true,
+      "seed": 8200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_42",
+      "split": "train",
+      "stable_id": "BinFill/episode_42",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 43,
+      "expected_num_frames": 956,
+      "include": true,
+      "seed": 8300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_43",
+      "split": "train",
+      "stable_id": "BinFill/episode_43",
+      "task_goals": [
+        "put two blue cubes and three green cubes into the bin, then press the button to stop",
+        "put two blue cubes and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 44,
+      "expected_num_frames": 491,
+      "include": true,
+      "seed": 8400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_44",
+      "split": "train",
+      "stable_id": "BinFill/episode_44",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 45,
+      "expected_num_frames": 288,
+      "include": true,
+      "seed": 8500,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_45",
+      "split": "train",
+      "stable_id": "BinFill/episode_45",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 46,
+      "expected_num_frames": 926,
+      "include": true,
+      "seed": 8600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_46",
+      "split": "train",
+      "stable_id": "BinFill/episode_46",
+      "task_goals": [
+        "put four red cubes into the bin, then press the button to stop",
+        "put four red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 47,
+      "expected_num_frames": 788,
+      "include": true,
+      "seed": 8703,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_47",
+      "split": "train",
+      "stable_id": "BinFill/episode_47",
+      "task_goals": [
+        "put one blue cube and three green cubes into the bin, then press the button to stop",
+        "put one blue cube and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 48,
+      "expected_num_frames": 308,
+      "include": true,
+      "seed": 8800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_48",
+      "split": "train",
+      "stable_id": "BinFill/episode_48",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 49,
+      "expected_num_frames": 282,
+      "include": true,
+      "seed": 8900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_49",
+      "split": "train",
+      "stable_id": "BinFill/episode_49",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 50,
+      "expected_num_frames": 781,
+      "include": true,
+      "seed": 9001,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_50",
+      "split": "train",
+      "stable_id": "BinFill/episode_50",
+      "task_goals": [
+        "put three blue cubes and one green cube into the bin, then press the button to stop",
+        "put three blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 51,
+      "expected_num_frames": 868,
+      "include": true,
+      "seed": 9102,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_51",
+      "split": "train",
+      "stable_id": "BinFill/episode_51",
+      "task_goals": [
+        "put four blue cubes into the bin, then press the button to stop",
+        "put four blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 52,
+      "expected_num_frames": 690,
+      "include": true,
+      "seed": 9200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_52",
+      "split": "train",
+      "stable_id": "BinFill/episode_52",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 53,
+      "expected_num_frames": 288,
+      "include": true,
+      "seed": 9300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_53",
+      "split": "train",
+      "stable_id": "BinFill/episode_53",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 54,
+      "expected_num_frames": 432,
+      "include": true,
+      "seed": 9400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_54",
+      "split": "train",
+      "stable_id": "BinFill/episode_54",
+      "task_goals": [
+        "put one red cube and one blue cube into the bin, then press the button to stop",
+        "put one red cube and one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 55,
+      "expected_num_frames": 939,
+      "include": true,
+      "seed": 9500,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_55",
+      "split": "train",
+      "stable_id": "BinFill/episode_55",
+      "task_goals": [
+        "put two red cubes and three green cubes into the bin, then press the button to stop",
+        "put two red cubes and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 56,
+      "expected_num_frames": 642,
+      "include": true,
+      "seed": 9600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_56",
+      "split": "train",
+      "stable_id": "BinFill/episode_56",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 57,
+      "expected_num_frames": 576,
+      "include": true,
+      "seed": 9700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_57",
+      "split": "train",
+      "stable_id": "BinFill/episode_57",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 58,
+      "expected_num_frames": 655,
+      "include": true,
+      "seed": 9800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_58",
+      "split": "train",
+      "stable_id": "BinFill/episode_58",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 59,
+      "expected_num_frames": 970,
+      "include": true,
+      "seed": 9900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_59",
+      "split": "train",
+      "stable_id": "BinFill/episode_59",
+      "task_goals": [
+        "put three blue cubes and two green cubes into the bin, then press the button to stop",
+        "put three blue cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 60,
+      "expected_num_frames": 616,
+      "include": true,
+      "seed": 10000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_60",
+      "split": "train",
+      "stable_id": "BinFill/episode_60",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 61,
+      "expected_num_frames": 277,
+      "include": true,
+      "seed": 10100,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_61",
+      "split": "train",
+      "stable_id": "BinFill/episode_61",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 62,
+      "expected_num_frames": 503,
+      "include": true,
+      "seed": 10200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_62",
+      "split": "train",
+      "stable_id": "BinFill/episode_62",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 63,
+      "expected_num_frames": 1044,
+      "include": true,
+      "seed": 10300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_63",
+      "split": "train",
+      "stable_id": "BinFill/episode_63",
+      "task_goals": [
+        "put two red cubes and three green cubes into the bin, then press the button to stop",
+        "put two red cubes and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 64,
+      "expected_num_frames": 266,
+      "include": true,
+      "seed": 10400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_64",
+      "split": "train",
+      "stable_id": "BinFill/episode_64",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 65,
+      "expected_num_frames": 454,
+      "include": true,
+      "seed": 10501,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_65",
+      "split": "train",
+      "stable_id": "BinFill/episode_65",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 66,
+      "expected_num_frames": 846,
+      "include": true,
+      "seed": 10600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_66",
+      "split": "train",
+      "stable_id": "BinFill/episode_66",
+      "task_goals": [
+        "put two red cubes and two green cubes into the bin, then press the button to stop",
+        "put two red cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 67,
+      "expected_num_frames": 981,
+      "include": true,
+      "seed": 10700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_67",
+      "split": "train",
+      "stable_id": "BinFill/episode_67",
+      "task_goals": [
+        "put two red cubes, two blue cubes and one green cube into the bin, then press the button to stop",
+        "put two red cubes, two blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 68,
+      "expected_num_frames": 641,
+      "include": true,
+      "seed": 10800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_68",
+      "split": "train",
+      "stable_id": "BinFill/episode_68",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 69,
+      "expected_num_frames": 304,
+      "include": true,
+      "seed": 10900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_69",
+      "split": "train",
+      "stable_id": "BinFill/episode_69",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 70,
+      "expected_num_frames": 846,
+      "include": true,
+      "seed": 11000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_70",
+      "split": "train",
+      "stable_id": "BinFill/episode_70",
+      "task_goals": [
+        "put three blue cubes and one green cube into the bin, then press the button to stop",
+        "put three blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 71,
+      "expected_num_frames": 1011,
+      "include": true,
+      "seed": 11102,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_71",
+      "split": "train",
+      "stable_id": "BinFill/episode_71",
+      "task_goals": [
+        "put three blue cubes and two green cubes into the bin, then press the button to stop",
+        "put three blue cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 72,
+      "expected_num_frames": 607,
+      "include": true,
+      "seed": 11200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_72",
+      "split": "train",
+      "stable_id": "BinFill/episode_72",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 73,
+      "expected_num_frames": 292,
+      "include": true,
+      "seed": 11300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_73",
+      "split": "train",
+      "stable_id": "BinFill/episode_73",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 74,
+      "expected_num_frames": 447,
+      "include": true,
+      "seed": 11400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_74",
+      "split": "train",
+      "stable_id": "BinFill/episode_74",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 75,
+      "expected_num_frames": 894,
+      "include": true,
+      "seed": 11500,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_75",
+      "split": "train",
+      "stable_id": "BinFill/episode_75",
+      "task_goals": [
+        "put four blue cubes and one green cube into the bin, then press the button to stop",
+        "put four blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 76,
+      "expected_num_frames": 474,
+      "include": true,
+      "seed": 11600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_76",
+      "split": "train",
+      "stable_id": "BinFill/episode_76",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 77,
+      "expected_num_frames": 469,
+      "include": true,
+      "seed": 11700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_77",
+      "split": "train",
+      "stable_id": "BinFill/episode_77",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 78,
+      "expected_num_frames": 421,
+      "include": true,
+      "seed": 11800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_78",
+      "split": "train",
+      "stable_id": "BinFill/episode_78",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 79,
+      "expected_num_frames": 963,
+      "include": true,
+      "seed": 11900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_79",
+      "split": "train",
+      "stable_id": "BinFill/episode_79",
+      "task_goals": [
+        "put one red cube, three blue cubes and one green cube into the bin, then press the button to stop",
+        "put one red cube, three blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 80,
+      "expected_num_frames": 271,
+      "include": true,
+      "seed": 12000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_80",
+      "split": "train",
+      "stable_id": "BinFill/episode_80",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 81,
+      "expected_num_frames": 589,
+      "include": true,
+      "seed": 12100,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_81",
+      "split": "train",
+      "stable_id": "BinFill/episode_81",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 82,
+      "expected_num_frames": 439,
+      "include": true,
+      "seed": 12200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_82",
+      "split": "train",
+      "stable_id": "BinFill/episode_82",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 83,
+      "expected_num_frames": 819,
+      "include": true,
+      "seed": 12301,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_83",
+      "split": "train",
+      "stable_id": "BinFill/episode_83",
+      "task_goals": [
+        "put one red cube and three green cubes into the bin, then press the button to stop",
+        "put one red cube and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 84,
+      "expected_num_frames": 423,
+      "include": true,
+      "seed": 12400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_84",
+      "split": "train",
+      "stable_id": "BinFill/episode_84",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 85,
+      "expected_num_frames": 448,
+      "include": true,
+      "seed": 12501,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_85",
+      "split": "train",
+      "stable_id": "BinFill/episode_85",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 86,
+      "expected_num_frames": 840,
+      "include": true,
+      "seed": 12600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_86",
+      "split": "train",
+      "stable_id": "BinFill/episode_86",
+      "task_goals": [
+        "put one red cube and three blue cubes into the bin, then press the button to stop",
+        "put one red cube and three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 87,
+      "expected_num_frames": 791,
+      "include": true,
+      "seed": 12700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_87",
+      "split": "train",
+      "stable_id": "BinFill/episode_87",
+      "task_goals": [
+        "put three blue cubes and one green cube into the bin, then press the button to stop",
+        "put three blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 88,
+      "expected_num_frames": 646,
+      "include": true,
+      "seed": 12800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_88",
+      "split": "train",
+      "stable_id": "BinFill/episode_88",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 89,
+      "expected_num_frames": 271,
+      "include": true,
+      "seed": 12900,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_89",
+      "split": "train",
+      "stable_id": "BinFill/episode_89",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 90,
+      "expected_num_frames": 789,
+      "include": true,
+      "seed": 13000,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_90",
+      "split": "train",
+      "stable_id": "BinFill/episode_90",
+      "task_goals": [
+        "put one red cube and three green cubes into the bin, then press the button to stop",
+        "put one red cube and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 91,
+      "expected_num_frames": 945,
+      "include": true,
+      "seed": 13101,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_91",
+      "split": "train",
+      "stable_id": "BinFill/episode_91",
+      "task_goals": [
+        "put two red cubes, one blue cube and two green cubes into the bin, then press the button to stop",
+        "put two red cubes, one blue cube and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 92,
+      "expected_num_frames": 467,
+      "include": true,
+      "seed": 13200,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_92",
+      "split": "train",
+      "stable_id": "BinFill/episode_92",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 93,
+      "expected_num_frames": 321,
+      "include": true,
+      "seed": 13300,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_93",
+      "split": "train",
+      "stable_id": "BinFill/episode_93",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 94,
+      "expected_num_frames": 628,
+      "include": true,
+      "seed": 13400,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_94",
+      "split": "train",
+      "stable_id": "BinFill/episode_94",
+      "task_goals": [
+        "put two red cubes and one green cube into the bin, then press the button to stop",
+        "put two red cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 95,
+      "expected_num_frames": 695,
+      "include": true,
+      "seed": 13500,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_95",
+      "split": "train",
+      "stable_id": "BinFill/episode_95",
+      "task_goals": [
+        "put one red cube, one blue cube and one green cube into the bin, then press the button to stop",
+        "put one red cube, one blue cube and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 96,
+      "expected_num_frames": 280,
+      "include": true,
+      "seed": 13600,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_96",
+      "split": "train",
+      "stable_id": "BinFill/episode_96",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 97,
+      "expected_num_frames": 466,
+      "include": true,
+      "seed": 13700,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_97",
+      "split": "train",
+      "stable_id": "BinFill/episode_97",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 98,
+      "expected_num_frames": 587,
+      "include": true,
+      "seed": 13800,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_98",
+      "split": "train",
+      "stable_id": "BinFill/episode_98",
+      "task_goals": [
+        "put one blue cube and two green cubes into the bin, then press the button to stop",
+        "put one blue cube and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 99,
+      "expected_num_frames": 644,
+      "include": true,
+      "seed": 13902,
+      "source": "released",
+      "source_file": "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5",
+      "source_group": "episode_99",
+      "split": "train",
+      "stable_id": "BinFill/episode_99",
+      "task_goals": [
+        "put one red cube and two blue cubes into the bin, then press the button to stop",
+        "put one red cube and two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 100,
+      "expected_num_frames": 389,
+      "include": true,
+      "seed": 24000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep0_seed24000.h5",
+      "source_group": "episode_0",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_0",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 101,
+      "expected_num_frames": 544,
+      "include": true,
+      "seed": 24100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep1_seed24100.h5",
+      "source_group": "episode_1",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_1",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 102,
+      "expected_num_frames": 540,
+      "include": true,
+      "seed": 24200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep2_seed24200.h5",
+      "source_group": "episode_2",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_2",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 103,
+      "expected_num_frames": 887,
+      "include": true,
+      "seed": 24300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep3_seed24300.h5",
+      "source_group": "episode_3",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_3",
+      "task_goals": [
+        "put one red cube, one blue cube and two green cubes into the bin, then press the button to stop",
+        "put one red cube, one blue cube and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 104,
+      "expected_num_frames": 637,
+      "include": true,
+      "seed": 24400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep4_seed24400.h5",
+      "source_group": "episode_4",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_4",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 105,
+      "expected_num_frames": 356,
+      "include": true,
+      "seed": 24500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep5_seed24500.h5",
+      "source_group": "episode_5",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_5",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 106,
+      "expected_num_frames": 611,
+      "include": true,
+      "seed": 24600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep6_seed24600.h5",
+      "source_group": "episode_6",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_6",
+      "task_goals": [
+        "put one red cube and two blue cubes into the bin, then press the button to stop",
+        "put one red cube and two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 107,
+      "expected_num_frames": 619,
+      "include": true,
+      "seed": 24700,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep7_seed24700.h5",
+      "source_group": "episode_7",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_7",
+      "task_goals": [
+        "put two blue cubes and one green cube into the bin, then press the button to stop",
+        "put two blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 108,
+      "expected_num_frames": 294,
+      "include": true,
+      "seed": 24800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep8_seed24800.h5",
+      "source_group": "episode_8",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_8",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 109,
+      "expected_num_frames": 415,
+      "include": true,
+      "seed": 24900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep9_seed24900.h5",
+      "source_group": "episode_9",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_9",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 110,
+      "expected_num_frames": 795,
+      "include": true,
+      "seed": 25000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep10_seed25000.h5",
+      "source_group": "episode_10",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_10",
+      "task_goals": [
+        "put four blue cubes into the bin, then press the button to stop",
+        "put four blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 111,
+      "expected_num_frames": 662,
+      "include": true,
+      "seed": 25100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep11_seed25100.h5",
+      "source_group": "episode_11",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_11",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 112,
+      "expected_num_frames": 267,
+      "include": true,
+      "seed": 25201,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep12_seed25201.h5",
+      "source_group": "episode_12",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_12",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 113,
+      "expected_num_frames": 612,
+      "include": true,
+      "seed": 25300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep13_seed25300.h5",
+      "source_group": "episode_13",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_13",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 114,
+      "expected_num_frames": 787,
+      "include": true,
+      "seed": 25400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep14_seed25400.h5",
+      "source_group": "episode_14",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_14",
+      "task_goals": [
+        "put four blue cubes into the bin, then press the button to stop",
+        "put four blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 115,
+      "expected_num_frames": 813,
+      "include": true,
+      "seed": 25500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep15_seed25500.h5",
+      "source_group": "episode_15",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_15",
+      "task_goals": [
+        "put three red cubes and one blue cube into the bin, then press the button to stop",
+        "put three red cubes and one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 116,
+      "expected_num_frames": 444,
+      "include": true,
+      "seed": 25600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep16_seed25600.h5",
+      "source_group": "episode_16",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_16",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 117,
+      "expected_num_frames": 416,
+      "include": true,
+      "seed": 25700,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep17_seed25700.h5",
+      "source_group": "episode_17",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_17",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 118,
+      "expected_num_frames": 774,
+      "include": true,
+      "seed": 25800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep18_seed25800.h5",
+      "source_group": "episode_18",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_18",
+      "task_goals": [
+        "put two red cubes and two green cubes into the bin, then press the button to stop",
+        "put two red cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 119,
+      "expected_num_frames": 558,
+      "include": true,
+      "seed": 25901,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep19_seed25901.h5",
+      "source_group": "episode_19",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_19",
+      "task_goals": [
+        "put one red cube, one blue cube and one green cube into the bin, then press the button to stop",
+        "put one red cube, one blue cube and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 120,
+      "expected_num_frames": 327,
+      "include": true,
+      "seed": 26000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep20_seed26000.h5",
+      "source_group": "episode_20",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_20",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 121,
+      "expected_num_frames": 514,
+      "include": true,
+      "seed": 26100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep21_seed26100.h5",
+      "source_group": "episode_21",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_21",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 122,
+      "expected_num_frames": 444,
+      "include": true,
+      "seed": 26200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep22_seed26200.h5",
+      "source_group": "episode_22",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_22",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 123,
+      "expected_num_frames": 1053,
+      "include": true,
+      "seed": 26300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep23_seed26300.h5",
+      "source_group": "episode_23",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_23",
+      "task_goals": [
+        "put four red cubes and one green cube into the bin, then press the button to stop",
+        "put four red cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 124,
+      "expected_num_frames": 324,
+      "include": true,
+      "seed": 26400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep24_seed26400.h5",
+      "source_group": "episode_24",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_24",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 125,
+      "expected_num_frames": 633,
+      "include": true,
+      "seed": 26500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep25_seed26500.h5",
+      "source_group": "episode_25",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_25",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 126,
+      "expected_num_frames": 625,
+      "include": true,
+      "seed": 26600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep26_seed26600.h5",
+      "source_group": "episode_26",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_26",
+      "task_goals": [
+        "put two red cubes and one green cube into the bin, then press the button to stop",
+        "put two red cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 127,
+      "expected_num_frames": 861,
+      "include": true,
+      "seed": 26701,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep27_seed26701.h5",
+      "source_group": "episode_27",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_27",
+      "task_goals": [
+        "put one red cube and three green cubes into the bin, then press the button to stop",
+        "put one red cube and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 128,
+      "expected_num_frames": 300,
+      "include": true,
+      "seed": 26800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep28_seed26800.h5",
+      "source_group": "episode_28",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_28",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 129,
+      "expected_num_frames": 654,
+      "include": true,
+      "seed": 26900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep29_seed26900.h5",
+      "source_group": "episode_29",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_29",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 130,
+      "expected_num_frames": 437,
+      "include": true,
+      "seed": 27000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep30_seed27000.h5",
+      "source_group": "episode_30",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_30",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 131,
+      "expected_num_frames": 741,
+      "include": true,
+      "seed": 27100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep31_seed27100.h5",
+      "source_group": "episode_31",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_31",
+      "task_goals": [
+        "put one red cube, one blue cube and two green cubes into the bin, then press the button to stop",
+        "put one red cube, one blue cube and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 132,
+      "expected_num_frames": 324,
+      "include": true,
+      "seed": 27200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep32_seed27200.h5",
+      "source_group": "episode_32",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_32",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 133,
+      "expected_num_frames": 296,
+      "include": true,
+      "seed": 27300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep33_seed27300.h5",
+      "source_group": "episode_33",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_33",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 134,
+      "expected_num_frames": 762,
+      "include": true,
+      "seed": 27402,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep34_seed27402.h5",
+      "source_group": "episode_34",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_34",
+      "task_goals": [
+        "put four red cubes into the bin, then press the button to stop",
+        "put four red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 135,
+      "expected_num_frames": 1055,
+      "include": true,
+      "seed": 27500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep35_seed27500.h5",
+      "source_group": "episode_35",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_35",
+      "task_goals": [
+        "put two red cubes, one blue cube and two green cubes into the bin, then press the button to stop",
+        "put two red cubes, one blue cube and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 136,
+      "expected_num_frames": 275,
+      "include": true,
+      "seed": 27600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep36_seed27600.h5",
+      "source_group": "episode_36",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_36",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 137,
+      "expected_num_frames": 675,
+      "include": true,
+      "seed": 27700,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep37_seed27700.h5",
+      "source_group": "episode_37",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_37",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 138,
+      "expected_num_frames": 466,
+      "include": true,
+      "seed": 27801,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep38_seed27801.h5",
+      "source_group": "episode_38",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_38",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 139,
+      "expected_num_frames": 984,
+      "include": true,
+      "seed": 27901,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep39_seed27901.h5",
+      "source_group": "episode_39",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_39",
+      "task_goals": [
+        "put one red cube and four blue cubes into the bin, then press the button to stop",
+        "put one red cube and four blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 140,
+      "expected_num_frames": 679,
+      "include": true,
+      "seed": 28000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep40_seed28000.h5",
+      "source_group": "episode_40",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_40",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 141,
+      "expected_num_frames": 425,
+      "include": true,
+      "seed": 28100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep41_seed28100.h5",
+      "source_group": "episode_41",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_41",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 142,
+      "expected_num_frames": 478,
+      "include": true,
+      "seed": 28200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep42_seed28200.h5",
+      "source_group": "episode_42",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_42",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 143,
+      "expected_num_frames": 624,
+      "include": true,
+      "seed": 28300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep43_seed28300.h5",
+      "source_group": "episode_43",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_43",
+      "task_goals": [
+        "put two blue cubes and one green cube into the bin, then press the button to stop",
+        "put two blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 144,
+      "expected_num_frames": 649,
+      "include": true,
+      "seed": 28400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep44_seed28400.h5",
+      "source_group": "episode_44",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_44",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 145,
+      "expected_num_frames": 315,
+      "include": true,
+      "seed": 28500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep45_seed28500.h5",
+      "source_group": "episode_45",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_45",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 146,
+      "expected_num_frames": 648,
+      "include": true,
+      "seed": 28600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep46_seed28600.h5",
+      "source_group": "episode_46",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_46",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 147,
+      "expected_num_frames": 787,
+      "include": true,
+      "seed": 28701,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep47_seed28701.h5",
+      "source_group": "episode_47",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_47",
+      "task_goals": [
+        "put two blue cubes and two green cubes into the bin, then press the button to stop",
+        "put two blue cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 148,
+      "expected_num_frames": 304,
+      "include": true,
+      "seed": 28800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep48_seed28800.h5",
+      "source_group": "episode_48",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_48",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 149,
+      "expected_num_frames": 300,
+      "include": true,
+      "seed": 28900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep49_seed28900.h5",
+      "source_group": "episode_49",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_49",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 150,
+      "expected_num_frames": 462,
+      "include": true,
+      "seed": 29000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep50_seed29000.h5",
+      "source_group": "episode_50",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_50",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 151,
+      "expected_num_frames": 893,
+      "include": true,
+      "seed": 29100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep51_seed29100.h5",
+      "source_group": "episode_51",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_51",
+      "task_goals": [
+        "put four blue cubes and one green cube into the bin, then press the button to stop",
+        "put four blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 152,
+      "expected_num_frames": 511,
+      "include": true,
+      "seed": 29200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep52_seed29200.h5",
+      "source_group": "episode_52",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_52",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 153,
+      "expected_num_frames": 476,
+      "include": true,
+      "seed": 29300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep53_seed29300.h5",
+      "source_group": "episode_53",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_53",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 154,
+      "expected_num_frames": 525,
+      "include": true,
+      "seed": 29400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep54_seed29400.h5",
+      "source_group": "episode_54",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_54",
+      "task_goals": [
+        "put one red cube and one blue cube into the bin, then press the button to stop",
+        "put one red cube and one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 155,
+      "expected_num_frames": 603,
+      "include": true,
+      "seed": 29500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep55_seed29500.h5",
+      "source_group": "episode_55",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_55",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 156,
+      "expected_num_frames": 632,
+      "include": true,
+      "seed": 29600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep56_seed29600.h5",
+      "source_group": "episode_56",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_56",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 157,
+      "expected_num_frames": 482,
+      "include": true,
+      "seed": 29701,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep57_seed29701.h5",
+      "source_group": "episode_57",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_57",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 158,
+      "expected_num_frames": 578,
+      "include": true,
+      "seed": 29801,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep58_seed29801.h5",
+      "source_group": "episode_58",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_58",
+      "task_goals": [
+        "put two red cubes and one green cube into the bin, then press the button to stop",
+        "put two red cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 159,
+      "expected_num_frames": 653,
+      "include": true,
+      "seed": 29900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep59_seed29900.h5",
+      "source_group": "episode_59",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_59",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 160,
+      "expected_num_frames": 651,
+      "include": true,
+      "seed": 30000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep60_seed30000.h5",
+      "source_group": "episode_60",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_60",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 161,
+      "expected_num_frames": 313,
+      "include": true,
+      "seed": 30100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep61_seed30100.h5",
+      "source_group": "episode_61",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_61",
+      "task_goals": [
+        "put one green cube into the bin, then press the button to stop",
+        "put one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 162,
+      "expected_num_frames": 594,
+      "include": true,
+      "seed": 30200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep62_seed30200.h5",
+      "source_group": "episode_62",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_62",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 163,
+      "expected_num_frames": 825,
+      "include": true,
+      "seed": 30300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep63_seed30300.h5",
+      "source_group": "episode_63",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_63",
+      "task_goals": [
+        "put two blue cubes and two green cubes into the bin, then press the button to stop",
+        "put two blue cubes and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 164,
+      "expected_num_frames": 257,
+      "include": true,
+      "seed": 30400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep64_seed30400.h5",
+      "source_group": "episode_64",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_64",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 165,
+      "expected_num_frames": 451,
+      "include": true,
+      "seed": 30500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep65_seed30500.h5",
+      "source_group": "episode_65",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_65",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 166,
+      "expected_num_frames": 615,
+      "include": true,
+      "seed": 30600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep66_seed30600.h5",
+      "source_group": "episode_66",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_66",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 167,
+      "expected_num_frames": 664,
+      "include": true,
+      "seed": 30700,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep67_seed30700.h5",
+      "source_group": "episode_67",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_67",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 168,
+      "expected_num_frames": 490,
+      "include": true,
+      "seed": 30800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep68_seed30800.h5",
+      "source_group": "episode_68",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_68",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 169,
+      "expected_num_frames": 589,
+      "include": true,
+      "seed": 30900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep69_seed30900.h5",
+      "source_group": "episode_69",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_69",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 170,
+      "expected_num_frames": 764,
+      "include": true,
+      "seed": 31000,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep70_seed31000.h5",
+      "source_group": "episode_70",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_70",
+      "task_goals": [
+        "put four blue cubes into the bin, then press the button to stop",
+        "put four blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 171,
+      "expected_num_frames": 1125,
+      "include": true,
+      "seed": 31100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep71_seed31100.h5",
+      "source_group": "episode_71",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_71",
+      "task_goals": [
+        "put two blue cubes and three green cubes into the bin, then press the button to stop",
+        "put two blue cubes and three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 172,
+      "expected_num_frames": 299,
+      "include": true,
+      "seed": 31200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep72_seed31200.h5",
+      "source_group": "episode_72",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_72",
+      "task_goals": [
+        "put one blue cube into the bin, then press the button to stop",
+        "put one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 173,
+      "expected_num_frames": 467,
+      "include": true,
+      "seed": 31300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep73_seed31300.h5",
+      "source_group": "episode_73",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_73",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 174,
+      "expected_num_frames": 613,
+      "include": true,
+      "seed": 31400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep74_seed31400.h5",
+      "source_group": "episode_74",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_74",
+      "task_goals": [
+        "put three green cubes into the bin, then press the button to stop",
+        "put three green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 175,
+      "expected_num_frames": 660,
+      "include": true,
+      "seed": 31500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep75_seed31500.h5",
+      "source_group": "episode_75",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_75",
+      "task_goals": [
+        "put one red cube and two green cubes into the bin, then press the button to stop",
+        "put one red cube and two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 176,
+      "expected_num_frames": 590,
+      "include": true,
+      "seed": 31600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep76_seed31600.h5",
+      "source_group": "episode_76",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_76",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 177,
+      "expected_num_frames": 668,
+      "include": true,
+      "seed": 31700,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep77_seed31700.h5",
+      "source_group": "episode_77",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_77",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 178,
+      "expected_num_frames": 614,
+      "include": true,
+      "seed": 31800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep78_seed31800.h5",
+      "source_group": "episode_78",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_78",
+      "task_goals": [
+        "put two red cubes and one blue cube into the bin, then press the button to stop",
+        "put two red cubes and one blue cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 179,
+      "expected_num_frames": 963,
+      "include": true,
+      "seed": 31900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep79_seed31900.h5",
+      "source_group": "episode_79",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_79",
+      "task_goals": [
+        "put four blue cubes and one green cube into the bin, then press the button to stop",
+        "put four blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 180,
+      "expected_num_frames": 275,
+      "include": true,
+      "seed": 32001,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep80_seed32001.h5",
+      "source_group": "episode_80",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_80",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 181,
+      "expected_num_frames": 651,
+      "include": true,
+      "seed": 32100,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep81_seed32100.h5",
+      "source_group": "episode_81",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_81",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 182,
+      "expected_num_frames": 844,
+      "include": true,
+      "seed": 32200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep82_seed32200.h5",
+      "source_group": "episode_82",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_82",
+      "task_goals": [
+        "put four red cubes into the bin, then press the button to stop",
+        "put four red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 183,
+      "expected_num_frames": 589,
+      "include": true,
+      "seed": 32300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep83_seed32300.h5",
+      "source_group": "episode_83",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_83",
+      "task_goals": [
+        "put three red cubes into the bin, then press the button to stop",
+        "put three red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 184,
+      "expected_num_frames": 435,
+      "include": true,
+      "seed": 32400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep84_seed32400.h5",
+      "source_group": "episode_84",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_84",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 185,
+      "expected_num_frames": 729,
+      "include": true,
+      "seed": 32500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep85_seed32500.h5",
+      "source_group": "episode_85",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_85",
+      "task_goals": [
+        "put three blue cubes into the bin, then press the button to stop",
+        "put three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 186,
+      "expected_num_frames": 746,
+      "include": true,
+      "seed": 32600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep86_seed32600.h5",
+      "source_group": "episode_86",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_86",
+      "task_goals": [
+        "put one red cube and three blue cubes into the bin, then press the button to stop",
+        "put one red cube and three blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 187,
+      "expected_num_frames": 762,
+      "include": true,
+      "seed": 32700,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep87_seed32700.h5",
+      "source_group": "episode_87",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_87",
+      "task_goals": [
+        "put four green cubes into the bin, then press the button to stop",
+        "put four green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 188,
+      "expected_num_frames": 504,
+      "include": true,
+      "seed": 32800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep88_seed32800.h5",
+      "source_group": "episode_88",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_88",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 189,
+      "expected_num_frames": 434,
+      "include": true,
+      "seed": 32900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep89_seed32900.h5",
+      "source_group": "episode_89",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_89",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 190,
+      "expected_num_frames": 498,
+      "include": true,
+      "seed": 33001,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep90_seed33001.h5",
+      "source_group": "episode_90",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_90",
+      "task_goals": [
+        "put two blue cubes into the bin, then press the button to stop",
+        "put two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 191,
+      "expected_num_frames": 744,
+      "include": true,
+      "seed": 33101,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep91_seed33101.h5",
+      "source_group": "episode_91",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_91",
+      "task_goals": [
+        "put two red cubes and two blue cubes into the bin, then press the button to stop",
+        "put two red cubes and two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 192,
+      "expected_num_frames": 437,
+      "include": true,
+      "seed": 33200,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep92_seed33200.h5",
+      "source_group": "episode_92",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_92",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 193,
+      "expected_num_frames": 279,
+      "include": true,
+      "seed": 33300,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep93_seed33300.h5",
+      "source_group": "episode_93",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_93",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 194,
+      "expected_num_frames": 441,
+      "include": true,
+      "seed": 33400,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep94_seed33400.h5",
+      "source_group": "episode_94",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_94",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 195,
+      "expected_num_frames": 1148,
+      "include": true,
+      "seed": 33500,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep95_seed33500.h5",
+      "source_group": "episode_95",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_95",
+      "task_goals": [
+        "put three red cubes and two blue cubes into the bin, then press the button to stop",
+        "put three red cubes and two blue cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 196,
+      "expected_num_frames": 480,
+      "include": true,
+      "seed": 33600,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep96_seed33600.h5",
+      "source_group": "episode_96",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_96",
+      "task_goals": [
+        "put two red cubes into the bin, then press the button to stop",
+        "put two red cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "easy",
+      "episode_index": 197,
+      "expected_num_frames": 268,
+      "include": true,
+      "seed": 33700,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep97_seed33700.h5",
+      "source_group": "episode_97",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_97",
+      "task_goals": [
+        "put one red cube into the bin, then press the button to stop",
+        "put one red cube into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "medium",
+      "episode_index": 198,
+      "expected_num_frames": 495,
+      "include": true,
+      "seed": 33800,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep98_seed33800.h5",
+      "source_group": "episode_98",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_98",
+      "task_goals": [
+        "put two green cubes into the bin, then press the button to stop",
+        "put two green cubes into the bin and press the button to stop"
+      ]
+    },
+    {
+      "class": "hard",
+      "episode_index": 199,
+      "expected_num_frames": 813,
+      "include": true,
+      "seed": 33900,
+      "source": "extra",
+      "source_file": "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files/BinFill_ep99_seed33900.h5",
+      "source_group": "episode_99",
+      "split": "train",
+      "stable_id": "BinFill_extra/episode_99",
+      "task_goals": [
+        "put three blue cubes and one green cube into the bin, then press the button to stop",
+        "put three blue cubes and one green cube into the bin and press the button to stop"
+      ]
+    }
+  ],
+  "label_field": "info/simple_subgoal",
+  "prompt_selection": "setup/task_goal[0]",
+  "schema_version": "openpi.v5.generic-manifest.v1",
+  "source": [
+    "/scr/kewalk/robomme_0920/gen/BinFill/hdf5_files",
+    "/scr/kewalk/robomme_0920/raw/record_dataset_BinFill.h5"
+  ],
+  "split_seed": 0
+}

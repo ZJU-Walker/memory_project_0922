@@ -1,0 +1,12 @@
+== pi05_yam_beans0905_base
+model: horizon 50 max_tok 272 delay 15 seq 16 block 0 predict_subtask True mem False prefill 6 state_mask 0.0 slot 0
+data: stride 0 buckets () slice 0.5 crit 0.0 pad 75 minslice 4 split train 902 lookahead 0 waiting_dim None | root /iris/u/kewalk/memory_project_v5/v5/data/lerobot/yam/bean_scoop_0905_v5
+labels: /iris/u/kewalk/memory_project_0920/openpi/cluster_v5/beans/beans_v5_subtask_labels_0905_v7tgt.json | vocab 0 | evidence 0 decision ()
+train: batch 16 fsdp 1 steps 30000 lr CosineDecaySchedule(warmup_steps=1000, peak_lr=5e-05, decay_steps=30000, decay_lr=5e-05) save 5000 keep 5000 ema 0.999 workers 12 opt AdamW(b1=0.9, b2=0.95, eps=1e-08, weight_decay=1e-10, clip_gradient_norm=1.0)
+loader: CheckpointWeightLoader gs://openpi-assets/checkpoints/pi05_base/params | ckpts: /iris/u/kewalk/memory_project_v5/v5/checkpoints | assets: /iris/u/kewalk/memory_project_v5/v5/assets/pi05_yam_bean_scoop_0905_v5 | freeze: Nothing()
+== pi05_yam_mem_v5_beansB9
+model: horizon 50 max_tok 80 delay 6 seq 40 block 25 predict_subtask True mem True prefill 16 state_mask 0.5 slot 0
+data: stride 5 buckets (14, 27, 40) slice 0.5 crit 0.5 pad 75 minslice 14 split train 902 lookahead 0 waiting_dim 14 | root /iris/u/kewalk/memory_project_v5/v5/data/lerobot/yam/bean_scoop_0905_v5
+labels: /iris/u/kewalk/memory_project_0920/openpi/cluster_v5/beans/beans_v5_subtask_labels_0905_v7tgt.json | vocab 20 | evidence 6 decision ('yellow go: pick up the scoop, scoop 1 time', 'yellow go: pick up the scoop, scoop 2 times', 'yellow go: pick up the scoop, scoop 3 times', 'scoop 2 of 2: dig and carry', 'scoop 2 of 3: dig and carry', 'scoop 3 of 3: dig and carry', 'done, put down the scoop and return')
+train: batch 2 fsdp 1 steps 300 lr CosineDecaySchedule(warmup_steps=100, peak_lr=2.5e-05, decay_steps=10000, decay_lr=2.5e-05) save 250 keep 250 ema None workers 12 opt AdamW(b1=0.9, b2=0.95, eps=1e-08, weight_decay=1e-10, clip_gradient_norm=1.0)
+loader: AuditedPartialCheckpointWeightLoader /iris/u/kewalk/memory_project_v5/v5/checkpoints/pi05_yam_mem_v5_beansA9/v5_beansA9_20260906_r1/299/params | ckpts: /iris/u/kewalk/memory_project_v5/v5/checkpoints | assets: /iris/u/kewalk/memory_project_v5/v5/assets/pi05_yam_bean_scoop_0905_v5 | freeze: PathRegex(pattern=re.compile('.*(memory/|memory_gate|memory_inject_w|memory_sem_inject_w|memory_semantic/gate|memory_write_side_head|memory_read_side_head|read_query_compressor|write_query_compressor|write_query_conditioner|PaliG), sep='/')
