@@ -55,3 +55,4 @@ v7/
 
 # the RoboMME evaluation client is source code (the generic eval/ rule above is for run outputs)
 !openpi/cluster_robomme/eval/
+beans/ablations/logs/
