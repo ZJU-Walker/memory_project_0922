@@ -355,6 +355,14 @@ class Pi0Config(_model.BaseModelConfig):
     # of inside the rematted tick body, where its forward is recomputed in the backward pass. Same math, different kernel
     # batching (not bit-identical). Training only; inference is unchanged.
     memory_v0920_vision_outside_scan: bool = False
+    # 0920_v2 "look before you ask" (user 09-22 14:37, after the beans0922_v1 checkpoint-1500 probe: the fixed questions read
+    # the running count but never carried it into the decision). Each of the learned read questions is shifted, BEFORE it is
+    # asked, by (a) a pooled summary of the tick's pre-LLM input -- the image-tower tokens + prompt embeddings, stop-gradient --
+    # taken by one small attention pooler driven by that question's own base vector, through a ZERO-initialised map, and (b) the
+    # masked-mean input embedding of the last committed note (the same `prev` the write rule keeps) through a second
+    # ZERO-initialised map. At init the questions equal the fixed ones (bit-identical read); training can make them depend on
+    # the frame and on the note. The answers still enter at the input for every block. Needs memory_v0920_input_read.
+    memory_v0920_query_context: bool = False
     # beans0922 ablation (1) "snap + visual memory" (2026-09-22): a SECOND fast-weight bank, fed by the front camera and read
     # exactly like the sentence bank. Every valid tick the front camera's INPUT image tokens (SigLIP + projector, memory-blind,
     # stop-gradient) are pooled by `memory_vis_slots` learned queries; slot i is written as key = unit(P_k pooled_i + e_i),
@@ -584,6 +592,8 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("memory_v0920_history_pool must divide the 16x16 patch grid.")
                 if not 0.0 <= self.memory_v0920_history_dropout < 1.0:
                     raise ValueError("memory_v0920_history_dropout must lie in [0, 1).")
+            if getattr(self, "memory_v0920_query_context", False) and not self.memory_v0920_input_read:
+                raise ValueError("memory_v0920_query_context needs memory_v0920_input_read (the input-read questions).")
             if self.memory_vis_bank:
                 if not self.memory_v0920_input_read:
                     raise ValueError("memory_vis_bank needs memory_v0920_input_read (the visual tokens join the input read).")

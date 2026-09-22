@@ -88,6 +88,8 @@ def make_decode_fn(model, max_decode_steps: int):
                 top_token_count=top_tokens,
                 visual_state=model.memory.init_state(batch),
                 state=preprocessed.state,
+                prev_tokens=prev_tokens,
+                prev_mask=prev_mask,
             )
         else:
             prepared = model._v32_prepare_memory_prefix(  # noqa: SLF001

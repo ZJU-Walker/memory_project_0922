@@ -857,6 +857,25 @@ class Pi0(_model.BaseModel):
                     self.memory_sem_query_proj = nnx.Linear(
                         paligemma_config.width, config.memory_semantic.d_key, use_bias=False, rngs=rngs
                     )
+                    # 0920_v2 (Pi0Config.memory_v0920_query_context): the questions look at the input and the last note first.
+                    self.memory_v0920_query_context = bool(getattr(config, "memory_v0920_query_context", False))
+                    if self.memory_v0920_query_context:
+                        self.memory_sem_query_context_pooler = MemoryQueryCompressor(
+                            num_queries=config.memory_v5_read_queries,
+                            width=paligemma_config.width,
+                            num_heads=config.memory_query_heads,
+                            compute_dtype=jnp.dtype(config.dtype),
+                            qk_norm=config.memory_qk_norm,
+                            rngs=rngs,
+                        )
+                        self.memory_sem_query_context_proj = nnx.Linear(
+                            paligemma_config.width, config.memory_semantic.d_key, use_bias=False,
+                            kernel_init=nnx.initializers.zeros, rngs=rngs,
+                        )
+                        self.memory_sem_query_prev_proj = nnx.Linear(
+                            paligemma_config.width, config.memory_semantic.d_key, use_bias=False,
+                            kernel_init=nnx.initializers.zeros, rngs=rngs,
+                        )
                     # A6 read-side fixes (Pi0Config.memory_v5_query_*).
                     self.memory_v5_query_standardize = bool(config.memory_v5_query_standardize)
                     self.memory_v5_query_prev_sentence = bool(config.memory_v5_query_prev_sentence)
@@ -1995,17 +2014,44 @@ class Pi0(_model.BaseModel):
         return jax.lax.stop_gradient(jnp.sqrt(jnp.mean(jnp.square(emb)) + 1e-12))
 
     def v0920_read_tokens(
-        self, semantic_state: _memory.MemoryState, batch: int, dtype: jnp.dtype, *, zero_read: bool = False
+        self,
+        semantic_state: _memory.MemoryState,
+        batch: int,
+        dtype: jnp.dtype,
+        *,
+        zero_read: bool = False,
+        context: at.Array | None = None,
+        context_valid: at.Array | None = None,
+        prev_tokens: at.Array | None = None,
+        prev_mask: at.Array | None = None,
     ) -> tuple[at.Array, at.Array, at.Array, at.Array, at.Array, at.Array]:
         """8 learned queries -> unit 512-d -> bank -> 8 x 2048 reads -> fixed RMS, tanh gate, + slot embedding.
 
         Returns (tokens[b, r, d] in `dtype`, valid[b, r], retrieved[b, r, d] fp32, queries[b, r, dk] fp32,
         pre-cast rms[b], post-cast rms[b]). An empty bank reads exactly zero and (with memory_mask_zero_tokens) its
         tokens are exactly zero and masked.
+
+        With `memory_v0920_query_context` (0920_v2, "look before you ask") question i = P_q(base_i) + Z_ctx(pool_i(context))
+        + Z_prev(mean embedding of the last committed note), unit-normalised: `context` [b, n, width] = the tick's pre-LLM
+        prefix tokens (image tower + prompt embeddings; stop-gradient here) with `context_valid` [b, n] masking padding,
+        `prev_tokens`/`prev_mask` [b, s] = the last committed note (an empty note shifts nothing). Z_ctx / Z_prev are
+        zero-initialised, so a fresh model asks exactly the fixed questions.
         """
         base = self.memory_sem_read_query_bank.value.astype(jnp.float32)
-        queries = _memory.l2_normalize(self.memory_sem_query_proj(base).astype(jnp.float32))
-        queries = jnp.broadcast_to(queries[None], (batch,) + queries.shape)
+        base_b = jnp.broadcast_to(base[None], (batch,) + base.shape)
+        pre = self.memory_sem_query_proj(base_b).astype(jnp.float32)  # [b, r, dk]
+        if getattr(self, "memory_v0920_query_context", False):
+            if context is None or context_valid is None or prev_tokens is None or prev_mask is None:
+                raise ValueError("memory_v0920_query_context needs context/context_valid and prev_tokens/prev_mask at every read.")
+            source = jax.lax.stop_gradient(context.astype(jnp.float32))
+            looked = self.memory_sem_query_context_pooler(source, queries=base_b, source_valid=context_valid)  # [b, r, width]
+            pre = pre + self.memory_sem_query_context_proj(looked).astype(jnp.float32)
+            safe = jnp.where(prev_mask, prev_tokens, 0).astype(jnp.int32)
+            emb = jax.lax.stop_gradient(self.PaliGemma.llm(safe, method="embed").astype(jnp.float32))  # [b, s, width]
+            weight = prev_mask.astype(jnp.float32)[..., None]
+            note = jnp.sum(emb * weight, axis=1) / jnp.maximum(jnp.sum(weight, axis=1), 1.0)  # [b, width]; empty -> 0
+            pre = pre + self.memory_sem_query_prev_proj(note).astype(jnp.float32)[:, None, :]
+        queries = _memory.l2_normalize(pre)
         retrieved = self.memory_semantic.read_key(semantic_state, queries).astype(jnp.float32)
         if zero_read:
             retrieved = jnp.zeros_like(retrieved)
@@ -2111,10 +2157,13 @@ class Pi0(_model.BaseModel):
         zero_read: bool = False,
         visual_state: _memory.MemoryState | None = None,
         state: at.Array | None = None,
+        prev_tokens: at.Array | None = None,
+        prev_mask: at.Array | None = None,
     ) -> dict[str, at.Array | _gemma.KVCache | None]:
         """One pass through ALL blocks over [prefix | 8 memory tokens] (memory rows blind, memory columns visible to
         every row). Returns the dict the v3.2 call sites consume; the visual-bank entries are zeros (that bank is
-        not read, not in the sequence, and its write receives zero tokens = a plain decay)."""
+        not read, not in the sequence, and its write receives zero tokens = a plain decay). `prev_tokens`/`prev_mask` =
+        the last committed note, used by the 0920_v2 question context (memory_v0920_query_context) only."""
         if semantic_state is None:
             raise ValueError("memory_v0920_input_read needs the sentence bank state at every call site.")
         batch, prefix_len = prefix_mask.shape
@@ -2122,7 +2171,8 @@ class Pi0(_model.BaseModel):
         capacity = prefix_len + mem_len + self.causal_token_len
         width = prefix_tokens.shape[-1]
         tokens8, valid8, sem_retrieved, sem_queries, pre_rms, post_rms = self.v0920_read_tokens(
-            semantic_state, batch, prefix_tokens.dtype, zero_read=zero_read
+            semantic_state, batch, prefix_tokens.dtype, zero_read=zero_read,
+            context=prefix_tokens, context_valid=prefix_mask, prev_tokens=prev_tokens, prev_mask=prev_mask,
         )
         vis_out: dict[str, at.Array] = {}
         if getattr(self, "memory_vis_bank", False):
@@ -4642,7 +4692,7 @@ class Pi0(_model.BaseModel):
         if getattr(self, "memory_v0920_input_read", False):
             prepared = self._v0920_prepare_prefix(
                 prefix_tokens, prefix_mask, prefix_ar, semantic_state, top_token_count=top_tokens, zero_read=zero_read,
-                visual_state=memory_state, state=preprocessed.state,
+                visual_state=memory_state, state=preprocessed.state, prev_tokens=v5_prev_tokens, prev_mask=v5_prev_mask,
             )
         else:
             prepared = self._v32_prepare_memory_prefix(
@@ -5736,9 +5786,17 @@ class Pi0(_model.BaseModel):
                 else:
                     v5_read_kwargs = {"v5_prev_tokens": jnp.maximum(prev_sentence, 0), "v5_prev_mask": prev_sentence > 0}
             if getattr(self, "memory_v0920_input_read", False):
+                v0920_prev = {}
+                if getattr(self, "memory_v0920_query_context", False):
+                    # 0920_v2: the last committed note conditions the questions (the same prev the write rule keeps; with the
+                    # one-step write delay the pending sentence, exactly like the A6 rule above)
+                    if getattr(self, "memory_v5_write_delay_steps", 0) == 1:
+                        v0920_prev = {"prev_tokens": pending_sentence, "prev_mask": pending_span}
+                    else:
+                        v0920_prev = {"prev_tokens": jnp.maximum(prev_sentence, 0), "prev_mask": prev_sentence > 0}
                 prepared = self._v0920_prepare_prefix(
                     masked_prefix_tokens, prefix_mask, prefix_ar, read_sem_state, top_token_count=top_tokens,
-                    visual_state=read_state, state=obs_k.state,
+                    visual_state=read_state, state=obs_k.state, **v0920_prev,
                 )
             else:
                 prepared = self._v32_prepare_memory_prefix(

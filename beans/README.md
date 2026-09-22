@@ -100,3 +100,14 @@ ticks, right count in the notes in 5/6; with the bank blank both blinks decode a
 times" count ignores the notes -- own notes and label notes give the same sentence in 6/6 (right in 3/6), and the every-tick
 own writes then drift 2 -> 3. Hence `pi05_yam_beans0922_v2` = v1 with change-only, confidence-gated (0.9) writes
 (`V2_WRITE_RULE` in `beans0922_config.py`).
+
+**v3 (approved 09-22 15:25) = v2 + "look before you ask" + error-driven token weight.** `pi05_yam_beans0922_v3`
+(`V3_QUERY_CONTEXT`): (1) writes only on change with confidence >= 0.9 (v2); (2) `memory_v0920_query_context=True` -- each of
+the 8 learned read questions is shifted, before it is asked, by its own attention over the tick's image + prompt tokens and by
+the mean embedding of the last committed note, both through zero-initialised maps (fixed questions at init; the answers still
+enter at the input for every block; new leaves `memory_sem_query_context_pooler/_context_proj/_prev_proj`, fresh-init by the
+loader); (3) `memory_v7_hard_token_ce_weight=5.0` -- sentence tokens the model's own teacher-forced prediction gets wrong at
+that tick weigh 5x (the count word is 1 token in ~50; the weight fades once learned; switches on the `v7_hard_token_count`
+telemetry). Tests: `openpi/src/openpi/models/pi0_v0920_query_context_test.py`, `beans0922_test.py`. Gates at every 500 updates:
+`scripts/v5_count_flip_eval.py` (true-note accuracy and flip-follow >= 0.9, blank ~1/3) + the held-out video probe (own = label
+go count, right in >= 5/6). Stop rule: flip-follow < 0.5 at 2000 -> v4 = v3 + B9's slot table instead of more training.

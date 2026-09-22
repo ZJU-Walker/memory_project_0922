@@ -63,3 +63,15 @@ def test_v2_is_v1_with_the_change_only_confident_write_rule():
     assert changed == {"memory_v7_write_every_step", "memory_v5_write_conf"}
     for field in ("data", "weight_loader", "lr_schedule", "num_train_steps", "batch_size", "label_write_schedule_steps"):
         assert getattr(v1, field) == getattr(v2, field), field
+
+
+def test_v3_is_v2_with_the_question_context():
+    from openpi.training import config as _config
+
+    v2 = _config.get_config("pi05_yam_beans0922_v2")
+    v3 = _config.get_config("pi05_yam_beans0922_v3")
+    assert v3.model.memory_v0920_query_context is True and v2.model.memory_v0920_query_context is False
+    changed = {f.name for f in dataclasses.fields(v2.model) if getattr(v2.model, f.name) != getattr(v3.model, f.name)}
+    assert changed == {"memory_v0920_query_context", "memory_v7_hard_token_ce_weight"}
+    assert v3.model.memory_v7_hard_token_ce_weight == 5.0 and v2.model.memory_v7_hard_token_ce_weight == 1.0
+    assert v3.model.memory_v7_write_every_step is False and v3.model.memory_v5_write_conf == 0.9

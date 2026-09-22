@@ -91,6 +91,13 @@ def base_config(existing: dict, name: str = "pi05_yam_beans0922_base", *, steps:
 # probability is >= 0.9 (B9's gate); label writes during the ramp are always confident. v1 wrote every tick with no gate, so a
 # wrong "scoop 2 times" was rewritten 15x and read back (2 -> 3 drift on dev ep 29/73) and junk decodes entered the bank.
 V2_WRITE_RULE = dict(memory_v7_write_every_step=False, memory_v5_write_conf=0.9)
+# v3 (user 09-22 14:37 "ok do it"): v2 + "look before you ask" -- each read question is shifted by a pooled summary of the
+# tick's input tokens and by the embedding of the last committed note (both through zero-initialised maps), the answers
+# still enter at the input (Pi0Config.memory_v0920_query_context).
+# + the error-driven token weight (user 09-22 15:18 "lets use the threshold"): sentence tokens whose own teacher-forced
+# prediction is wrong at that tick weigh 5x in the sentence CE (the count word is 1 token in ~50 per tick; the weight fades
+# once the word is learned) and the wrong-token telemetry v7_hard_token_count switches on.
+V3_QUERY_CONTEXT = dict(V2_WRITE_RULE, memory_v0920_query_context=True, memory_v7_hard_token_ce_weight=5.0)
 
 
 def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps: int = MEM_STEPS, wandb: bool = True,
@@ -135,4 +142,6 @@ def get_configs(existing: dict) -> list:
         memory_config(existing, "pi05_yam_beans0922_v1_smoke", steps=2, wandb=False),
         memory_config(existing, "pi05_yam_beans0922_v2", model_overrides=V2_WRITE_RULE),
         memory_config(existing, "pi05_yam_beans0922_v2_smoke", steps=2, wandb=False, model_overrides=V2_WRITE_RULE),
+        memory_config(existing, "pi05_yam_beans0922_v3", model_overrides=V3_QUERY_CONTEXT),
+        memory_config(existing, "pi05_yam_beans0922_v3_smoke", steps=2, wandb=False, model_overrides=V3_QUERY_CONTEXT),
     ]
