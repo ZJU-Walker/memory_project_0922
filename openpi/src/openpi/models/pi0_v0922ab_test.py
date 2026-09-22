@@ -550,3 +550,128 @@ def test_state_rows_train_and_serve(fixture, request):
     _, s1, _ = model.sample_with_memory(jax.random.key(1), single, model.memory.init_state(1), semantic_state=written_sem,
                                         write_mode="normal", v35_transition_valid=True, v35_write_mask=True, **kwargs)
     assert float(jnp.linalg.norm(s1.fast_weights[model.memory._output_weight_name])) > 0.0
+
+
+# --------------------------------------------------------------------------- (i) the v3 snap (beans0922, 09-22 15:30)
+# snap moved to v3 = change-only confident own writes (memory_v7_write_every_step False, memory_v5_write_conf 0.9), the
+# question context (memory_v0920_query_context) and the error-driven token weight. The sensory bank must be unaffected:
+# it still writes every valid tick, and with the flag off the model is the v3 snap.
+
+
+class _TinyVisV3(_TinyVis):
+    """_TinyVis under the v3 flags, with the question-context modules (zero-initialised maps, as in the real model)."""
+
+    def __init__(self, rngs: nnx.Rngs, *, on: bool = True, image: bool = True, state: bool = False, rule: str = "delta"):
+        super().__init__(rngs, on=on, image=image, state=state, rule=rule)
+        _apply_v3_flags(self)
+        r = self.memory_sem_read_query_bank.value.shape[0]
+        self.memory_v0920_query_context = True
+        self.memory_sem_query_context_pooler = pi0.MemoryQueryCompressor(num_queries=r, width=WIDTH, num_heads=2, rngs=rngs)
+        self.memory_sem_query_context_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, kernel_init=nnx.initializers.zeros, rngs=rngs)
+        self.memory_sem_query_prev_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, kernel_init=nnx.initializers.zeros, rngs=rngs)
+
+
+def _apply_v3_flags(model) -> None:
+    model.memory_v7_write_every_step = False
+    model.memory_v5_write_conf = 0.9
+    model.memory_v7_hard_token_ce_weight = 5.0
+
+
+def _v3_note(model):
+    """A committed two-token note as prev_tokens / prev_mask [1, sentence_len] (the question context needs one)."""
+    length = int(model.memory_v5_sentence_len) if hasattr(model, "memory_v5_sentence_len") else 4
+    tokens = jnp.zeros((1, length), dtype=jnp.int32).at[0, 0].set(5).at[0, 1].set(6)
+    mask = jnp.zeros((1, length), dtype=bool).at[0, :2].set(True)
+    return tokens, mask
+
+
+@pytest.fixture(scope="module")
+def tiny_vis_v3():
+    return _TinyVisV3(nnx.Rngs(922))
+
+
+def test_v3_flag_off_is_the_v3_snap(tiny_vis_v3):
+    from openpi.models.pi0_v0920_query_context_test import _TinyV0Ctx
+
+    model = tiny_vis_v3
+    ref = _TinyV0Ctx(nnx.Rngs(922))  # the same shared leaves (same rng stream first), context maps zero -> no shift
+    _apply_v3_flags(ref)
+    step0 = _single_step_observation()
+    seq = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    prev_tokens, prev_mask = _v3_note(model)
+    model.memory_vis_bank = False
+    try:
+        prefix, mask, ar, _ = _front(model, step0)
+        _, written = _written_bank(model)
+        off = model._v0920_prepare_prefix(prefix, mask, ar, written, top_token_count=TOP, visual_state=model.memory.init_state(1),
+                                          prev_tokens=prev_tokens, prev_mask=prev_mask)
+        on = ref._v0920_prepare_prefix(*_front(ref, step0)[:3], written, top_token_count=TOP, prev_tokens=prev_tokens, prev_mask=prev_mask)
+        np.testing.assert_array_equal(np.asarray(off["final_prefix"]), np.asarray(on["final_prefix"]))
+        losses_off = model._compute_sequence_loss_v32(jax.random.key(922), seq, actions, train=False)
+        losses_ref = ref._compute_sequence_loss_v32(jax.random.key(922), seq, actions, train=False)
+        for key, value in _main_terms(losses_off).items():
+            np.testing.assert_array_equal(value, _main_terms(losses_ref)[key], err_msg=key)
+        np.testing.assert_array_equal(losses_off["v4_sem_commit_count"], losses_ref["v4_sem_commit_count"])
+    finally:
+        model.memory_vis_bank = True
+
+
+def test_v3_sensory_bank_still_writes_every_valid_tick_while_the_sentence_writes_are_gated(tiny_vis_v3):
+    model = tiny_vis_v3
+    observation = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    losses = model._compute_sequence_loss_v32(jax.random.key(922), observation, actions, train=False)
+    for key, value in losses.items():
+        assert np.all(np.isfinite(np.asarray(value))), key
+    np.testing.assert_array_equal(losses["vis_commit_count"], losses["vis_valid_count"])  # gated on tick validity only
+    np.testing.assert_array_equal(losses["vis_commit_count"], 3.0)
+    assert 0.0 <= float(losses["v4_sem_commit_count"]) <= 3.0  # the sentence bank: changed AND confident notes only
+    assert float(losses["vis_bank_norm_sum"]) > 0.0
+    partial = observation.replace(seq_step_mask=jnp.asarray([[True, False, True]]))
+    np.testing.assert_array_equal(model._compute_sequence_loss_v32(jax.random.key(922), partial, actions, train=False)["vis_commit_count"], 2.0)
+    # gradients: with the ramp's label writes (always confident, as in the first 500 updates) the sentence bank has content,
+    # so the sentence read, the two v3 question maps AND every sensory leaf train together
+    labelled = observation.replace(seq_label_write_prob=jnp.ones((1,), dtype=jnp.float32))
+    np.testing.assert_array_equal(model._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)["v4_sem_commit_count"], 3.0)
+
+    def total_loss(m):
+        out = m._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)
+        return jnp.sum(out["v4_decision_ce_steps"]) + jnp.sum(out["ce"]) + jnp.sum(out["flow"])
+
+    grads = nnx.grad(total_loss)(model)
+    bad = ["/".join(str(k) for k in path) for path, leaf in jax.tree_util.tree_leaves_with_path(grads) if not bool(jnp.all(jnp.isfinite(jnp.asarray(leaf))))]
+    assert not bad, bad[:10]
+    for name in ("memory_vis_read_query_bank", "memory_vis_query_proj", "memory_vis_key_proj", "memory_vis_value_proj",
+                 "memory_vis_slot_key", "memory_vis_pooler", "memory_sem_read_query_bank", "memory_sem_query_context_proj",
+                 "memory_sem_query_prev_proj"):
+        leaves = jax.tree_util.tree_leaves(grads[name])
+        assert max(float(jnp.max(jnp.abs(leaf))) for leaf in leaves) > 0.0, name
+    # own writes only (after the ramp): the sensory leaves still train even when no note passes the 0.9 gate
+    def own_loss(m):
+        out = m._compute_sequence_loss_v32(jax.random.key(922), observation, actions, train=False)
+        return jnp.sum(out["v4_decision_ce_steps"]) + jnp.sum(out["ce"]) + jnp.sum(out["flow"])
+
+    own = nnx.grad(own_loss)(model)
+    assert max(float(jnp.max(jnp.abs(leaf))) for leaf in jax.tree_util.tree_leaves(own["memory_vis_pooler"])) > 0.0
+    assert float(jnp.max(jnp.abs(own["memory_vis_read_query_bank"].value))) > 0.0
+
+
+def test_v3_sampler_advances_the_sensory_bank_with_the_note_context(tiny_vis_v3):
+    from openpi.models.pi0_v35_test import _single_observation
+
+    model = tiny_vis_v3
+    observation = _single_observation()
+    _, written_sem = _written_bank(model)
+    prev_tokens, prev_mask = _v3_note(model)
+    visual = model.memory.init_state(1)
+    name = model.memory._output_weight_name
+    kwargs = {"stop_token": 1, "max_decode_steps": 2, "num_steps": 1, "noise": jnp.zeros((1, 4, 2), dtype=jnp.float32),
+              "v5_prev_tokens": prev_tokens, "v5_prev_mask": prev_mask}
+    _, s1, _ = model.sample_with_memory(
+        jax.random.key(1), observation, visual, semantic_state=written_sem, write_mode="normal",
+        v35_transition_valid=True, v35_write_mask=True, **kwargs,
+    )
+    assert float(jnp.linalg.norm(s1.fast_weights[name])) > 0.0  # the served tick wrote the sensory bank
+    _, frozen, _ = model.sample_with_memory(jax.random.key(1), observation, visual, semantic_state=written_sem, write_mode="frozen", **kwargs)
+    jax.tree.map(lambda a, b: np.testing.assert_array_equal(np.asarray(a), np.asarray(b)), frozen, visual)

@@ -1,5 +1,6 @@
-"""beans0922 ablation configs: the ablation rows differ from snap (pi05_yam_beans0922_v1) in the recipe fields only, and
-the visual-bank row adds exactly the visual bank; the new parameters fall under the fresh-init / memory-leaf rules."""
+"""beans0922 ablation configs: the ablation rows differ from snap (pi05_yam_beans0922_v3 since 09-22 15:30; v1 before) in the
+recipe fields only, and the visual-bank row adds exactly the visual bank; the new parameters fall under the fresh-init /
+memory-leaf rules."""
 
 import dataclasses
 import re
@@ -17,7 +18,7 @@ def _diff(a, b_):
 
 
 def test_beans0922_ablation_configs():
-    snap = _config.get_config("pi05_yam_beans0922_v1")
+    snap = _config.get_config("pi05_yam_beans0922_v3")
     ab_snap = _config.get_config("pi05_yam_beans0922_ab_snap")
     vis8 = _config.get_config("pi05_yam_beans0922_ab_vis8")
     # snap itself is untouched by the ablation flags
@@ -74,3 +75,19 @@ def test_beans0922_ablation_configs():
         smoke = _config.get_config(name)
         assert smoke.num_train_steps == 3 and smoke.wandb_enabled is False
     assert _config.get_config("pi05_yam_beans0922_ab_vis8_smoke").model == vis8.model
+
+
+def test_every_row_is_built_on_the_v3_snap():
+    """User 09-22 15:30 (relayed by the base session): all ablation rows adopt v3 = change-only confident own writes, the
+    question context and the error-driven token weight; v1 had none of them."""
+    v1 = _config.get_config("pi05_yam_beans0922_v1").model
+    v3 = _config.get_config("pi05_yam_beans0922_v3").model
+    assert ab.SNAP_OVERRIDES == b.V3_QUERY_CONTEXT
+    assert v1.memory_v7_write_every_step and v1.memory_v5_write_conf == 0.0 and not v1.memory_v0920_query_context
+    for name in ["pi05_yam_beans0922_ab_snap"] + [f"pi05_yam_beans0922_ab_{row}" for row in ab.ROWS]:
+        model = _config.get_config(name).model
+        for key, value in b.V3_QUERY_CONTEXT.items():
+            assert getattr(model, key) == value, (name, key)
+        # the sensory rows differ from the v3 snap in the bank fields only
+        assert {f.name for f in dataclasses.fields(model) if getattr(model, f.name) != getattr(v3, f.name)} <= {
+            "memory", "memory_vis_bank", "memory_vis_image_write", "memory_vis_state_slot"}, name

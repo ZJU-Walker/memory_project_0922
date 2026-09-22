@@ -6,13 +6,17 @@ The policy is a pi0.5 VLA on the real YAM station for the task *"scoop the beans
 light blinked"*: the green LED blinks 1–3 times at the start, then a yellow light says "go" and nothing in the scene says
 the count any more. Our model,
 **snap**, gives pi0.5 a small fast-weight memory that it fills with **its own words**: every tick (5 frames, 0.17 s) it
-decodes a short sub-task sentence such as "scoop 2 of 3: dig and carry", writes that sentence into the memory (each word is
-stored as a key/value association with the delta rule, decay 0.99 per tick), and reads the memory back through 8 fixed
-learned queries as **8 extra input tokens** that every transformer block sees. The ablations ask whether a *sensory*
+decodes a short sub-task sentence such as "scoop 2 of 3: dig and carry", writes that sentence into the memory when it is
+new and confident (differs from the last stored note, mean token probability ≥ 0.9; each word is stored as a key/value
+association with the delta rule, decay 0.99 per tick), and reads the memory back through 8 learned queries — each first
+looks at the current frame and the last note, then asks — as **8 extra input tokens** that every transformer block sees
+(this is snap **v3**, 2026-09-22; every row below is built on it). The ablations ask whether a *sensory*
 memory — the same kind of fast-weight bank, but filled with what the camera sees and/or where the arm is instead of a
 sentence — adds anything on top of the narrated one. Every row starts from the same knowledge-insulation base checkpoint
 and is trained with the same recipe (3000 updates, the first 500 with a decaying probability of writing the label sentence
 instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs, checkpoints kept at 1000 / 2000 / 3000); a row differs from snap in exactly one thing.
+**Pull before launching**: rows started from a checkout older than 2026-09-22 15:30 PDT are built on the previous snap (v1:
+a note written every tick, fixed questions) and are not comparable with the v3 rows.
 
 | row | script | memory tokens at the input | sensory bank written from (every tick) | update rule | status |
 | --- | --- | --- | --- | --- | --- |

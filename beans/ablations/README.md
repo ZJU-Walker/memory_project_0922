@@ -9,12 +9,18 @@ commands; this page explains the mechanism so the rows can be read.
 1. Prefix: 3 cameras × 256 image tokens + 80 prompt tokens + **8 sentence-memory tokens**, all at the input of the 18-block
    language model. The memory tokens are appended after the prompt; they attend only to each other (blind), everything else
    may attend to them.
-2. Read: 8 fixed learned queries → the sentence bank W (a 512 × 2048 matrix per episode) → 8 vectors → tanh gate + RMS
+2. Read: 8 learned queries → the sentence bank W (a 512 × 2048 matrix per episode) → 8 vectors → tanh gate + RMS
    matched to the word embeddings + slot embedding = the 8 tokens. A fresh bank reads exactly zero and the tokens are masked.
+   Since v3 ("look before you ask", `memory_v0920_query_context`) each query is first shifted by its own attention over the
+   tick's image + prompt tokens and by the embedding of the last stored note, through zero-initialised maps (= the fixed
+   queries at the start of training).
 3. The model decodes its sub-task sentence (up to 48 tokens) and the action chunk.
 4. Write: each word of the sentence becomes an association (key = the memory-blind context of the words before it,
-   value = the word's embedding); committed with the **delta rule**, then the whole bank decays by 0.99. In training the
-   label sentence is written instead of the model's own with probability 1 → 0 over the first 500 updates.
+   value = the word's embedding); committed with the **delta rule**, then the whole bank decays by 0.99 — but since v3 only
+   when the sentence differs from the last stored note AND its mean token probability is ≥ 0.9 (`memory_v7_write_every_step`
+   False, `memory_v5_write_conf` 0.9; v1 wrote every tick and drifted a wrong count into the bank). In training the label
+   sentence is written instead of the model's own with probability 1 → 0 over the first 500 updates (label writes always
+   count as confident), and sentence tokens the model gets wrong weigh 5× in the sentence loss (`memory_v7_hard_token_ce_weight`).
 
 ## The sensory bank (rows vis8 / vis8s / state8 and their `_add` twins)
 
@@ -23,7 +29,8 @@ A second bank, same size and same read mechanism, next to the sentence bank:
 - **Read** — 8 more fixed learned queries → the sensory bank → tanh gate (same 0.5 init) + RMS matched to the sample's own
   image tokens + slot embedding → **8 more input tokens** after the sentence tokens. Empty bank ⇒ exactly zero, masked,
   so tick 0 equals snap. Nothing else about the model changes (the sentence/action tokens simply sit 8 positions later).
-- **Write, every valid tick**, from memory-blind, stop-gradient inputs so the bank can never store what it read:
+- **Write, every valid tick** (the sentence bank's v3 write gate does not apply here: the training scan and the serving
+  transition gate this bank on tick validity only), from memory-blind, stop-gradient inputs so the bank can never store what it read:
   - *image slots* (`memory_vis_image_write`): the front camera's 256 input image tokens (SigLIP + projector) are pooled by 8
     learned queries into 8 vectors v₁..v₈; slot i is stored as key = unit(P_k v_i + e_i), value = unit(P_v v_i);
   - *state slot* (`memory_vis_state_slot`): the normalised 14-D joint state through a fresh linear map φ; key =
