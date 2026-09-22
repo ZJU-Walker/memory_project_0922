@@ -10,6 +10,7 @@ set -u
 ROOT="${MEMORY_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"; cd "$ROOT/openpi" || exit 2
 export MEMORY_PROJECT_ROOT="$ROOT" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 export XLA_PYTHON_CLIENT_MEM_FRACTION=${MEMFRAC:-0.92} OPENPI_0920_REMAT=${REMAT:-nothing_saveable}
+export WANDB__SERVICE_WAIT=${WANDB__SERVICE_WAIT:-300}  # the wandb service imports from the same (possibly cold, NFS) venv; 30 s is too short
 [ -f cluster_robomme/env.sh ] && source cluster_robomme/env.sh >/dev/null 2>&1
 MODE=${MODE:-base}; GPUS=${GPUS:-0,1}; NGPU=$(echo "$GPUS" | tr ',' '\n' | wc -l); WORKERS=${WORKERS:-12}; WANDB=${WANDB:-1}
 case $MODE in
