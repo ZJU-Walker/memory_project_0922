@@ -212,6 +212,13 @@ symlink (`data`, `v5`, `v6`, `robomme/data`, `robomme/expert_val`); checkpoints,
   `memory_config` fixed (STRUCTURE already carries prefill_history), `openpi/cluster_robomme/eval` un-ignored and added (the generic
   `eval/` ignore had kept the RoboMME client code out of the 0920 commit). Pushed: `beans0922` -> `main` of
   github.com/ZJU-Walker/memory_project_0922 (remote `origin0922`, ssh key id_ed25519). Chain auto-starts after the dataset rebuild.
+- 2026-09-22 03:25 — BASE RUN LIVE on the 2 x H100 (job 17489557, batch 16, FSDP 2): `pi05_yam_beans0922_base` / `beans0922_base`, W&B
+  beans0922 run 3rj0oy4j. Step 0 CE 13.38 / flow 0.089 = the 09-06 run's step 0 (13.40 / 0.089), so the recipe is reproduced. Road
+  there: the dataset rebuild finished 01:26 (89 eps); the user ran an eval on the pair 01:39-02:14 (smoke stopped, chain re-armed with a
+  free-streak wait); the runner's free-check had to query the job's own GPUs via srun (a plain shell on hgx-1 sits in the newest job's
+  cgroup and saw the user's Qwen server on the eval card); attempt 1 died at wandb's 30 s service timeout during a 20-min cold import
+  of the fresh venv (WANDB__SERVICE_WAIT=300 added); attempt 2 (02:40) built the HF arrow cache for 40 min, then trained. The chain
+  continues into the memory run automatically once base/10000 exists.
 
 ---
 
