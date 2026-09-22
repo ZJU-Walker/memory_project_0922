@@ -193,6 +193,20 @@ def project_path(relative_path: str | pathlib.PurePath) -> pathlib.Path:
                 return candidate
             except ValueError:
                 pass
+    # Sanctioned cache links (2026-09-22): anything at or below CACHE_DIR may be a symlink to a node-local disk (the
+    # loader's arrow cache memory-mapped over NFS stalls training; a cache is rebuildable, so nothing of record lives
+    # there). Accepted iff the resolved candidate stays below the resolved target of the innermost such link; checkpoints,
+    # assets and code are never covered.
+    cache_parts = pathlib.PurePath(CACHE_DIR).parts
+    if relative.parts[: len(cache_parts)] == cache_parts:
+        for depth in range(len(cache_parts), len(relative.parts) + 1):
+            link = root.joinpath(*relative.parts[:depth])
+            if link.is_symlink():
+                try:
+                    candidate.relative_to(link.resolve())
+                    return candidate
+                except ValueError:
+                    break
     raise ProjectRootError(f"project path resolves outside memory_project: {str(relative)!r}")
 
 

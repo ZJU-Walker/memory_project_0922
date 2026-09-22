@@ -27,6 +27,7 @@ checkpoint overrides (OPENPI_BEANS_DATASET_ROOT, OPENPI_BEANS_ASSETS_DIR, OPENPI
 import dataclasses
 import os
 
+from openpi.shared import nnx_utils
 from openpi.training import beans0922_config as _b
 from openpi.training import config as cfg
 
@@ -71,7 +72,13 @@ def sensory_config(existing: dict, name: str, *, image: bool = True, state: bool
         memory_vis_image_write=image,
         memory_vis_state_slot=state,
     )
-    return dataclasses.replace(base, model=model)
+    # snap freezes its sentence gate at tanh(w) = 0.5 (memory_sem_inject_w in the freeze filter); the sensory gate gets the
+    # same treatment so the two banks inject at the same fixed scale and the rows stay controlled
+    pattern = base.freeze_filter.pattern.pattern
+    if "memory_sem_inject_w" not in pattern:
+        raise ValueError("expected snap's freeze filter to freeze memory_sem_inject_w")
+    freeze = nnx_utils.PathRegex(pattern.replace("memory_sem_inject_w", "memory_sem_inject_w|memory_vis_inject_w", 1), sep=base.freeze_filter.sep)
+    return dataclasses.replace(base, model=model, freeze_filter=freeze)
 
 
 def vis8_config(existing: dict, name: str = "pi05_yam_beans0922_ab_vis8", *, steps: int = AB_STEPS, wandb: bool = True,

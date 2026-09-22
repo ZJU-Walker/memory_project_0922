@@ -28,8 +28,15 @@ def test_beans0922_ablation_configs():
     assert ab_snap.num_train_steps == ab.AB_STEPS + 1 and ab_snap.label_write_schedule_steps == 500
     assert ab_snap.fsdp_devices == ab.AB_FSDP and ab_snap.project_name == ab.PROJECT
     assert ab_snap.checkpoint_base_dir == snap.checkpoint_base_dir  # own dir per config name, no collision
-    # the visual-bank row = the control row + the visual bank
-    assert _diff(vis8, ab_snap) == {"name", "model"}
+    # the visual-bank row = the control row + the visual bank (+ its gate frozen like the sentence gate)
+    assert _diff(vis8, ab_snap) == {"name", "model", "freeze_filter"}
+    for leaf, frozen in (("memory_vis_inject_w", True), ("memory_sem_inject_w", True), ("memory_vis_pooler/query_bank", False),
+                         ("memory_vis_key_proj/kernel", False), ("memory_vis_read_query_bank", False), ("memory_vis_slot_embedding", False),
+                         ("memory_sem_read_query_bank", False), ("PaliGemma/img/Transformer/x", True), ("PaliGemma/llm/layers/attn/q", False)):
+        assert bool(vis8.freeze_filter.pattern.match(leaf)) is frozen, leaf
+        if leaf != "memory_vis_inject_w":
+            assert bool(ab_snap.freeze_filter.pattern.match(leaf)) is frozen, leaf
+    assert not ab_snap.freeze_filter.pattern.match("memory_vis_inject_w")  # snap's own filter is untouched
     assert _diff(vis8.model, ab_snap.model) == {"memory", "memory_vis_bank"}  # 8 slots = the field default
     assert vis8.model.memory_vis_bank and vis8.model.memory_vis_slots == 8
     assert vis8.model.memory == vis8.model.memory_semantic  # the same linear delta-rule bank as the sentence bank
@@ -44,7 +51,8 @@ def test_beans0922_ablation_configs():
     assert set(ab.ROWS) == {"vis8", *expected}
     for suffix, (fields, image, state, rule) in expected.items():
         row = _config.get_config(f"pi05_yam_beans0922_ab_{suffix}")
-        assert _diff(row, ab_snap) == {"name", "model"}, suffix
+        assert _diff(row, ab_snap) == {"name", "model", "freeze_filter"}, suffix
+        assert row.freeze_filter == vis8.freeze_filter, suffix
         assert _diff(row.model, ab_snap.model) == fields, (suffix, _diff(row.model, ab_snap.model))
         assert row.model.memory_vis_image_write is image and row.model.memory_vis_state_slot is state, suffix
         assert row.model.memory.commit_rule == rule and row.model.memory_semantic.commit_rule == "delta", suffix

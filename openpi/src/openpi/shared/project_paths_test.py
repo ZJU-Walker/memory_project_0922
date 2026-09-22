@@ -91,6 +91,35 @@ def test_project_path_accepts_only_the_sanctioned_shared_data_link(monkeypatch, 
         project_paths.project_path("data/nested_escape/artifact.json")
 
 
+def test_project_path_accepts_symlinks_below_the_cache_dir_only(monkeypatch, tmp_path: pathlib.Path) -> None:
+    # 2026-09-22: a cache (rebuildable) may live on a node-local disk behind an in-tree symlink at or below v35/cache;
+    # a symlink anywhere else (checkpoints) stays a rejected escape.
+    root = _project_fixture(tmp_path / "memory_project")
+    monkeypatch.setenv(project_paths.MEMORY_PROJECT_ROOT_ENV, str(root))
+    local = tmp_path / "scr" / "hf_datasets"
+    local.mkdir(parents=True)
+    (root / "v35" / "cache" / "huggingface").mkdir(parents=True)
+    (root / "v35" / "cache" / "huggingface" / "datasets").symlink_to(local)
+    assert project_paths.project_path(project_paths.HF_DATASETS_CACHE) == local.resolve()
+    assert project_paths.project_path("v35/cache/huggingface/datasets/parquet/x.arrow") == (local / "parquet" / "x.arrow").resolve()
+    environment = project_paths.v35_runtime_environment()
+    assert environment["HF_DATASETS_CACHE"] == str(local.resolve())
+    # the whole cache dir may be the link too
+    other = tmp_path / "scr2" / "cache"
+    other.mkdir(parents=True)
+    root2 = _project_fixture(tmp_path / "memory_project2")
+    monkeypatch.setenv(project_paths.MEMORY_PROJECT_ROOT_ENV, str(root2))
+    (root2 / "v35").mkdir()
+    (root2 / "v35" / "cache").symlink_to(other)
+    assert project_paths.project_path(project_paths.OPENPI_DATA_HOME) == (other / "openpi").resolve()
+    # not a cache: refused as before
+    elsewhere = tmp_path / "scr3" / "ckpt"
+    elsewhere.mkdir(parents=True)
+    (root2 / "v35" / "checkpoints").symlink_to(elsewhere)
+    with pytest.raises(project_paths.ProjectRootError, match="outside memory_project"):
+        project_paths.project_path(project_paths.V35_CHECKPOINTS_DIR)
+
+
 def test_project_relative_path_round_trips_and_rejects_outside(monkeypatch, tmp_path: pathlib.Path) -> None:
     root = _project_fixture(tmp_path / "memory_project")
     monkeypatch.setenv(project_paths.MEMORY_PROJECT_ROOT_ENV, str(root))
