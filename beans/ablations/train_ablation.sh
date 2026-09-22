@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Generic launcher for ONE beans0922 ablation training on the GPUs you own (4 cards by default). Called by run_<ablation>.sh.
 #   CFG=<train config> EXP=<experiment dir name> [MODE=train|smoke] [JOB=<slurm job id>] [GPUS=0,1,2,3] [BATCH=16]
-#   [BATCH_FALLBACK="12 8"] [WORKERS=16] [WAIT_FOR=<path>] bash beans/ablations/train_ablation.sh
-# - JOB set (this cluster): an `srun --overlap` step inside that allocation pinned to CUDA_VISIBLE_DEVICES=$GPUS.
+#   [BATCH_FALLBACK="12 8"] [STEPS=3000] [WORKERS=16] [WAIT_FOR=<path>] bash beans/ablations/train_ablation.sh
+# - JOB set (this cluster): an `srun --overlap` step inside that allocation pinned to CUDA_VISIBLE_DEVICES=$GPUS. Two rows
+#   on one 4-card job: give both GRES=4 (the step sees all four cards, GPUS pins the pair); a 2-card step would be handed
+#   whichever two cards Slurm picks, and GPUS=2,3 would then name cards the step cannot see.
 #   JOB unset (another cluster / a node you already own): python runs directly.
 # - Waits until WAIT_FOR exists (default: the KI base checkpoint the memory run warm-starts from) and until nobody holds
 #   > 2 GB on the cards (1 GB keep-alives are fine), then trains; on RESOURCE_EXHAUSTED retries with the next batch.
@@ -23,6 +25,7 @@ export OPENPI_DATA_HOME="$ROOT/v35/cache/openpi" OPENPI_JAX_CACHE_DIR="$ROOT/v35
 mkdir -p "$HF_HOME" "$OPENPI_DATA_HOME" "$OPENPI_JAX_CACHE_DIR" "$UV_CACHE_DIR" 2>/dev/null; [ -e "$HF_DATASETS_CACHE" ] || mkdir -p "$HF_DATASETS_CACHE"
 CFG=${CFG:?set CFG}; EXP=${EXP:?set EXP}; MODE=${MODE:-train}
 GPUS=${GPUS:-0,1,2,3}; NGPU=$(echo "$GPUS" | tr ',' '\n' | wc -l); WORKERS=${WORKERS:-16}; WANDB=${WANDB:-1}
+STEPS=${STEPS:-${OPENPI_BEANS_AB_STEPS:-3000}}  # updates (the label-write ramp stays 500)
 BATCH=${BATCH:-16}; FALLBACK=${BATCH_FALLBACK:-"12 8 4"}  # 4 x 80 GB (H100): expect 8-12; 4 x 141 GB (H200): 16 (32 aborts: per-device attention tensor > 2 GB)
 if [ "$MODE" = smoke ]; then CFG="${CFG}_smoke"; EXP="smoke_${EXP}"; WANDB=0; FALLBACK=${BATCH_FALLBACK:-}; fi
 # warm start: OPENPI_BEANS_BASE_PARAMS if set, else the LARGEST base step present locally (5000 before the base run has
@@ -42,7 +45,7 @@ log() { echo "[$(date +%m/%d\ %H:%M:%S)] $*" | tee -a "$status"; }
 # nvidia-smi ignores CUDA_VISIBLE_DEVICES: on a shared 8-GPU node the direct path must ask about OUR cards only (-i), or a
 # second row on the other four cards would wait for the first one forever. Inside a Slurm step the cgroup already limits the view.
 gpu_busy() { local q=(nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits)
-  if [ -n "${JOB:-}" ]; then srun --jobid="$JOB" --overlap --nodes=1 --ntasks=1 --gres=gpu:"${GRES:-$NGPU}" env CUDA_VISIBLE_DEVICES="$GPUS" "${q[@]}" 2>/dev/null | awk '$1+0>2000' | wc -l
+  if [ -n "${JOB:-}" ]; then srun --jobid="$JOB" --overlap --nodes=1 --ntasks=1 --gres=gpu:"${GRES:-$NGPU}" env CUDA_VISIBLE_DEVICES="$GPUS" "${q[@]}" -i "$GPUS" 2>/dev/null | awk '$1+0>2000' | wc -l
   else nvidia-smi -i "$GPUS" --query-compute-apps=used_memory --format=csv,noheader,nounits 2>/dev/null | awk '$1+0>2000' | wc -l; fi; }
 wait_gpu() { local ok=0; for i in $(seq 1 ${WAIT_ROUNDS:-240}); do if [ "$(gpu_busy)" = "0" ]; then ok=$((ok+1)); [ $ok -ge ${FREE_STREAK:-4} ] && return 0; else ok=0; fi; sleep 30; done; return 1; }
 wait_path() { local n=0; while [ ! -e "$1" ]; do [ $n -eq 0 ] && log "waiting for $1"; n=$((n+1)); [ $n -gt ${WAIT_PATH_ROUNDS:-2880} ] && return 1; sleep 30; done; sleep 60; return 0; }  # + 60 s: let the writer finish
@@ -50,11 +53,11 @@ PY="${OPENPI_PYTHON:-$ROOT/openpi/.venv/bin/python}"
 run_once() {  # $1 = batch
   local ckdir="$ROOT/beans/checkpoints/$CFG/$EXP" extra=() mode=fresh
   if [ -d "$ckdir" ]; then if ls "$ckdir" 2>/dev/null | grep -qE '^[0-9]+$'; then mode=resume; extra=(--resume); else mode=overwrite; extra=(--overwrite); fi; fi
-  echo "launch $(date +%m/%d\ %H:%M) host=$(hostname) job=${JOB:-none} gpus=$GPUS fsdp=$NGPU config=$CFG exp=$EXP batch=$1 mode=$mode base=$BASE_PARAMS code=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)" >> "$status"
+  echo "launch $(date +%m/%d\ %H:%M) host=$(hostname) job=${JOB:-none} gpus=$GPUS fsdp=$NGPU config=$CFG exp=$EXP batch=$1 steps=$STEPS mode=$mode base=$BASE_PARAMS code=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)" >> "$status"
   find src/openpi scripts -name __pycache__ -type d -prune -exec rm -rf {} + 2>/dev/null
   local cmd=("$PY" scripts/train.py "$CFG" --exp-name "$EXP" --batch-size "$1" --fsdp-devices "$NGPU" --num-workers "$WORKERS"
              $( [ "$WANDB" = 1 ] && echo --wandb-enabled || echo --no-wandb-enabled ) "${extra[@]}")
-  local envs=(OPENPI_BEANS_AB_BATCH="$1" OPENPI_BEANS_AB_FSDP="$NGPU" OPENPI_BEANS_BASE_PARAMS="$BASE_PARAMS")
+  local envs=(OPENPI_BEANS_AB_BATCH="$1" OPENPI_BEANS_AB_FSDP="$NGPU" OPENPI_BEANS_AB_STEPS="$STEPS" OPENPI_BEANS_BASE_PARAMS="$BASE_PARAMS")
   if [ -n "${JOB:-}" ]; then
     srun --jobid="$JOB" --overlap --nodes=1 --ntasks=1 --cpus-per-task="${CPUS:-24}" --gres=gpu:"${GRES:-$NGPU}" env CUDA_VISIBLE_DEVICES="$GPUS" "${envs[@]}" "${cmd[@]}" >> "$LOGS/train_${EXP}.log" 2>&1
   else

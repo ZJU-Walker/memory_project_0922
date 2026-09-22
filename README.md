@@ -17,7 +17,7 @@ instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs, checkpoints kept at 100
 | row | script | memory tokens at the input | sensory bank written from (every tick) | update rule | status |
 | --- | --- | --- | --- | --- | --- |
 | control (snap) | `run_snap.sh` | 8 sentence | – | delta | runs here (Stanford 4×H200) |
-| vis8 | `run_vis8.sh` | 8 sentence + 8 sensory | front camera (256 image tokens pooled into 8 slots) | delta | runs here (Stanford 4×H200) |
+| vis8 | `run_vis8.sh` | 8 sentence + 8 sensory | front camera (256 image tokens pooled into 8 slots) | delta | running here since 2026-09-22 13:12 (Stanford, 2×H200, `STEPS=5000`) |
 | vis8s | `run_vis8s.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | delta | **to run: node 1, GPUs 0–3** |
 | vis8s_add | `run_vis8s_add.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | **additive** | **to run: node 1, GPUs 4–7** |
 | state8 | `run_state8.sh` | 8 sentence + 8 sensory | arm state (1 slot) | delta | **to run: node 2, GPUs 0–3** |
@@ -58,7 +58,7 @@ GPUS=4,5,6,7 nohup bash beans/ablations/run_state8_add.sh > beans/ablations/logs
 bash beans/ablations/ablation_ctl.sh status;  bash beans/ablations/ablation_ctl.sh stop vis8s_add
 ```
 
-Knobs (environment): `GPUS` (default `0,1,2,3`), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM — 4 × 80 GB usually
+Knobs (environment): `GPUS` (default `0,1,2,3`), `STEPS` (default 3000), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM — 4 × 80 GB usually
 lands at 8–12), `WORKERS` (16 loader processes per row), `WANDB=0`. No scheduler is needed: python runs directly on the
 node. Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoints/<config>/<exp>/`; W&B project
 `beans0922_ablation` (the `diagnostic/vis_*` curves show the sensory bank: commits per step, bank norm, read scale).
