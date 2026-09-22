@@ -355,6 +355,20 @@ class Pi0Config(_model.BaseModelConfig):
     # of inside the rematted tick body, where its forward is recomputed in the backward pass. Same math, different kernel
     # batching (not bit-identical). Training only; inference is unchanged.
     memory_v0920_vision_outside_scan: bool = False
+    # beans0922 ablation (1) "snap + visual memory" (2026-09-22): a SECOND fast-weight bank, fed by the front camera and read
+    # exactly like the sentence bank. Every valid tick the front camera's INPUT image tokens (SigLIP + projector, memory-blind,
+    # stop-gradient) are pooled by `memory_vis_slots` learned queries; slot i is written as key = unit(P_k pooled_i + e_i),
+    # value = unit(P_v pooled_i) into the visual bank -- `Pi0Config.memory`, configured as the same linear delta-rule bank as
+    # `memory_semantic` (its old layer-8 compressors stay inert, their zero write is what snap already does). The read =
+    # `memory_vis_slots` fixed learned queries -> bank -> tanh gate (same init as the sentence gate) + RMS match
+    # (`memory_vis_input_rms`; None = the RMS of that sample's front-camera image tokens, the space the values live in) + slot
+    # embedding, appended at the INPUT after the sentence-bank tokens (16 memory tokens for 8 + 8). Needs
+    # memory_v0920_input_read and memory_v35_enabled (the tick transition). Default off: every existing config is bit-identical.
+    memory_vis_bank: bool = False
+    memory_vis_slots: int = 8
+    memory_vis_input_rms: float | None = None
+    # serving / eval switch: read exactly zero from the visual bank while its writes continue (reliance test)
+    memory_vis_zero_read: bool = False
     # v7 (09-18, user: "fully remove the visual bank ... keep the tokens clean"): drop the 16 visual-bank columns from
     # the injected block; only the sentence-bank read tokens are injected. The visual bank still runs (unused).
     memory_v7_no_visual_block: bool = False
@@ -563,6 +577,24 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("memory_v0920_history_pool must divide the 16x16 patch grid.")
                 if not 0.0 <= self.memory_v0920_history_dropout < 1.0:
                     raise ValueError("memory_v0920_history_dropout must lie in [0, 1).")
+            if self.memory_vis_bank:
+                if not self.memory_v0920_input_read:
+                    raise ValueError("memory_vis_bank needs memory_v0920_input_read (the visual tokens join the input read).")
+                if not self.memory_v35_enabled:
+                    raise ValueError("memory_vis_bank needs memory_v35_enabled (the per-tick bank transition).")
+                if self.memory_vis_slots < 1:
+                    raise ValueError("memory_vis_slots must be >= 1.")
+                if (
+                    self.memory.write_rule != "delta_output"
+                    or self.memory.association_mode != "pooled_frame"
+                    or not self.memory.blank_initial_output
+                ):
+                    raise ValueError(
+                        "memory_vis_bank needs Pi0Config.memory as a delta_output / pooled_frame bank with "
+                        "blank_initial_output (the sentence-bank form, e.g. a copy of memory_semantic)."
+                    )
+                if self.memory_vis_input_rms is not None and not self.memory_vis_input_rms > 0.0:
+                    raise ValueError("memory_vis_input_rms must be positive or None.")
             if self.memory_task_conditioned_write and self.memory_architecture != "v32_layer8_dual_query":
                 raise ValueError("memory_task_conditioned_write requires the v3.2 dual-query architecture.")
             if self.memory_seq_steps < 1:

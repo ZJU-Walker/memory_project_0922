@@ -57,3 +57,10 @@ that already holds a numeric checkpoint, and in step 2 retries once at batch 2 i
 `openpi/scripts/serve_yam_memory.py` serves step 2 with the same tick, write rule and read as training (the RoboMME clients
 in `openpi/cluster_robomme/eval` show the request format; the YAM robot client for the LED task is
 `openpi/examples/yam/client_memory_v5_led.py` from the v5 line and needs the 0920 request fields ported before the robot test).
+
+## Ablations
+
+`beans/ablations/` holds the ablation rows of this policy (same recipe on 4 cards, 3000 updates, label ramp 500, from the
+base 10k): the control row and (1) "snap + visual memory" (`Pi0Config.memory_vis_bank`). One-time setup on another machine
+= `beans/ablations/setup_other_cluster.sh` (clone, venv, dataset + base checkpoint from the Hub); one row =
+`beans/ablations/run_<row>.sh`. See `beans/ablations/README.md`.

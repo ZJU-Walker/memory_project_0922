@@ -68,6 +68,9 @@ class Args:
     """Diagnostic: zero the semantic-bank READ content before the layer-8 injection (writes and the decoded
     sentence still happen, the count will not work). Isolates whether the memory reads degrade the low-level
     skills (2026-09-06 21:55, user: pick-up/dig look worse than the plain pi05 baseline)."""
+    vis_zero_read: bool = False
+    """beans0922 ablation (1) reliance test: read exactly zero from the VISUAL bank (its writes continue, the sentence
+    bank is untouched). Only meaningful for a memory_vis_bank checkpoint."""
     # Run synthetic requests before serving so the JIT compile (minutes) happens here, not on the
     # robot's first request; the memory is reset afterwards (ported from v4).
     warmup: bool = True
@@ -292,6 +295,9 @@ class MemoryPolicy(_policy.Policy):
         self._max_decode_steps = max_decode_steps
         self._num_steps = int(num_steps)
         self._zero_read = bool(zero_read)
+        # beans0922 ablation (1): a visual-bank model advances its visual bank inside the sampler at every served tick
+        # (write_mode "normal" + the v3.5 masks); snap keeps the visual state frozen (the sentence bank is written below).
+        self._vis_bank = bool(getattr(model, "memory_vis_bank", False))
         self._forced = None
         # 09-19 20:40 (user: "add a mode using correct notes as current subtask, but on the video also show the
         # model's own prediction"): when a sentence is forced and this flag is set, the model is ALSO decoded freely
@@ -482,6 +488,8 @@ class MemoryPolicy(_policy.Policy):
                     "v5_prev_mask": jnp.asarray(prev_mask),
                     "write_mode": "frozen",
                 }
+                if self._vis_bank:
+                    v5_kwargs.update(write_mode="normal", v35_transition_valid=True, v35_write_mask=True)
             own_subtask, own_confidence = None, None
             if self._forced is not None and self._own_prediction:
                 # what the model would say on its own, from the same memory state (no write, state discarded)
@@ -622,6 +630,13 @@ def create_policy(args: Args) -> MemoryPolicy:
         )
 
     out_norm_stats = dict(norm_stats)
+
+    if getattr(train_config.model, "memory_vis_bank", False):
+        # beans0922 ablation (1): the visual bank is read at every tick; --vis-zero-read zeroes that read only
+        model.memory_vis_zero_read = bool(args.vis_zero_read)
+        logging.info("visual bank: %d slots, zero_read=%s", int(train_config.model.memory_vis_slots), bool(args.vis_zero_read))
+    elif args.vis_zero_read:
+        raise ValueError("--vis-zero-read needs a memory_vis_bank checkpoint")
 
     fast_tokenizer = _tokenizer.FASTSubtaskTokenizer(train_config.model.max_token_len)
     pg = fast_tokenizer._paligemma_tokenizer  # noqa: SLF001

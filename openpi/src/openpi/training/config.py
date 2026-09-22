@@ -6277,6 +6277,10 @@ _CONFIGS.extend(_beans_0920_config.get_configs())
 from openpi.training import beans0922_config as _beans0922_config  # noqa: E402
 
 _CONFIGS.extend(_beans0922_config.get_configs({config.name: config for config in _CONFIGS}))
+# beans0922 ablations (beans0922_ablation_config.py, 2026-09-22): 4-card variants of the memory run; appends only.
+from openpi.training import beans0922_ablation_config as _beans0922_ablation_config  # noqa: E402
+
+_CONFIGS.extend(_beans0922_ablation_config.get_configs({config.name: config for config in _CONFIGS}))
 
 _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 

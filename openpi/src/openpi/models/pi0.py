@@ -810,6 +810,41 @@ class Pi0(_model.BaseModel):
                         self.memory_v0920_history_time = nnx.Param(
                             jnp.zeros((self.memory_v0920_history_frames, paligemma_config.width), dtype=jnp.float32)
                         )
+                    # beans0922 ablation (1): the visual bank next to the sentence bank (Pi0Config.memory_vis_*). The bank
+                    # itself is `self.memory` (configured as a linear delta bank); these are its pooler, key/value maps, fixed
+                    # read queries, gate and slot embeddings. Every leaf name carries "memory" (fresh-init / grad-clip rules).
+                    self.memory_vis_bank = bool(getattr(config, "memory_vis_bank", False))
+                    self.memory_vis_slots = int(getattr(config, "memory_vis_slots", 8))
+                    self.memory_vis_input_rms = getattr(config, "memory_vis_input_rms", None)
+                    self.memory_vis_zero_read = bool(getattr(config, "memory_vis_zero_read", False))
+                    if self.memory_vis_bank:
+                        vis_dk = config.memory.d_key
+                        width = paligemma_config.width
+                        self.memory_vis_pooler = MemoryQueryCompressor(
+                            num_queries=self.memory_vis_slots,
+                            width=width,
+                            num_heads=config.memory_query_heads,
+                            compute_dtype=jnp.dtype(config.dtype),
+                            qk_norm=config.memory_qk_norm,
+                            rngs=rngs,
+                        )
+                        self.memory_vis_key_proj = nnx.Linear(width, vis_dk, use_bias=False, rngs=rngs)
+                        self.memory_vis_value_proj = nnx.Linear(width, width, use_bias=False, rngs=rngs)
+                        self.memory_vis_value_proj.kernel.value = jnp.eye(width, dtype=self.memory_vis_value_proj.kernel.value.dtype)
+                        # per-slot key offset (unit scale): the 8 slots of one tick land in 8 different key directions
+                        self.memory_vis_slot_key = nnx.Param(
+                            jax.random.normal(rngs.params(), (self.memory_vis_slots, vis_dk), dtype=jnp.float32)
+                            / jnp.sqrt(jnp.float32(vis_dk))
+                        )
+                        self.memory_vis_read_query_bank = nnx.Param(
+                            jax.random.normal(rngs.params(), (self.memory_vis_slots, width), dtype=jnp.float32)
+                            / jnp.sqrt(jnp.float32(width))
+                        )
+                        self.memory_vis_query_proj = nnx.Linear(width, vis_dk, use_bias=False, rngs=rngs)
+                        self.memory_vis_inject_w = nnx.Param(
+                            jnp.full((width,), jnp.arctanh(jnp.asarray(config.memory_sem_injection_gate_init, dtype=jnp.float32)), dtype=jnp.float32)
+                        )
+                        self.memory_vis_slot_embedding = nnx.Param(jnp.zeros((self.memory_vis_slots, width), dtype=jnp.float32))
                     self.memory_sem_query_proj = nnx.Linear(
                         paligemma_config.width, config.memory_semantic.d_key, use_bias=False, rngs=rngs
                     )
@@ -983,7 +1018,11 @@ class Pi0(_model.BaseModel):
         else:
             extra = self.memory_fact_slots
         if getattr(self, "memory_v7_no_visual_block", False):
-            return extra  # v7 (09-18): sentence-bank read tokens only, no visual columns in the sequence
+            # v7 (09-18): sentence-bank read tokens only, no visual columns in the sequence; the beans0922 ablation (1)
+            # appends the visual-bank read tokens after them (Pi0Config.memory_vis_bank)
+            if getattr(self, "memory_vis_bank", False):
+                return extra + int(self.memory_vis_slots)
+            return extra
         return self.memory_query_tokens + extra
 
     def _v32_content_gate(self) -> at.Array:
@@ -1976,6 +2015,67 @@ class Pi0(_model.BaseModel):
         post_rms = jnp.sqrt(jnp.mean(jnp.square(tokens.astype(jnp.float32)), axis=(1, 2)))
         return tokens, valid, retrieved, queries, pre_rms, post_rms
 
+    # ------------------------------------------------------------------------------------
+    # beans0922 ablation (1), 2026-09-22 (Pi0Config.memory_vis_bank): a visual bank next to the sentence bank. Written every
+    # valid tick from the front camera's input image tokens, read with fixed queries at the input like the sentence bank.
+    # ------------------------------------------------------------------------------------
+    def _vis_input_scale(self, front_tokens: at.Array) -> at.Array:
+        """Target RMS of one injected visual token, [b, 1, 1] fp32: the config value, else the RMS of this sample's
+        front-camera image tokens (stop-gradient) -- the retrieved content is pooled image tokens, so it takes their scale."""
+        fixed = getattr(self, "memory_vis_input_rms", None)
+        if fixed is not None:
+            return jnp.full((front_tokens.shape[0], 1, 1), float(fixed), dtype=jnp.float32)
+        x = jax.lax.stop_gradient(front_tokens.astype(jnp.float32))
+        return jnp.sqrt(jnp.mean(jnp.square(x), axis=(1, 2), keepdims=True) + 1e-12)
+
+    def vis_write_kv(self, front_tokens: at.Array) -> tuple[at.Array, at.Array, at.Array]:
+        """Visual write content of one tick from the front camera's INPUT image tokens [b, n, d] (memory-blind by
+        construction, stop-gradient): `memory_vis_slots` learned queries pool them -> pooled [b, s, d] fp32;
+        key_i = unit(P_k pooled_i + e_i), value_i = unit(P_v pooled_i). Returns (keys [b, s, dk], values [b, s, d], pooled)."""
+        source = jax.lax.stop_gradient(front_tokens.astype(jnp.float32))
+        pooled = self.memory_vis_pooler(source).astype(jnp.float32)
+        keys = _memory.l2_normalize(
+            self.memory_vis_key_proj(pooled).astype(jnp.float32) + self.memory_vis_slot_key.value[None].astype(jnp.float32)
+        )
+        values = _memory.l2_normalize(self.memory_vis_value_proj(pooled).astype(jnp.float32))
+        return keys, values, pooled
+
+    def vis_bank_write(
+        self, state: _memory.MemoryState, keys: at.Array, values: at.Array, commit: at.Array
+    ) -> tuple[_memory.MemoryState, dict[str, at.Array]]:
+        """One visual-bank transition: commit the `s` slot associations of the tick when `commit` [b] (else exactly one
+        decay step; the same delta rule and decay as a sentence commit). `aux["commit_applied"]` is per slot [b, s]."""
+        slots = jnp.broadcast_to(commit.astype(bool)[:, None], keys.shape[:2])
+        return self.memory.delta_write_kv_multi(state, keys, values, slots, slot_loop="unrolled")
+
+    def vis_read_tokens(
+        self, state: _memory.MemoryState, front_tokens: at.Array, dtype: jnp.dtype, *, zero_read: bool = False
+    ) -> tuple[at.Array, at.Array, at.Array, at.Array, at.Array, at.Array]:
+        """`memory_vis_slots` fixed learned queries -> unit dk -> visual bank -> tokens at the image-token RMS, tanh gate,
+        + slot embedding: the v0920_read_tokens contract on the visual bank (an empty bank reads exactly zero and, with
+        memory_mask_zero_tokens, its tokens are exactly zero and masked). Returns (tokens, valid, retrieved, queries,
+        pre-cast rms [b], post-cast rms [b])."""
+        batch = front_tokens.shape[0]
+        base = self.memory_vis_read_query_bank.value.astype(jnp.float32)
+        queries = _memory.l2_normalize(self.memory_vis_query_proj(base).astype(jnp.float32))
+        queries = jnp.broadcast_to(queries[None], (batch,) + queries.shape)
+        retrieved = self.memory.read_key(state, queries).astype(jnp.float32)
+        if zero_read or getattr(self, "memory_vis_zero_read", False):
+            retrieved = jnp.zeros_like(retrieved)
+        target = self._vis_input_scale(front_tokens)
+        rms = jnp.sqrt(jnp.mean(jnp.square(retrieved), axis=-1, keepdims=True) + 1e-12)
+        floor = target * (float(self.memory_sem_injection_tau) / float(self.memory_sem_injection_c))
+        injected = jnp.tanh(self.memory_vis_inject_w.value) * (retrieved * (target / jnp.maximum(rms, floor)))
+        content = injected + self.memory_vis_slot_embedding.value[None].astype(jnp.float32)
+        tokens = content.astype(dtype)
+        if getattr(self, "memory_mask_zero_tokens", False):
+            valid = jnp.any(tokens != 0, axis=-1)
+        else:
+            valid = jnp.ones(tokens.shape[:2], dtype=bool)
+        pre_rms = jnp.sqrt(jnp.mean(jnp.square(injected), axis=(1, 2)))
+        post_rms = jnp.sqrt(jnp.mean(jnp.square(tokens.astype(jnp.float32)), axis=(1, 2)))
+        return tokens, valid, retrieved, queries, pre_rms, post_rms
+
     def _v0920_prepare_prefix(
         self,
         prefix_tokens: at.Array,
@@ -1985,6 +2085,7 @@ class Pi0(_model.BaseModel):
         *,
         top_token_count: int,
         zero_read: bool = False,
+        visual_state: _memory.MemoryState | None = None,
     ) -> dict[str, at.Array | _gemma.KVCache | None]:
         """One pass through ALL blocks over [prefix | 8 memory tokens] (memory rows blind, memory columns visible to
         every row). Returns the dict the v3.2 call sites consume; the visual-bank entries are zeros (that bank is
@@ -1998,6 +2099,30 @@ class Pi0(_model.BaseModel):
         tokens8, valid8, sem_retrieved, sem_queries, pre_rms, post_rms = self.v0920_read_tokens(
             semantic_state, batch, prefix_tokens.dtype, zero_read=zero_read
         )
+        vis_out: dict[str, at.Array] = {}
+        if getattr(self, "memory_vis_bank", False):
+            # beans0922 ablation (1): read the visual bank with its fixed queries and append the tokens after the sentence
+            # tokens; the tick's write content (keys / values) comes from the same front-camera input tokens. Memory-blind:
+            # the input image tokens precede every attention block.
+            if visual_state is None:
+                raise ValueError("memory_vis_bank needs the visual bank state at every call site (visual_state).")
+            front = prefix_tokens[:, :top_token_count]
+            vis_tokens, vis_valid, vis_retrieved, vis_queries, vis_pre, vis_post = self.vis_read_tokens(
+                visual_state, front, prefix_tokens.dtype, zero_read=zero_read
+            )
+            vis_keys, vis_values, vis_pooled = self.vis_write_kv(front)
+            tokens8 = jnp.concatenate([tokens8, vis_tokens], axis=1)
+            valid8 = jnp.concatenate([valid8, vis_valid], axis=1)
+            vis_out = {
+                "vis_keys": vis_keys,
+                "vis_values": vis_values,
+                "vis_pooled": vis_pooled,
+                "vis_retrieved": vis_retrieved,
+                "vis_queries": vis_queries,
+                "vis_valid": vis_valid,
+                "vis_injected_pre_cast_rms": vis_pre.astype(jnp.float32),
+                "vis_injected_post_cast_rms": vis_post.astype(jnp.float32),
+            }
         if tokens8.shape[1] != mem_len:
             raise ValueError(f"expected {mem_len} memory tokens, got {tokens8.shape[1]}.")
         split_tokens = jnp.concatenate([prefix_tokens, tokens8], axis=1)
@@ -2016,6 +2141,7 @@ class Pi0(_model.BaseModel):
         zeros_vis = jnp.zeros((batch, self.memory_query_tokens, width), dtype=jnp.float32)
         zeros_b = jnp.zeros((batch,), dtype=jnp.float32)
         return {
+            **vis_out,
             "sem_queries": sem_queries,
             "sem_retrieved": sem_retrieved,
             "sem_injected_pre_cast_rms": pre_rms.astype(jnp.float32),
@@ -4356,6 +4482,8 @@ class Pi0(_model.BaseModel):
         transition_valid: bool | at.Bool[at.Array, " b"] | None,
         write_mask: bool | at.Bool[at.Array, " b"] | None,
         write_mode: str,
+        vis_keys: at.Array | None = None,
+        vis_values: at.Array | None = None,
     ) -> tuple[_memory.MemoryState, dict[str, at.Array]]:
         """Apply the v3.5 E-only inference transition, fail-closed per batch sample.
 
@@ -4392,6 +4520,19 @@ class Pi0(_model.BaseModel):
             return jnp.where(transition_applied.reshape(shape), selected_transition, old_leaf)
 
         new_state = jax.tree.map(select_state, write_state, decay_state, memory_state)
+        if getattr(self, "memory_vis_bank", False):
+            # beans0922 ablation (1): the visual bank commits the tick's pooled front-camera slots whenever the transition
+            # applies in "normal" mode (dynamics_only = one decay, frozen = no-op) -- the serving twin of a valid training
+            # tick. The zero v3.5 write above is snap's inert transition; its telemetry is returned unchanged.
+            if vis_keys is None or vis_values is None:
+                raise ValueError("memory_vis_bank needs the tick's visual keys / values at the inference transition.")
+            vis_commit = transition_applied & (write_mode == "normal")
+            vis_state, _ = self.vis_bank_write(memory_state, vis_keys, vis_values, vis_commit)
+            new_state = jax.tree.map(
+                lambda n, o: jnp.where(transition_applied.reshape((batch_size,) + (1,) * (n.ndim - 1)), n, o),
+                vis_state,
+                memory_state,
+            )
         candidate_commit = candidate_aux.get("commit_applied", jnp.ones((batch_size,), dtype=bool))
         commit_applied = commit_requested & candidate_commit
         decay_only = transition_applied & ~commit_applied
@@ -4475,7 +4616,8 @@ class Pi0(_model.BaseModel):
         gen_base = prefix_len + mem_len
         if getattr(self, "memory_v0920_input_read", False):
             prepared = self._v0920_prepare_prefix(
-                prefix_tokens, prefix_mask, prefix_ar, semantic_state, top_token_count=top_tokens, zero_read=zero_read
+                prefix_tokens, prefix_mask, prefix_ar, semantic_state, top_token_count=top_tokens, zero_read=zero_read,
+                visual_state=memory_state,
             )
         else:
             prepared = self._v32_prepare_memory_prefix(
@@ -4522,6 +4664,8 @@ class Pi0(_model.BaseModel):
                     transition_valid=v35_transition_valid,
                     write_mask=v35_write_mask,
                     write_mode=write_mode,
+                    vis_keys=prepared.get("vis_keys"),
+                    vis_values=prepared.get("vis_values"),
                 )
             else:
                 # Preserve the v3.2-v3.4 transition path exactly.  In particular, their
@@ -5568,7 +5712,8 @@ class Pi0(_model.BaseModel):
                     v5_read_kwargs = {"v5_prev_tokens": jnp.maximum(prev_sentence, 0), "v5_prev_mask": prev_sentence > 0}
             if getattr(self, "memory_v0920_input_read", False):
                 prepared = self._v0920_prepare_prefix(
-                    masked_prefix_tokens, prefix_mask, prefix_ar, read_sem_state, top_token_count=top_tokens
+                    masked_prefix_tokens, prefix_mask, prefix_ar, read_sem_state, top_token_count=top_tokens,
+                    visual_state=read_state,
                 )
             else:
                 prepared = self._v32_prepare_memory_prefix(
@@ -5695,12 +5840,23 @@ class Pi0(_model.BaseModel):
             flow = jnp.mean(_rtc.renormalize_flow_loss(flow_tokens, rtc_loss_mask), axis=-1)
 
             valid = x["step_valid"]
+            vis_commit = jnp.zeros((b,), dtype=bool)  # beans0922 ablation (1): visual-bank commits of this tick
             if v35_on:
                 transition_valid = valid & gap_value_valid
                 write_requested = x["write_mask"] & transition_valid
                 # Both candidates start from the exact state that was read above. In delta
                 # mode decay_step is observation-independent and cheap; write computes the
                 # pooled association needed by L_write even for non-E rows before selection.
+                vis_state = None
+                if getattr(self, "memory_vis_bank", False):
+                    # beans0922 ablation (1): the visual bank (this `state`) takes the tick's pooled front-camera slots on
+                    # every valid tick (commit = transition_valid, an invalid tick keeps the exact state), computed from the
+                    # state that was read above. The zero write below is snap's inert transition of the same state; it is
+                    # kept so `write_aux` (and the v3.5 side telemetry fed by it) stays exactly what snap logs.
+                    vis_state, vis_aux = self.vis_bank_write(
+                        state, prepared["vis_keys"], prepared["vis_values"], transition_valid
+                    )
+                    vis_commit = transition_valid & jnp.any(vis_aux["commit_applied"], axis=-1)
                 write_state, write_aux = self.memory.write(state, write_tokens)
                 decay_state, _ = self.memory.decay_step(state, write_tokens)
 
@@ -5712,6 +5868,10 @@ class Pi0(_model.BaseModel):
                     return jnp.where(valid_leaf, transitioned, old_leaf)
 
                 state = jax.tree.map(select_transition, write_state, decay_state, state)
+                if vis_state is not None:
+                    state = jax.tree.map(
+                        lambda n, o: jnp.where(transition_valid.reshape((b,) + (1,) * (n.ndim - 1)), n, o), vis_state, state
+                    )
                 commit_success = write_requested & write_aux["commit_applied"]
                 if getattr(self, "memory_v0920_input_read", False):
                     # 0920_v0 (bug found 09-21 00:55): the visual bank is inert (its write tokens are zeros, which the
@@ -5955,6 +6115,22 @@ class Pi0(_model.BaseModel):
                 "fast_token_count": jnp.sum(fast_tokens_k, axis=-1).astype(jnp.float32) * validf,
                 "v7_onset": (x["onset_mask"].astype(jnp.float32) * validf) if "onset_mask" in x else validf * 0.0,
                 "v7_hard_token": hard_token_count * validf,  # sentence tokens the model gets wrong (per-token weight rows)
+                # beans0922 ablation (1) telemetry (exact zeros when the visual bank is off)
+                "vis_commit": vis_commit.astype(jnp.float32),
+                "vis_raw_read_rms": (
+                    jnp.sqrt(jnp.mean(jnp.square(prepared["vis_retrieved"].astype(jnp.float32)), axis=(1, 2)))
+                    if "vis_retrieved" in prepared else jnp.zeros((b,), dtype=jnp.float32)
+                ) * validf,
+                "vis_injected_pre_cast_rms": (
+                    prepared["vis_injected_pre_cast_rms"] if "vis_injected_pre_cast_rms" in prepared
+                    else jnp.zeros((b,), dtype=jnp.float32)
+                ) * validf,
+                "vis_bank_norm": (
+                    jax.lax.stop_gradient(jnp.sqrt(jnp.sum(
+                        jnp.square(state.fast_weights[self.memory._output_weight_name].astype(jnp.float32)), axis=(-2, -1)
+                    )))
+                    if getattr(self, "memory_vis_bank", False) else jnp.zeros((b,), dtype=jnp.float32)
+                ) * validf,
                 # Core-steepness telemetry (v34_run1/2 postmortems): the raw inner write
                 # gradient norm ramped ~0.5-2.8 (healthy) -> 45-53 before both explosion
                 # cycles. Observation only -- stop-gradient keeps it out of the objective.
@@ -6470,6 +6646,14 @@ class Pi0(_model.BaseModel):
                     "v4_fact_read_correct": jnp.sum(ys["v4_fact_read_correct"]),
                 }
             )
+        losses.update(
+            {  # beans0922 ablation (1): visual-bank telemetry sums (zeros when the bank is off)
+                "vis_commit_count": jnp.sum(ys["vis_commit"]),
+                "vis_raw_read_rms_sum": jnp.sum(ys["vis_raw_read_rms"]),
+                "vis_injected_pre_cast_rms_sum": jnp.sum(ys["vis_injected_pre_cast_rms"]),
+                "vis_bank_norm_sum": jnp.sum(ys["vis_bank_norm"]),
+            }
+        )
         if v4_on:
             losses.update(
                 {

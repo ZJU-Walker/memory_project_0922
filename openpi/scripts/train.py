@@ -1307,6 +1307,11 @@ def _v4_fact_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Array]:
 
 
 _V5_INFO_KEYS = (
+    # beans0922 ablation (1): visual-bank telemetry (exact zeros for every other v5 config)
+    "vis_commit_count",
+    "vis_raw_read_rms_sum",
+    "vis_injected_pre_cast_rms_sum",
+    "vis_bank_norm_sum",
     "v4_sem_commit_count",
     "v4_sem_write_eligible_count",
     "v4_sem_degenerate_count",
