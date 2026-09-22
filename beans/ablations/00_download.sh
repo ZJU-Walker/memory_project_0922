@@ -46,7 +46,7 @@ if [ -d "$BASE_DIR/params" ] && [ -n "$(ls "$BASE_DIR/params" 2>/dev/null)" ]; t
 fi
 [ -d "$BASE_DIR/params" ] || { echo "download of $BASE_REPO failed"; exit 1; }
 echo "pre-fetching tokenizers into the tree's caches"
-unset HF_HOME HF_LEROBOT_HOME HF_DATASETS_CACHE OPENPI_DATA_HOME OPENPI_JAX_CACHE_DIR UV_CACHE_DIR
+export HF_HOME="$ROOT/v35/cache/huggingface" HF_DATASETS_CACHE="$ROOT/v35/cache/huggingface/datasets" OPENPI_DATA_HOME="$ROOT/v35/cache/openpi" OPENPI_JAX_CACHE_DIR="$ROOT/v35/cache/jax" UV_CACHE_DIR="$ROOT/v35/cache/uv" HF_LEROBOT_HOME="$ROOT/data/lerobot"
 MEMORY_PROJECT_ROOT="$ROOT" PYTHONDONTWRITEBYTECODE=1 JAX_PLATFORMS=cpu "$PY" - <<'PYEOF'
 from openpi.shared import project_paths
 project_paths.configure_v35_runtime_environment()

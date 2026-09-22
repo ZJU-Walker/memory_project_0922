@@ -14,12 +14,16 @@ export MEMORY_PROJECT_ROOT="$ROOT" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 export XLA_PYTHON_CLIENT_MEM_FRACTION=${MEMFRAC:-0.92} OPENPI_0920_REMAT=${REMAT:-nothing_saveable}
 export WANDB__SERVICE_WAIT=${WANDB__SERVICE_WAIT:-300}
 export HOME=${HOME:-$ROOT}
-# the tree keeps every cache under its own root (project_paths.configure_v35_runtime_environment) and refuses inherited
-# machine-wide settings, so drop them here (TMPDIR / WANDB_DIR may differ and are kept)
-unset HF_HOME HF_LEROBOT_HOME HF_DATASETS_CACHE OPENPI_DATA_HOME OPENPI_JAX_CACHE_DIR UV_CACHE_DIR
+# The tree keeps every cache under its own root (project_paths.configure_v35_runtime_environment) and refuses inherited
+# machine-wide settings. The `datasets` library fixes its cache dir at IMPORT time, before train.py can set it, so export the
+# in-tree spellings here (they equal what train.py would set; a symlinked v35/cache/huggingface/datasets -> local disk is
+# followed by both). TMPDIR / WANDB_DIR may differ and are left alone.
+export HF_HOME="$ROOT/v35/cache/huggingface" HF_DATASETS_CACHE="$ROOT/v35/cache/huggingface/datasets" HF_LEROBOT_HOME="$ROOT/data/lerobot"
+export OPENPI_DATA_HOME="$ROOT/v35/cache/openpi" OPENPI_JAX_CACHE_DIR="$ROOT/v35/cache/jax" UV_CACHE_DIR="$ROOT/v35/cache/uv"
+mkdir -p "$HF_HOME" "$OPENPI_DATA_HOME" "$OPENPI_JAX_CACHE_DIR" "$UV_CACHE_DIR" 2>/dev/null; [ -e "$HF_DATASETS_CACHE" ] || mkdir -p "$HF_DATASETS_CACHE"
 CFG=${CFG:?set CFG}; EXP=${EXP:?set EXP}; MODE=${MODE:-train}
 GPUS=${GPUS:-0,1,2,3}; NGPU=$(echo "$GPUS" | tr ',' '\n' | wc -l); WORKERS=${WORKERS:-16}; WANDB=${WANDB:-1}
-BATCH=${BATCH:-16}; FALLBACK=${BATCH_FALLBACK:-"12 8 4"}  # 4 x 80 GB (H100): expect 8-12; 4 x 141 GB (H200): 16+
+BATCH=${BATCH:-16}; FALLBACK=${BATCH_FALLBACK:-"12 8 4"}  # 4 x 80 GB (H100): expect 8-12; 4 x 141 GB (H200): 16 (32 aborts: per-device attention tensor > 2 GB)
 if [ "$MODE" = smoke ]; then CFG="${CFG}_smoke"; EXP="smoke_${EXP}"; WANDB=0; FALLBACK=${BATCH_FALLBACK:-}; fi
 # warm start: OPENPI_BEANS_BASE_PARAMS if set, else the LARGEST base step present locally (5000 before the base run has
 # finished, 10000 after -- re-run 00_download.sh to fetch the 10000 one), else wait for 10000 to appear (this cluster's chain)
@@ -66,6 +70,11 @@ for b in $BATCH $FALLBACK; do
   if run_once "$b"; then log "end mode=$MODE batch=$b: exit=0"; exit 0; fi
   if tail -400 "$LOGS/train_${EXP}.log" | grep -q "RESOURCE_EXHAUSTED"; then
     log "batch $b ran out of memory"; rm -rf "$ROOT/beans/checkpoints/$CFG/$EXP"; sleep 30; wait_gpu || exit 1; continue
+  fi
+  # an illegal-address abort during compile / autotune at a large batch: a per-device activation crossed the 2 GB kernel
+  # indexing limit (seen at batch 32 x 40 ticks x 864 tokens on 4 H200, 09-22); treated like an OOM -> next batch
+  if tail -400 "$LOGS/train_${EXP}.log" | grep -q "CUDA_ERROR_ILLEGAL_ADDRESS" && ! grep -q "Step 0:" "$LOGS/train_${EXP}.log"; then
+    log "batch $b aborted with CUDA_ERROR_ILLEGAL_ADDRESS before the first step (too large for the kernels)"; rm -rf "$ROOT/beans/checkpoints/$CFG/$EXP"; sleep 30; wait_gpu || exit 1; continue
   fi
   log "end mode=$MODE batch=$b: failed (not an OOM), see beans/ablations/logs/train_${EXP}.log"; exit 1
 done
