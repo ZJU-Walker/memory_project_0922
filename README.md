@@ -36,7 +36,7 @@ bash beans/ablations/ablation_ctl.sh stop vis8            # stops that row only
 ```
 
 Knobs (environment): `GPUS` (default `0,1,2,3`), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM), `WORKERS` (16),
-`WANDB=0`, `JOB=<slurm job id>` (run as an `srun --overlap` step inside that allocation instead of directly).
+`WANDB=0`. No scheduler needed: the scripts run python directly on the node you are on.
 Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoints/<config>/<exp>/`; W&B project `beans0922_ablation`.
 
 Adding a row: a config function in `openpi/src/openpi/training/beans0922_ablation_config.py` + a two-line `beans/ablations/run_<row>.sh`.
