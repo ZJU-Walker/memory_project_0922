@@ -1,7 +1,7 @@
 """Push the beans0922 artefacts to the Hugging Face Hub (run once, from the machine that holds them).
 
   python beans/ablations/hf_upload.py dataset  [--src <lerobot dataset dir>]   # 89 episodes, ~49 GB, resumable
-  python beans/ablations/hf_upload.py base     [--src <base params dir>]       # the KI base checkpoint (step 10000)
+  python beans/ablations/hf_upload.py base --step 5000|10000 [--src <params dir>]   # the KI base checkpoint; replaces params/
 
 Repos (public): datasets/kewalk123/yam_bean_scoop_0905_v5 and kewalk123/beans0922_pi05_base_10k. The dataset repo keeps the
 LeRobot layout at its root (data/, meta/) plus the openpi norm stats under openpi_assets/ so 00_download.sh can restore both.
@@ -41,13 +41,14 @@ BASE_CARD = """---
 license: apache-2.0
 tags: [openpi, pi05, robotics, yam]
 ---
-# beans0922 pi0.5 base (knowledge insulation), step 10000
+# beans0922 pi0.5 base (knowledge insulation), step {step}
 
 The plain pi0.5 base of the beans0922 line: openpi `pi05_base` fine-tuned on `kewalk123/yam_bean_scoop_0905_v5` with the
 knowledge-insulation recipe (sub-task sentence + FAST tokens supervise the language side, flow matching trains the action
-expert under a stop-gradient prefix), 10,000 updates, batch 16, lr 5e-5, EMA 0.999 (config `pi05_yam_beans0922_base`,
-github.com/ZJU-Walker/memory_project_0922). `params/` is the orbax checkpoint the memory runs warm-start from
-(`OPENPI_BEANS_BASE_PARAMS`). Restore with `beans/ablations/00_download.sh`.
+expert under a stop-gradient prefix), batch 16, lr 5e-5, EMA 0.999 (config `pi05_yam_beans0922_base`,
+github.com/ZJU-Walker/memory_project_0922). `params/` is the orbax checkpoint of update **{step}** (the file `STEP` says
+which; the final one is 10000 -- an earlier step is published so training can start before the base run finishes), the one
+the memory runs warm-start from (`OPENPI_BEANS_BASE_PARAMS`). Restore with `beans/ablations/00_download.sh`.
 """
 
 
@@ -56,6 +57,7 @@ def main() -> int:
     ap.add_argument("what", choices=("dataset", "base"))
     ap.add_argument("--src", default=None, help="source directory (default: the tree's own copy)")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--step", type=int, default=None, help="base: the checkpoint step being pushed (default: from --src / the 10000 dir)")
     args = ap.parse_args()
     api = HfApi()
     print("hub user:", api.whoami()["name"], flush=True)
@@ -74,14 +76,28 @@ def main() -> int:
         api.upload_large_folder(repo_id=DATASET_REPO, repo_type="dataset", folder_path=str(src), num_workers=args.workers,
                                 allow_patterns=["data/**", "meta/**", "videos/**"], print_report_every=60)
     else:
-        src = pathlib.Path(args.src or ROOT / BASE_PARAMS_REL)
+        step = args.step
+        if args.src is None and step is not None:
+            src = ROOT / BASE_PARAMS_REL.replace("/10000/", f"/{step}/")
+        else:
+            src = pathlib.Path(args.src or ROOT / BASE_PARAMS_REL)
+        if step is None:
+            step = int(src.parent.name)  # .../<step>/params
         if not src.is_dir():
             sys.exit(f"base params dir missing: {src}")
         api.create_repo(BASE_REPO, repo_type="model", private=False, exist_ok=True)
-        api.upload_file(path_or_fileobj=BASE_CARD.encode(), path_in_repo="README.md", repo_id=BASE_REPO, repo_type="model")
-        print(f"uploading {src} -> {BASE_REPO}/params ({args.workers} workers, resumable)", flush=True)
+        # replace, never merge: orbax chunk files are content-named, a merged params/ folder would mix two checkpoints
+        try:
+            api.delete_folder(path_in_repo="params", repo_id=BASE_REPO, repo_type="model", commit_message=f"replace params/ with step {step}")
+            print("remote params/ removed", flush=True)
+        except Exception as exc:  # noqa: BLE001 -- first push: nothing to delete
+            print(f"(no remote params/ to remove: {type(exc).__name__})", flush=True)
+        print(f"uploading {src} -> {BASE_REPO}/params (step {step}, {args.workers} workers, resumable)", flush=True)
         api.upload_large_folder(repo_id=BASE_REPO, repo_type="model", folder_path=str(src.parent), num_workers=args.workers,
                                 allow_patterns=["params/**"], print_report_every=60)
+        api.upload_file(path_or_fileobj=f"{step}\n".encode(), path_in_repo="STEP", repo_id=BASE_REPO, repo_type="model")
+        api.upload_file(path_or_fileobj=BASE_CARD.format(step=step).encode(), path_in_repo="README.md", repo_id=BASE_REPO, repo_type="model")
+        print(f"STEP={step} recorded", flush=True)
     print("done", flush=True)
     return 0
 

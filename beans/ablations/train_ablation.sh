@@ -21,8 +21,18 @@ CFG=${CFG:?set CFG}; EXP=${EXP:?set EXP}; MODE=${MODE:-train}
 GPUS=${GPUS:-0,1,2,3}; NGPU=$(echo "$GPUS" | tr ',' '\n' | wc -l); WORKERS=${WORKERS:-16}; WANDB=${WANDB:-1}
 BATCH=${BATCH:-16}; FALLBACK=${BATCH_FALLBACK:-"12 8 4"}  # 4 x 80 GB (H100): expect 8-12; 4 x 141 GB (H200): 16+
 if [ "$MODE" = smoke ]; then CFG="${CFG}_smoke"; EXP="smoke_${EXP}"; WANDB=0; FALLBACK=${BATCH_FALLBACK:-}; fi
-BASE_PARAMS="${OPENPI_BEANS_BASE_PARAMS:-$ROOT/beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/10000/params}"
+# warm start: OPENPI_BEANS_BASE_PARAMS if set, else the LARGEST base step present locally (5000 before the base run has
+# finished, 10000 after -- re-run 00_download.sh to fetch the 10000 one), else wait for 10000 to appear (this cluster's chain)
+BASE_ROOT="$ROOT/beans/checkpoints/pi05_yam_beans0922_base/beans0922_base"
+if [ -z "${OPENPI_BEANS_BASE_PARAMS:-}" ]; then
+  latest=$(ls "$BASE_ROOT" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -1)
+  BASE_PARAMS="$BASE_ROOT/${latest:-10000}/params"
+else BASE_PARAMS="$OPENPI_BEANS_BASE_PARAMS"; fi
 WAIT_FOR=${WAIT_FOR:-$BASE_PARAMS}
+# node-local dataset mirror (00_download.sh LOCAL_DISK=... or a hand-made link): local/<dataset> is sanctioned by the path guard
+if [ -z "${OPENPI_BEANS_DATASET_ROOT:-}" ] && [ -e "$ROOT/local/bean_scoop_0905_v5/meta/info.json" ]; then
+  export OPENPI_BEANS_DATASET_ROOT="$ROOT/local/bean_scoop_0905_v5"
+fi
 LOGS="$ROOT/beans/ablations/logs"; mkdir -p "$LOGS"; status="$LOGS/train_${EXP}_status.log"
 log() { echo "[$(date +%m/%d\ %H:%M:%S)] $*" | tee -a "$status"; }
 # nvidia-smi ignores CUDA_VISIBLE_DEVICES: on a shared 8-GPU node the direct path must ask about OUR cards only (-i), or a
@@ -48,7 +58,7 @@ run_once() {  # $1 = batch
   fi
   local rc=$?; echo "exit=$rc $(date +%m/%d\ %H:%M)" >> "$status"; return $rc
 }
-log "start mode=$MODE host=$(hostname) job=${JOB:-none} gpus=$GPUS batch=$BATCH fallback='$FALLBACK' cfg=$CFG exp=$EXP wait_for=$WAIT_FOR"
+log "start mode=$MODE host=$(hostname) job=${JOB:-none} gpus=$GPUS batch=$BATCH fallback='$FALLBACK' cfg=$CFG exp=$EXP base=$BASE_PARAMS dataset=${OPENPI_BEANS_DATASET_ROOT:-default}"
 wait_path "$WAIT_FOR" || { log "gave up waiting for $WAIT_FOR"; exit 1; }
 wait_gpu || { log "cards busy (another process holds > 2 GB)"; exit 1; }
 for b in $BATCH $FALLBACK; do

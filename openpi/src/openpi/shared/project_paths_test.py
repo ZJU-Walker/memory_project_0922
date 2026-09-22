@@ -120,6 +120,33 @@ def test_project_path_accepts_symlinks_below_the_cache_dir_only(monkeypatch, tmp
         project_paths.project_path(project_paths.V35_CHECKPOINTS_DIR)
 
 
+def test_local_mirror_links_keep_their_in_project_spelling(monkeypatch, tmp_path: pathlib.Path) -> None:
+    # 2026-09-22: local/<name> -> a node-local copy is sanctioned both ways (logical -> physical and physical spelled
+    # in-project -> logical); a link under any other directory (beans/) stays refused.
+    root = _project_fixture(tmp_path / "memory_project")
+    monkeypatch.setenv(project_paths.MEMORY_PROJECT_ROOT_ENV, str(root))
+    scr = tmp_path / "scr" / "bean_scoop"
+    (scr / "meta").mkdir(parents=True)
+    (scr / "meta" / "info.json").write_text("{}")
+    (root / "local").mkdir()
+    (root / "local" / "bean_scoop").symlink_to(scr)
+    assert project_paths.project_path("local/bean_scoop/meta/info.json") == (scr / "meta" / "info.json").resolve()
+    assert project_paths.project_relative_path(root / "local" / "bean_scoop") == pathlib.PurePosixPath("local/bean_scoop")
+    assert project_paths.project_relative_path(str(root / "local" / "bean_scoop" / "meta" / "info.json")) == pathlib.PurePosixPath(
+        "local/bean_scoop/meta/info.json"
+    )
+    # the physical path itself is still outside (no way to know its spelling)
+    with pytest.raises(project_paths.ProjectRootError, match="outside memory_project"):
+        project_paths.project_relative_path(scr)
+    # a link elsewhere is not sanctioned
+    (root / "beans").mkdir()
+    (root / "beans" / "mirror").symlink_to(scr)
+    with pytest.raises(project_paths.ProjectRootError, match="outside memory_project"):
+        project_paths.project_path("beans/mirror/meta/info.json")
+    with pytest.raises(project_paths.ProjectRootError, match="outside memory_project"):
+        project_paths.project_relative_path(root / "beans" / "mirror")
+
+
 def test_project_relative_path_round_trips_and_rejects_outside(monkeypatch, tmp_path: pathlib.Path) -> None:
     root = _project_fixture(tmp_path / "memory_project")
     monkeypatch.setenv(project_paths.MEMORY_PROJECT_ROOT_ENV, str(root))

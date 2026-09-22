@@ -38,6 +38,10 @@ WANDB_DIR = V35_ROOT / "wandb"
 # "v5": the v6 worktree reads the frozen v5 artefacts (warm-start checkpoints, LeRobot datasets) through a top-level
 # symlink memory_project_v6/v5 -> memory_project_v5/v5 (cluster_v6/README.md §0); v6 never writes there.
 SHARED_DATA_LINKS = ("data", "v5", "v6")
+# Node-local mirrors (2026-09-22): entries of this in-tree directory (git-ignored) may be symlinks to the node's own disk
+# (e.g. local/bean_scoop_0905_v5 -> /scr/<user>/...); the same spelling resolves to each node's copy. Sanctioned like the
+# cache dir: a symlink at any depth below it is accepted when the resolved path stays below that link's target.
+LOCAL_MIRROR_DIR = pathlib.PurePosixPath("local")
 
 V35_REPO_ID = "yam/bin_memory_0830_0831_v36_subtask"
 V35_DATASET_DIR = LEROBOT_HOME / V35_REPO_ID
@@ -193,21 +197,30 @@ def project_path(relative_path: str | pathlib.PurePath) -> pathlib.Path:
                 return candidate
             except ValueError:
                 pass
-    # Sanctioned cache links (2026-09-22): anything at or below CACHE_DIR may be a symlink to a node-local disk (the
-    # loader's arrow cache memory-mapped over NFS stalls training; a cache is rebuildable, so nothing of record lives
-    # there). Accepted iff the resolved candidate stays below the resolved target of the innermost such link; checkpoints,
-    # assets and code are never covered.
-    cache_parts = pathlib.PurePath(CACHE_DIR).parts
-    if relative.parts[: len(cache_parts)] == cache_parts:
-        for depth in range(len(cache_parts), len(relative.parts) + 1):
-            link = root.joinpath(*relative.parts[:depth])
+    # Sanctioned node-local links (2026-09-22): anything at or below CACHE_DIR (the loader's arrow cache memory-mapped
+    # over NFS stalls training; a cache is rebuildable) or LOCAL_MIRROR_DIR (node-local copies of project data) may be a
+    # symlink to the node's own disk. Accepted iff the resolved candidate stays below the resolved target of the innermost
+    # such link; checkpoints, assets and code are never covered, and a nested link below data/ v5/ v6/ stays refused.
+    if _innermost_sanctioned_link(root, relative.parts, candidate) is not None:
+        return candidate
+    raise ProjectRootError(f"project path resolves outside memory_project: {str(relative)!r}")
+
+
+def _innermost_sanctioned_link(root: pathlib.Path, parts: tuple[str, ...], candidate: pathlib.Path) -> pathlib.Path | None:
+    """The innermost symlink at or below CACHE_DIR / LOCAL_MIRROR_DIR on the way to ``root/parts`` whose resolved target
+    contains the resolved ``candidate``; None when the path is not under a sanctioned prefix or no such link exists."""
+    for prefix in (pathlib.PurePath(CACHE_DIR).parts, pathlib.PurePath(LOCAL_MIRROR_DIR).parts):
+        if parts[: len(prefix)] != prefix:
+            continue
+        for depth in range(len(parts), len(prefix) - 1, -1):
+            link = root.joinpath(*parts[:depth])
             if link.is_symlink():
                 try:
                     candidate.relative_to(link.resolve())
-                    return candidate
+                    return link
                 except ValueError:
-                    break
-    raise ProjectRootError(f"project path resolves outside memory_project: {str(relative)!r}")
+                    return None
+    return None
 
 
 def project_relative_path(path: str | pathlib.Path) -> pathlib.PurePosixPath:
@@ -216,11 +229,20 @@ def project_relative_path(path: str | pathlib.Path) -> pathlib.PurePosixPath:
     candidate = pathlib.Path(path).expanduser()
     if not candidate.is_absolute():
         candidate = pathlib.Path.cwd() / candidate
+    spelled = pathlib.Path(os.path.normpath(candidate))  # the spelling as given, symlinks NOT followed
     candidate = candidate.resolve()
     root = memory_project_root()
     try:
         relative = candidate.relative_to(root)
     except ValueError:
+        # Sanctioned node-local links (see project_path): a path SPELLED below local/ or v35/cache whose physical
+        # location is below the innermost such link's target keeps its in-project spelling.
+        try:
+            spelled_relative = spelled.relative_to(root)
+        except ValueError:
+            spelled_relative = None
+        if spelled_relative is not None and _innermost_sanctioned_link(root, spelled_relative.parts, candidate) is not None:
+            return pathlib.PurePosixPath(*spelled_relative.parts)
         # Sanctioned shared-data links (v4 worktree): map a physical path below a link target
         # back to its logical in-project spelling.
         for name in SHARED_DATA_LINKS:
