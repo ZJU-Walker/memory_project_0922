@@ -11,7 +11,7 @@ config="$1"; exp="$2"; shift 2
 JOB="${JOB:?job id}"; gres="${GRES:?number of GPUs of the job}"; visible="${VISIBLE:?CUDA_VISIBLE_DEVICES list}"
 gpus="${GPUS:-$(echo "$visible" | tr ',' '\n' | wc -l)}"
 batch="${BATCH:-16}"; accum="${ACCUM:-1}"; cpus="${CPUS:-8}"; wandb="${WANDB:-0}"  # WANDB=1 turns W&B on (user 09-15 15:29); project from the config, ~/.netrc on the node
-root=/iris/u/kewalk/memory_project_0920
+root="${MEMORY_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"  # portable: the tree this script lives in
 cd "$root/openpi" || exit 2
 source cluster_robomme/env.sh >/dev/null 2>&1
 export HOME=/iris/u/kewalk

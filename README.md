@@ -192,6 +192,21 @@ symlink (`data`, `v5`, `v6`, `robomme/data`, `robomme/expert_val`); checkpoints,
   awaits their confirmation. Context: BinFill v0 on the same pair ended 16:24 with exit 143 (SIGTERM, not ours; checkpoints 1000 /
   2000 / 3000 / 3500 / 4000 kept); RoboMME v1 ran to the job end 18:58 with checkpoint 500 saved; a new 4 x H200 (17425063, hgx-2)
   started 18:59 for the user. Question of a new folder: a worktree needs the 0920 work committed on v0920 first (22 files).
+- 2026-09-22 00:20 — beans0922: THE REAL-ROBOT LINE IN ITS OWN WORKTREE (user 09-21 23:34 "no not the boba task, it is the led bean
+  scoop task"; 23:42 "if you cannot find it lets just train a brand new one"; 23:52 "train a base policy first ... knowledge
+  insulation, use 2h100 job 17489557, train up to 10k steps, and once it is ready ... train our current setup ... on bean task,
+  make sure you create a clean folder ... train it till 5k steps ... ref the old bean v5 training"; 23:55 "you can always use the
+  2h100 now"; 23:56 "commit and push to my github ... make everything portable"). Findings: the pi05 KI bean base
+  (`pi05_beans0905_base_v7rtc_20260906_r1/{5000,10000,15000}`), every v5 memory checkpoint AND the LeRobot dataset
+  `v5/data/lerobot/yam/bean_scoop_0905_v5` are gone (no copy anywhere; no record); the 89 raw demos, labels, manifest and norm
+  stats survive. Done: 0920 work committed on v0920 (4a96349); worktree `memory_project_beans0922` (branch beans0922) with
+  data/v5/v6 links, hard-linked pi05_base, own venv; `beans0922_config.py` = `pi05_yam_beans0922_base` (09-06 KI recipe, 10k,
+  batch 16 fsdp 2, public pi05_base) + `pi05_yam_beans0922_v1` (0920 v1 structure on the beans v5/B9 window: tick 5 frames, 40
+  ticks, TBPTT 25, buckets 14/27/40, prefill 16, state mask 0.5, horizon 50, RTC 15, lr 2.5e-5, from base/10000 with fresh memory
+  leaves, 5k updates, label ramp 1500, batch 4 fallback 2); portable launcher `beans/logs/train_beans0922.sh` (root-relative,
+  srun only when JOB is set, env overrides OPENPI_BEANS_*), chain `chain_beans0922.sh`, `beans0922_ctl.sh`, `beans/README.md`.
+  Dataset rebuild `convert_beans0905.sh` running as an srun step (plain-ssh python on hgx-1 lands in the tiny interactive-job
+  cgroup and crawls -- the earlier stalls); `start_after_convert.sh` runs the base smoke and starts the chain when it is done.
 
 ---
 

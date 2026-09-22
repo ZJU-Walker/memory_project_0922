@@ -1,0 +1,51 @@
+"""beans0922: the base is the 09-06 KI recipe at 10k on two cards; the memory run is the 0920 v1 structure (== the RoboMME v1
+config flag for flag) on the beans v5 window / labels, warm-started from that base with fresh memory leaves."""
+import dataclasses
+import pathlib
+
+import pytest
+
+
+def test_beans0922_configs():
+    from openpi.training import config as _config
+    from openpi.training import beans0922_config as b
+
+    root = pathlib.Path(__file__).resolve().parents[4]
+    base, mem = _config.get_config("pi05_yam_beans0922_base"), _config.get_config("pi05_yam_beans0922_v1")
+    src, b9 = _config.get_config("pi05_yam_beans0905_base"), _config.get_config("pi05_yam_mem_v5_beansB9")
+    # base: the 09-06 recipe, only length / cards / paths changed
+    assert base.model == src.model and base.num_train_steps == 10_001 and (base.batch_size, base.fsdp_devices) == (16, 2)
+    assert base.lr_schedule == src.lr_schedule and base.ema_decay == src.ema_decay == 0.999 and base.optimizer == src.optimizer
+    assert base.data.base_config.memory_v5_subtask_labels_path == src.data.base_config.memory_v5_subtask_labels_path
+    assert base.data.base_config.lerobot_dataset_root == b.dataset_root() and base.data.assets.assets_dir == b.assets_dir()
+    assert base.checkpoint_base_dir == str(root / "beans/checkpoints") and base.project_name == "beans0922"
+    # memory: structure == RoboMME v1
+    if (root / "robomme/metadata/PickXtimes/prepared_official.json").is_file():
+        v1 = _config.get_config("pi05_robomme_0920_v1")
+        for k in b.STRUCTURE:
+            if k != "memory_v0920_drop_blank_camera":
+                assert getattr(mem.model, k) == getattr(v1.model, k), k
+    assert mem.model.memory_v0920_input_read and mem.model.memory_v7_write_every_step and not mem.model.memory_v6_pointer_read
+    assert (mem.model.memory_v5_oracle_writes, mem.model.memory_v5_prev_is_committed, mem.model.memory_v5_own_commit_label_content) == (False, True, False)
+    assert mem.model.memory_v0920_history_frames == 0 and not mem.model.memory_v0920_drop_blank_camera
+    # memory: window / labels / sampling == beans v5 B9
+    for k in ("action_horizon", "max_token_len", "memory_seq_steps", "memory_block_steps", "memory_v5_prefill_max", "memory_v5_reference_tokens"):
+        assert getattr(mem.model, k) == getattr(b9.model, k), k
+    assert (mem.model.action_horizon, mem.model.memory_seq_steps, mem.model.memory_block_steps, mem.model.simulated_delay) == (50, 40, 25, 15)
+    d, db = mem.data.base_config, b9.data.base_config
+    for k in ("memory_stride_frames", "memory_min_slice_steps", "memory_sequence_buckets", "memory_slice_prob", "memory_critical_prob",
+              "memory_critical_start_pad", "memory_subtask_vocab", "evidence_subtasks", "memory_required_subtasks", "memory_waiting_state_dim",
+              "memory_v5_subtask_labels_path", "memory_v5_subtask_labels_sha256", "memory_episode_manifest_path", "memory_manifest_split", "subtask_lookahead"):
+        assert getattr(d, k) == getattr(db, k), k
+    assert (d.memory_stride_frames, d.memory_sequence_buckets, len(d.memory_subtask_vocab)) == (5, (14, 27, 40), 20)
+    assert d.lerobot_dataset_root == b.dataset_root() and mem.data.assets.assets_dir == b.assets_dir()
+    # warm start from the beans0922 base, memory leaves fresh; B9 schedule; ramp
+    assert mem.weight_loader.params_path == b.base_params_path() and mem.weight_loader.params_path.endswith("beans0922_base/10000/params")
+    assert mem.weight_loader.fresh_init_allowlist and mem.lr_schedule == b9.lr_schedule
+    assert (mem.batch_size, mem.fsdp_devices, mem.num_train_steps, mem.label_write_schedule_steps) == (b.MEM_BATCH, 2, 5_001, 500)
+    assert mem.model.memory_state_mask_prob == 0.0
+    assert mem.memory_grad_clip == 5.0 and mem.freeze_filter == b9.freeze_filter
+    spec_obs, spec_act = mem.model.inputs_spec(batch_size=1)
+    assert sorted(spec_obs.images) == ["base_0_rgb", "left_wrist_0_rgb", "right_wrist_0_rgb"] and spec_act.shape[-2] == 50
+    for n in ("pi05_yam_beans0922_base_smoke", "pi05_yam_beans0922_v1_smoke"):
+        s = _config.get_config(n); assert s.num_train_steps == 3 and not s.wandb_enabled

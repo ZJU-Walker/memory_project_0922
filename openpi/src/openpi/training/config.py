@@ -6273,6 +6273,10 @@ _CONFIGS.extend(_robomme_0920_config.get_configs({config.name: config for config
 from openpi.training import beans_0920_config as _beans_0920_config  # noqa: E402
 
 _CONFIGS.extend(_beans_0920_config.get_configs())
+# LED bean-scoop real-robot line (beans0922_config.py, 2026-09-22): base + memory configs; appends only.
+from openpi.training import beans0922_config as _beans0922_config  # noqa: E402
+
+_CONFIGS.extend(_beans0922_config.get_configs({config.name: config for config in _CONFIGS}))
 
 _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 
