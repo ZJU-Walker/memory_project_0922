@@ -50,6 +50,10 @@ gpu_busy() { local q=(nvidia-smi --query-compute-apps=used_memory --format=csv,n
 wait_gpu() { local ok=0; for i in $(seq 1 ${WAIT_ROUNDS:-240}); do if [ "$(gpu_busy)" = "0" ]; then ok=$((ok+1)); [ $ok -ge ${FREE_STREAK:-4} ] && return 0; else ok=0; fi; sleep 30; done; return 1; }
 wait_path() { local n=0; while [ ! -e "$1" ]; do [ $n -eq 0 ] && log "waiting for $1"; n=$((n+1)); [ $n -gt ${WAIT_PATH_ROUNDS:-2880} ] && return 1; sleep 30; done; sleep 60; return 0; }  # + 60 s: let the writer finish
 PY="${OPENPI_PYTHON:-$ROOT/openpi/.venv/bin/python}"
+discard_if_fresh() {  # a failed attempt leaves a half-written experiment dir; keep it when it holds a checkpoint to resume from
+  local d="$ROOT/beans/checkpoints/$CFG/$EXP"
+  if ls "$d" 2>/dev/null | grep -qE '^[0-9]+$'; then log "keeping $d (has a checkpoint; the next attempt resumes)"; else rm -rf "$d"; fi
+}
 run_once() {  # $1 = batch
   local ckdir="$ROOT/beans/checkpoints/$CFG/$EXP" extra=() mode=fresh
   if [ -d "$ckdir" ]; then if ls "$ckdir" 2>/dev/null | grep -qE '^[0-9]+$'; then mode=resume; extra=(--resume); else mode=overwrite; extra=(--overwrite); fi; fi
@@ -72,12 +76,12 @@ for b in $BATCH $FALLBACK; do
   log "attempt batch=$b"
   if run_once "$b"; then log "end mode=$MODE batch=$b: exit=0"; exit 0; fi
   if tail -400 "$LOGS/train_${EXP}.log" | grep -q "RESOURCE_EXHAUSTED"; then
-    log "batch $b ran out of memory"; rm -rf "$ROOT/beans/checkpoints/$CFG/$EXP"; sleep 30; wait_gpu || exit 1; continue
+    log "batch $b ran out of memory"; discard_if_fresh; sleep 30; wait_gpu || exit 1; continue
   fi
   # an illegal-address abort during compile / autotune at a large batch: a per-device activation crossed the 2 GB kernel
   # indexing limit (seen at batch 32 x 40 ticks x 864 tokens on 4 H200, 09-22); treated like an OOM -> next batch
   if tail -400 "$LOGS/train_${EXP}.log" | grep -q "CUDA_ERROR_ILLEGAL_ADDRESS" && ! grep -q "Step 0:" "$LOGS/train_${EXP}.log"; then
-    log "batch $b aborted with CUDA_ERROR_ILLEGAL_ADDRESS before the first step (too large for the kernels)"; rm -rf "$ROOT/beans/checkpoints/$CFG/$EXP"; sleep 30; wait_gpu || exit 1; continue
+    log "batch $b aborted with CUDA_ERROR_ILLEGAL_ADDRESS before the first step (too large for the kernels)"; discard_if_fresh; sleep 30; wait_gpu || exit 1; continue
   fi
   log "end mode=$MODE batch=$b: failed (not an OOM), see beans/ablations/logs/train_${EXP}.log"; exit 1
 done
