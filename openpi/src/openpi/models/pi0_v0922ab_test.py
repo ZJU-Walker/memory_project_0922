@@ -25,6 +25,8 @@ from openpi.models import memory
 from openpi.models import pi0
 from openpi.models import pi0_config
 from openpi.models.pi0_v0920_test import _TinyV0, _single_step_observation, _v0_kwargs, _written_bank
+from openpi.models.pi0_v0920_v4_token_test import SENT, _TinyV4
+from openpi.models.pi0_v0920_v4_token_test import _note as _v4_note
 from openpi.models.pi0_v4_test import _v4_sequence_observation
 from openpi.models.pi0_v6_test import D_KEY, WIDTH
 
@@ -64,6 +66,37 @@ def test_vis_config_gate_and_defaults():
         pi0_config.Pi0Config(**_vis_kwargs(memory_vis_input_rms=0.0))
 
 
+def _attach_vis(model, rngs: nnx.Rngs, *, on: bool, image: bool, state: bool, rule: str, alpha_step: float = 0.01) -> None:
+    """Give a tiny 0920 stand-in the sensory bank: `memory` = a linear delta bank, plus the pooler, key/value maps, fixed
+    read queries, gate and slot embeddings, all named memory_vis_* (the real model's construction, pi0.py Pi0.__init__)."""
+    model.memory = memory.TitansMemory(
+        memory.MemoryConfig(
+            d_input=WIDTH, d_key=D_KEY, hidden_dims=(), d_value=WIDTH, mlp_l2norm=True, blank_initial_output=True,
+            write_rule="delta_output", association_mode="pooled_frame", delta_rate=1.0, alpha_step=alpha_step, commit_rule=rule,
+        ),
+        rngs=rngs,
+    )
+    model.memory_vis_bank = on
+    model.memory_vis_slots = SLOTS
+    model.memory_vis_input_rms = None
+    model.memory_vis_zero_read = False
+    model.memory_vis_image_write = image
+    model.memory_vis_state_slot = state
+    if image:
+        model.memory_vis_pooler = pi0.MemoryQueryCompressor(num_queries=SLOTS, width=WIDTH, num_heads=1, rngs=rngs)
+    if state:
+        model.memory_vis_state_proj = nnx.Linear(STATE_DIM, WIDTH, rngs=rngs)
+        model.memory_vis_state_key = nnx.Param(jax.random.normal(rngs.params(), (D_KEY,), dtype=jnp.float32) / jnp.sqrt(jnp.float32(D_KEY)))
+    model.memory_vis_key_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)
+    model.memory_vis_value_proj = nnx.Linear(WIDTH, WIDTH, use_bias=False, rngs=rngs)
+    model.memory_vis_value_proj.kernel.value = jnp.eye(WIDTH, dtype=jnp.float32)
+    model.memory_vis_slot_key = nnx.Param(jax.random.normal(rngs.params(), (SLOTS, D_KEY), dtype=jnp.float32) / jnp.sqrt(jnp.float32(D_KEY)))
+    model.memory_vis_read_query_bank = nnx.Param(jax.random.normal(rngs.params(), (SLOTS, WIDTH), dtype=jnp.float32) / jnp.sqrt(jnp.float32(WIDTH)))
+    model.memory_vis_query_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)
+    model.memory_vis_inject_w = nnx.Param(jnp.full((WIDTH,), jnp.arctanh(jnp.float32(0.5)), dtype=jnp.float32))
+    model.memory_vis_slot_embedding = nnx.Param(jnp.zeros((SLOTS, WIDTH), dtype=jnp.float32))
+
+
 class _TinyVis(_TinyV0):
     """The tiny 0920 model (no history frames) with the visual bank: `memory` = a linear delta bank, plus the pooler,
     key/value maps, fixed read queries, gate and slot embeddings, all named memory_vis_*."""
@@ -75,32 +108,7 @@ class _TinyVis(_TinyV0):
 
     def __init__(self, rngs: nnx.Rngs, *, on: bool = True, image: bool = True, state: bool = False, rule: str = "delta"):
         super().__init__(rngs, history_frames=0)
-        self.memory = memory.TitansMemory(
-            memory.MemoryConfig(
-                d_input=WIDTH, d_key=D_KEY, hidden_dims=(), d_value=WIDTH, mlp_l2norm=True, blank_initial_output=True,
-                write_rule="delta_output", association_mode="pooled_frame", delta_rate=1.0, alpha_step=0.01, commit_rule=rule,
-            ),
-            rngs=rngs,
-        )
-        self.memory_vis_bank = on
-        self.memory_vis_slots = SLOTS
-        self.memory_vis_input_rms = None
-        self.memory_vis_zero_read = False
-        self.memory_vis_image_write = image
-        self.memory_vis_state_slot = state
-        if image:
-            self.memory_vis_pooler = pi0.MemoryQueryCompressor(num_queries=SLOTS, width=WIDTH, num_heads=1, rngs=rngs)
-        if state:
-            self.memory_vis_state_proj = nnx.Linear(STATE_DIM, WIDTH, rngs=rngs)
-            self.memory_vis_state_key = nnx.Param(jax.random.normal(rngs.params(), (D_KEY,), dtype=jnp.float32) / jnp.sqrt(jnp.float32(D_KEY)))
-        self.memory_vis_key_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)
-        self.memory_vis_value_proj = nnx.Linear(WIDTH, WIDTH, use_bias=False, rngs=rngs)
-        self.memory_vis_value_proj.kernel.value = jnp.eye(WIDTH, dtype=jnp.float32)
-        self.memory_vis_slot_key = nnx.Param(jax.random.normal(rngs.params(), (SLOTS, D_KEY), dtype=jnp.float32) / jnp.sqrt(jnp.float32(D_KEY)))
-        self.memory_vis_read_query_bank = nnx.Param(jax.random.normal(rngs.params(), (SLOTS, WIDTH), dtype=jnp.float32) / jnp.sqrt(jnp.float32(WIDTH)))
-        self.memory_vis_query_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)
-        self.memory_vis_inject_w = nnx.Param(jnp.full((WIDTH,), jnp.arctanh(jnp.float32(0.5)), dtype=jnp.float32))
-        self.memory_vis_slot_embedding = nnx.Param(jnp.zeros((SLOTS, WIDTH), dtype=jnp.float32))
+        _attach_vis(self, rngs, on=on, image=image, state=state, rule=rule)
 
 
 @pytest.fixture(scope="module")
@@ -675,3 +683,145 @@ def test_v3_sampler_advances_the_sensory_bank_with_the_note_context(tiny_vis_v3)
     assert float(jnp.linalg.norm(s1.fast_weights[name])) > 0.0  # the served tick wrote the sensory bank
     _, frozen, _ = model.sample_with_memory(jax.random.key(1), observation, visual, semantic_state=written_sem, write_mode="frozen", **kwargs)
     jax.tree.map(lambda a, b: np.testing.assert_array_equal(np.asarray(a), np.asarray(b)), frozen, visual)
+
+
+# --------------------------------------------------------------------------- (j) the v4 snap (beans0922, 09-23 00:35)
+# snap moved to v4 = min-prob 0.8 change-only writes, the pointer bonus on the sentence read, the last note read back as
+# SENT extra tokens after the questions, decay 0.999/tick on both banks, wrong-token weight 5 (no v3 question shift). The
+# sensory bank must be unaffected: same every-tick writes, its tokens after the read-back tokens, flag off == the v4 snap.
+
+
+class _TinyVisV4(_TinyV4):
+    """The tiny v4 stand-in (pointer + read-back + min-prob gate) with the sensory bank attached, v4 decay on both banks."""
+
+    _vis_input_scale = pi0.Pi0._vis_input_scale
+    vis_write_kv = pi0.Pi0.vis_write_kv
+    vis_bank_write = pi0.Pi0.vis_bank_write
+    vis_read_tokens = pi0.Pi0.vis_read_tokens
+
+    def __init__(self, rngs: nnx.Rngs, *, on: bool = True, image: bool = True, state: bool = False, rule: str = "delta"):
+        super().__init__(rngs)
+        self.memory_v7_hard_token_ce_weight = 5.0
+        _attach_vis(self, rngs, on=on, image=image, state=state, rule=rule, alpha_step=0.001)
+
+
+@pytest.fixture(scope="module")
+def tiny_vis_v4():
+    # the tiny embedder creates its table lazily: the 128-word vocabulary must stay patched while the fixture is in use
+    original_vocab = gemma.PALIGEMMA_VOCAB_SIZE
+    try:
+        gemma.PALIGEMMA_VOCAB_SIZE = 128
+        yield _TinyVisV4(nnx.Rngs(9))
+    finally:
+        gemma.PALIGEMMA_VOCAB_SIZE = original_vocab
+
+
+@pytest.fixture(scope="module")
+def tiny_snap_v4():
+    original_vocab = gemma.PALIGEMMA_VOCAB_SIZE
+    try:
+        gemma.PALIGEMMA_VOCAB_SIZE = 128
+        ref = _TinyV4(nnx.Rngs(9))
+        ref.memory_v7_hard_token_ce_weight = 5.0
+        yield ref
+    finally:
+        gemma.PALIGEMMA_VOCAB_SIZE = original_vocab
+
+
+def test_v4_memory_block_is_questions_then_readback_then_sensory(tiny_vis_v4):
+    model = tiny_vis_v4
+    q = model.memory_v5_read_queries
+    assert model._memory_token_total == q + SENT + SLOTS
+    step0 = _single_step_observation()
+    prefix, mask, ar, front = _front(model, step0)
+    _, written = _written_bank(model)
+    prev_tokens, prev_mask = _v4_note()
+    empty = model._v0920_prepare_prefix(prefix, mask, ar, written, top_token_count=TOP, visual_state=model.memory.init_state(1),
+                                        prev_tokens=prev_tokens, prev_mask=prev_mask)
+    assert empty["memory_tokens"].shape == (1, q + SENT + SLOTS, WIDTH)
+    assert empty["readback_retrieved"].shape == (1, SENT, WIDTH)
+    assert not bool(jnp.any(empty["vis_valid"]))  # tick 0: the sensory bank is empty -> its tokens are masked
+    np.testing.assert_array_equal(np.asarray(empty["memory_tokens"][:, q + SENT:]), 0.0)  # and exactly zero
+    visual, _, _ = _written_visual(model, front)
+    read = model._v0920_prepare_prefix(prefix, mask, ar, written, top_token_count=TOP, visual_state=visual,
+                                       prev_tokens=prev_tokens, prev_mask=prev_mask)
+    assert bool(jnp.all(read["vis_valid"]))
+    assert float(jnp.max(jnp.abs(read["memory_tokens"][:, q + SENT:]))) > 0.0
+    # the question and read-back tokens do not depend on the sensory bank
+    np.testing.assert_array_equal(np.asarray(read["memory_tokens"][:, : q + SENT]), np.asarray(empty["memory_tokens"][:, : q + SENT]))
+
+
+def test_v4_flag_off_is_the_v4_snap(tiny_vis_v4, tiny_snap_v4):
+    model, ref = tiny_vis_v4, tiny_snap_v4
+    step0 = _single_step_observation()
+    seq = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    prev_tokens, prev_mask = _v4_note()
+    model.memory_vis_bank = False
+    try:
+        assert model._memory_token_total == ref._memory_token_total
+        prefix, mask, ar, _ = _front(model, step0)
+        _, written = _written_bank(model)
+        off = model._v0920_prepare_prefix(prefix, mask, ar, written, top_token_count=TOP, visual_state=model.memory.init_state(1),
+                                          prev_tokens=prev_tokens, prev_mask=prev_mask)
+        on = ref._v0920_prepare_prefix(*_front(ref, step0)[:3], written, top_token_count=TOP, prev_tokens=prev_tokens, prev_mask=prev_mask)
+        np.testing.assert_array_equal(np.asarray(off["final_prefix"]), np.asarray(on["final_prefix"]))
+        losses_off = model._compute_sequence_loss_v32(jax.random.key(922), seq, actions, train=False)
+        losses_ref = ref._compute_sequence_loss_v32(jax.random.key(922), seq, actions, train=False)
+        for key, value in _main_terms(losses_off).items():
+            np.testing.assert_array_equal(value, _main_terms(losses_ref)[key], err_msg=key)
+    finally:
+        model.memory_vis_bank = True
+
+
+def test_v4_sensory_bank_writes_every_valid_tick_and_trains_next_to_pointer_and_readback(tiny_vis_v4):
+    model = tiny_vis_v4
+    observation = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    losses = model._compute_sequence_loss_v32(jax.random.key(922), observation, actions, train=False)
+    for key, value in losses.items():
+        assert np.all(np.isfinite(np.asarray(value))), key
+    np.testing.assert_array_equal(losses["vis_commit_count"], losses["vis_valid_count"])
+    np.testing.assert_array_equal(losses["vis_commit_count"], 3.0)
+    assert 0.0 <= float(losses["v4_sem_commit_count"]) <= 3.0  # min-prob 0.8 change-only gate on the sentence bank
+    labelled = observation.replace(seq_label_write_prob=jnp.ones((1,), dtype=jnp.float32))
+    np.testing.assert_array_equal(model._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)["v4_sem_commit_count"], 3.0)
+
+    def total_loss(m):
+        out = m._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)
+        return jnp.sum(out["v4_decision_ce_steps"]) + jnp.sum(out["ce"]) + jnp.sum(out["flow"])
+
+    grads = nnx.grad(total_loss)(model)
+    bad = ["/".join(str(k) for k in path) for path, leaf in jax.tree_util.tree_leaves_with_path(grads) if not bool(jnp.all(jnp.isfinite(jnp.asarray(leaf))))]
+    assert not bad, bad[:10]
+    for name in ("memory_vis_read_query_bank", "memory_vis_query_proj", "memory_vis_key_proj", "memory_vis_value_proj",
+                 "memory_vis_slot_key", "memory_vis_pooler", "memory_sem_read_query_bank"):
+        leaves = jax.tree_util.tree_leaves(grads[name])
+        assert max(float(jnp.max(jnp.abs(leaf))) for leaf in leaves) > 0.0, name
+    assert "memory_sem_readback_inject_w" in grads and "memory_v6_pointer_beta" in grads  # the v4 leaves sit on the loss path too
+
+
+def test_v4_sampler_advances_the_sensory_bank_with_pointer_and_readback(tiny_vis_v4):
+    from openpi.models.pi0_v35_test import _single_observation
+
+    model = tiny_vis_v4
+    observation = _single_observation()
+    _, written_sem = _written_bank(model)
+    prev_tokens, prev_mask = _v4_note()
+    visual = model.memory.init_state(1)
+    name = model.memory._output_weight_name
+    kwargs = {"stop_token": 1, "max_decode_steps": 2, "num_steps": 1, "noise": jnp.zeros((1, 4, 2), dtype=jnp.float32),
+              "v5_prev_tokens": prev_tokens, "v5_prev_mask": prev_mask}
+    _, s1, _ = model.sample_with_memory(
+        jax.random.key(1), observation, visual, semantic_state=written_sem, write_mode="normal",
+        v35_transition_valid=True, v35_write_mask=True, **kwargs,
+    )
+    assert float(jnp.linalg.norm(s1.fast_weights[name])) > 0.0
+    _, frozen, _ = model.sample_with_memory(jax.random.key(1), observation, visual, semantic_state=written_sem, write_mode="frozen", **kwargs)
+    jax.tree.map(lambda a, b: np.testing.assert_array_equal(np.asarray(a), np.asarray(b)), frozen, visual)
+    # one decay step of the v4 bank keeps 0.999 of the weights
+    _, dyn, _ = model.sample_with_memory(
+        jax.random.key(1), observation, s1, semantic_state=written_sem, write_mode="dynamics_only",
+        v35_transition_valid=True, v35_write_mask=True, **kwargs,
+    )
+    np.testing.assert_allclose(float(jnp.linalg.norm(dyn.fast_weights[name])), 0.999 * float(jnp.linalg.norm(s1.fast_weights[name])), rtol=1e-4)

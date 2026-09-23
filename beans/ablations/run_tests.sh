@@ -22,7 +22,7 @@ cpu_tests() {
   say "cpu: unit tests (ablation model gates, configs, telemetry keys, question context)"
   ( cd openpi && PYTHONPATH=scripts "$PY" -m pytest -q -p no:cacheprovider \
       src/openpi/models/pi0_v0922ab_test.py src/openpi/training/beans0922_ablation_test.py scripts/train_v0922ab_test.py \
-      src/openpi/models/pi0_v0920_query_context_test.py src/openpi/shared/project_paths_test.py 2>&1 | grep -v -E "DeprecationWarning|debug_info|jnp.shape|linear_util|^\s*$" ) | tee -a "$LOG" | tail -n 4
+      src/openpi/models/pi0_v0920_query_context_test.py src/openpi/models/pi0_v0920_v4_token_test.py src/openpi/shared/project_paths_test.py 2>&1 | grep -v -E "DeprecationWarning|debug_info|jnp.shape|linear_util|^\s*$" ) | tee -a "$LOG" | tail -n 4
   if grep -q -E "^[0-9]+ passed" <(tail -n 5 "$LOG") && ! tail -n 5 "$LOG" | grep -q -E "[0-9]+ (failed|error)"; then say "cpu: PASS"; else say "cpu: FAIL"; fails=$((fails+1)); fi
 }
 

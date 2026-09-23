@@ -7,22 +7,25 @@ light blinked"*: the green LED blinks 1–3 times at the start, then a yellow li
 the count any more. Our model,
 **snap**, gives pi0.5 a small fast-weight memory that it fills with **its own words**: every tick (5 frames, 0.17 s) it
 decodes a short sub-task sentence such as "scoop 2 of 3: dig and carry", writes that sentence into the memory when it is
-new and confident (differs from the last stored note, mean token probability ≥ 0.9; each word is stored as a key/value
-association with the delta rule, decay 0.99 per tick), and reads the memory back through 8 learned queries — each first
-looks at the current frame and the last note, then asks — as **8 extra input tokens** that every transformer block sees
-(this is snap **v3**, 2026-09-22; every row below is built on it). The ablations ask whether a *sensory*
+new and every word is confident (differs from the last stored note, lowest token probability ≥ 0.8; each word is stored as
+a key/value association with the delta rule, decay 0.999 per tick), and reads the memory back two ways: 8 learned queries
+with a pointer bonus toward the 20 known sentences (**8 input tokens**), plus its own last note read back through the memory
+word by word (**48 input tokens**) — 56 memory tokens that every transformer block sees (this is snap **v4**, 2026-09-23;
+every row below is built on it). The ablations ask whether a *sensory*
 memory — the same kind of fast-weight bank, but filled with what the camera sees and/or where the arm is instead of a
 sentence — adds anything on top of the narrated one. Every row starts from the same knowledge-insulation base checkpoint
 and is trained with the same recipe (3000 updates, the first 500 with a decaying probability of writing the label sentence
 instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs, checkpoints kept at 1000 / 2000 / 3000); a row differs from snap in exactly one thing.
-**Pull before launching**: rows started from a checkout older than 2026-09-22 15:30 PDT are built on the previous snap (v1:
-a note written every tick, fixed questions) and are not comparable with the v3 rows.
+**Pull before launching**: rows started from a checkout older than **2026-09-23 00:35 PDT** are built on an earlier snap
+(v1: a note every tick, fixed questions; v3: a question shift that collapsed the 8 questions into one) and are not
+comparable with the v4 rows — stop them and relaunch after `git pull` (a relaunch starts fresh; the old checkpoint dirs
+`beans/checkpoints/pi05_yam_beans0922_ab_<row>/ab_<row>` must be renamed or removed first, or the launcher resumes into them).
 
 | row | script | memory tokens at the input | sensory bank written from (every tick) | update rule | status |
 | --- | --- | --- | --- | --- | --- |
-| control (snap) | `run_snap.sh` | 8 sentence | – | delta | runs here (Stanford 4×H200) |
-| vis8 | `run_vis8.sh` | 8 sentence + 8 sensory | front camera (256 image tokens pooled into 8 slots) | delta | running here since 2026-09-22 13:12 (Stanford, 2×H200, `STEPS=5000`) |
-| vis8s | `run_vis8s.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | delta | **to run: node 1, GPUs 0–3** |
+| control (snap) | `run_snap.sh` | 8 sentence (+48 read-back) | – | delta | **to run (v4)** — Stanford |
+| vis8 | `run_vis8.sh` | 8 sentence + 8 sensory | front camera (256 image tokens pooled into 8 slots) | delta | **to run (v4)** — the 09-22 runs (Stanford v1, Anvil v3) are superseded |
+| vis8s | `run_vis8s.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | delta | **to run (v4): node 1, GPUs 0–3** — the 09-22 Anvil run is v3, superseded |
 | vis8s_add | `run_vis8s_add.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | **additive** | **to run: node 1, GPUs 4–7** |
 | state8 | `run_state8.sh` | 8 sentence + 8 sensory | arm state (1 slot) | delta | **to run: node 2, GPUs 0–3** |
 | state8_add | `run_state8_add.sh` | 8 sentence + 8 sensory | arm state (1 slot) | **additive** | **to run: node 2, GPUs 4–7** |

@@ -1,4 +1,4 @@
-"""beans0922 ablation configs: the ablation rows differ from snap (pi05_yam_beans0922_v3 since 09-22 15:30; v1 before) in the
+"""beans0922 ablation configs: the ablation rows differ from snap (pi05_yam_beans0922_v4 since 09-23 00:35; v3, v1 before) in the
 recipe fields only, and the visual-bank row adds exactly the visual bank; the new parameters fall under the fresh-init /
 memory-leaf rules."""
 
@@ -18,7 +18,7 @@ def _diff(a, b_):
 
 
 def test_beans0922_ablation_configs():
-    snap = _config.get_config("pi05_yam_beans0922_v3")
+    snap = _config.get_config("pi05_yam_beans0922_v4")
     ab_snap = _config.get_config("pi05_yam_beans0922_ab_snap")
     vis8 = _config.get_config("pi05_yam_beans0922_ab_vis8")
     # snap itself is untouched by the ablation flags
@@ -60,7 +60,7 @@ def test_beans0922_ablation_configs():
         assert dataclasses.replace(row.model.memory, commit_rule="delta") == row.model.memory_semantic, suffix
         smoke = _config.get_config(f"pi05_yam_beans0922_ab_{suffix}_smoke")
         assert smoke.model == row.model and smoke.num_train_steps == 3 and smoke.wandb_enabled is False, suffix
-    assert vis8.model.memory.blank_initial_output and vis8.model.memory.alpha_step == 0.01
+    assert vis8.model.memory.blank_initial_output and vis8.model.memory.alpha_step == vis8.model.memory_semantic.alpha_step  # one decay for both banks (v4: 0.001)
     assert vis8.model.memory_v0920_input_read and vis8.model.memory_v35_enabled
     # the new leaves are memory leaves (fresh init from the base, memory-group grad clip)
     for leaf in ("memory_vis_pooler/query_bank", "memory_vis_key_proj/kernel", "memory_vis_value_proj/kernel",
@@ -77,17 +77,22 @@ def test_beans0922_ablation_configs():
     assert _config.get_config("pi05_yam_beans0922_ab_vis8_smoke").model == vis8.model
 
 
-def test_every_row_is_built_on_the_v3_snap():
-    """User 09-22 15:30 (relayed by the base session): all ablation rows adopt v3 = change-only confident own writes, the
-    question context and the error-driven token weight; v1 had none of them."""
+def test_every_row_is_built_on_the_v4_snap():
+    """User 09-23 00:35 (relayed by the base session): all ablation rows adopt v4 = min-prob 0.8 change-only writes, the pointer
+    bonus, the last-note read-back (48 tokens), decay 0.999/tick on both banks, the wrong-token weight 5; no v3 question shift."""
     v1 = _config.get_config("pi05_yam_beans0922_v1").model
-    v3 = _config.get_config("pi05_yam_beans0922_v3").model
-    assert ab.SNAP_OVERRIDES == b.V3_QUERY_CONTEXT
-    assert v1.memory_v7_write_every_step and v1.memory_v5_write_conf == 0.0 and not v1.memory_v0920_query_context
+    v4 = _config.get_config("pi05_yam_beans0922_v4").model
+    assert ab.SNAP_OVERRIDES == b.V4_TOKEN_EXACT and ab.SNAP_BANK_OVERRIDES == b.V4_BANK
+    assert v1.memory_v7_write_every_step and v1.memory_v5_write_conf == 0.0 and not v1.memory_v0920_prev_readback
+    assert not v4.memory_v0920_query_context  # v3's shift is gone
     for name in ["pi05_yam_beans0922_ab_snap"] + [f"pi05_yam_beans0922_ab_{row}" for row in ab.ROWS]:
         model = _config.get_config(name).model
-        for key, value in b.V3_QUERY_CONTEXT.items():
+        for key, value in b.V4_TOKEN_EXACT.items():
             assert getattr(model, key) == value, (name, key)
-        # the sensory rows differ from the v3 snap in the bank fields only
-        assert {f.name for f in dataclasses.fields(model) if getattr(model, f.name) != getattr(v3, f.name)} <= {
+        assert not model.memory_v0920_query_context
+        assert float(model.memory_semantic.alpha_step) == float(model.memory.alpha_step) == 0.001, name  # both banks, one decay
+        # the sensory rows differ from the v4 snap in the bank fields only
+        assert {f.name for f in dataclasses.fields(model) if getattr(model, f.name) != getattr(v4, f.name)} <= {
             "memory", "memory_vis_bank", "memory_vis_image_write", "memory_vis_state_slot"}, name
+        if model.memory_vis_bank:  # the sensory bank = the sentence bank's config + the row's commit rule
+            assert dataclasses.replace(model.memory, commit_rule="delta") == model.memory_semantic
