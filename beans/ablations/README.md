@@ -19,9 +19,10 @@ commands; this page explains the mechanism so the rows can be read.
 3. The model decodes its sub-task sentence (up to 48 tokens) and the action chunk.
 4. Write: each word of the sentence becomes an association (key = the memory-blind context of the words before it,
    value = the word's embedding); committed with the **delta rule**, then the whole bank decays by 0.999 per tick (v4
-   `alpha_step` 0.001; v1–v3 used 0.99) — and only when the sentence differs from the last stored note AND its *lowest* token
-   probability is ≥ 0.8 (`memory_v7_write_every_step` False, `memory_v5_write_conf_min`, `memory_v5_write_conf` 0.8; v1 wrote
-   every tick and drifted a wrong count into the bank). In training the label
+   `alpha_step` 0.001; v1–v3 used 0.99) — and only when the sentence differs from the last stored note, no word of it is below
+   probability 0.3 and it was decoded the same way on two consecutive ticks (`memory_v7_write_every_step` False,
+   `memory_v5_write_conf_min`, `memory_v5_write_conf` 0.3, `memory_v7_write_debounce_steps` 2 — v4b; v4's 0.8 threshold let
+   one note per episode through, v1 wrote every tick and drifted a wrong count into the bank). In training the label
    sentence is written instead of the model's own with probability 1 → 0 over the first 500 updates (label writes always
    count as confident), and sentence tokens the model gets wrong weigh 5× in the sentence loss (`memory_v7_hard_token_ce_weight`).
 
@@ -33,7 +34,7 @@ A second bank, same size, same decay (0.999 per tick under v4) and same read mec
   image tokens + slot embedding → **8 more input tokens** after the sentence tokens (v4 order: 8 questions | 48 read-back |
   8 sensory = 64 memory tokens; no pointer bonus on the sensory queries). Empty bank ⇒ exactly zero, masked, so tick 0 equals
   snap. Nothing else about the model changes (the sentence/action tokens simply sit 8 positions later).
-- **Write, every valid tick** (the sentence bank's v4 write gate does not apply here: the training scan and the serving
+- **Write, every valid tick** (the sentence bank's v4b write gate does not apply here: the training scan and the serving
   transition gate this bank on tick validity only), from memory-blind, stop-gradient inputs so the bank can never store what it read:
   - *image slots* (`memory_vis_image_write`): the front camera's 256 input image tokens (SigLIP + projector) are pooled by 8
     learned queries into 8 vectors v₁..v₈; slot i is stored as key = unit(P_k v_i + e_i), value = unit(P_v v_i);

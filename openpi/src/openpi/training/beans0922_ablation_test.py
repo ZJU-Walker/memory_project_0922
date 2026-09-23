@@ -1,4 +1,4 @@
-"""beans0922 ablation configs: the ablation rows differ from snap (pi05_yam_beans0922_v4 since 09-23 00:35; v3, v1 before) in the
+"""beans0922 ablation configs: the ablation rows differ from snap (pi05_yam_beans0922_v4b since 09-23 05:30; v4, v3, v1 before) in the
 recipe fields only, and the visual-bank row adds exactly the visual bank; the new parameters fall under the fresh-init /
 memory-leaf rules."""
 
@@ -18,7 +18,7 @@ def _diff(a, b_):
 
 
 def test_beans0922_ablation_configs():
-    snap = _config.get_config("pi05_yam_beans0922_v4")
+    snap = _config.get_config("pi05_yam_beans0922_v4b")
     ab_snap = _config.get_config("pi05_yam_beans0922_ab_snap")
     vis8 = _config.get_config("pi05_yam_beans0922_ab_vis8")
     # snap itself is untouched by the ablation flags
@@ -77,17 +77,19 @@ def test_beans0922_ablation_configs():
     assert _config.get_config("pi05_yam_beans0922_ab_vis8_smoke").model == vis8.model
 
 
-def test_every_row_is_built_on_the_v4_snap():
-    """User 09-23 00:35 (relayed by the base session): all ablation rows adopt v4 = min-prob 0.8 change-only writes, the pointer
-    bonus, the last-note read-back (48 tokens), decay 0.999/tick on both banks, the wrong-token weight 5; no v3 question shift."""
+def test_every_row_is_built_on_the_v4b_snap():
+    """User 09-23 05:30 (relayed by the base session): all ablation rows adopt v4b = v4 (pointer bonus, last-note read-back of
+    48 tokens, decay 0.999/tick on both banks, wrong-token weight 5, no v3 question shift) with the write gate the model's own
+    notes can pass: every word >= 0.3 and the same sentence on two consecutive ticks (v4's 0.8 gate wrote one note per episode)."""
     v1 = _config.get_config("pi05_yam_beans0922_v1").model
-    v4 = _config.get_config("pi05_yam_beans0922_v4").model
-    assert ab.SNAP_OVERRIDES == b.V4_TOKEN_EXACT and ab.SNAP_BANK_OVERRIDES == b.V4_BANK
+    v4 = _config.get_config("pi05_yam_beans0922_v4b").model
+    assert ab.SNAP_OVERRIDES == b.V4B_WRITE_RULE and ab.SNAP_BANK_OVERRIDES == b.V4_BANK
+    assert v4.memory_v5_write_conf == 0.3 and v4.memory_v7_write_debounce_steps == 2 and v4.memory_v5_write_conf_min
     assert v1.memory_v7_write_every_step and v1.memory_v5_write_conf == 0.0 and not v1.memory_v0920_prev_readback
     assert not v4.memory_v0920_query_context  # v3's shift is gone
     for name in ["pi05_yam_beans0922_ab_snap"] + [f"pi05_yam_beans0922_ab_{row}" for row in ab.ROWS]:
         model = _config.get_config(name).model
-        for key, value in b.V4_TOKEN_EXACT.items():
+        for key, value in b.V4B_WRITE_RULE.items():
             assert getattr(model, key) == value, (name, key)
         assert not model.memory_v0920_query_context
         assert float(model.memory_semantic.alpha_step) == float(model.memory.alpha_step) == 0.001, name  # both banks, one decay

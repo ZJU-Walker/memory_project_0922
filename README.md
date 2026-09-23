@@ -7,18 +7,18 @@ light blinked"*: the green LED blinks 1–3 times at the start, then a yellow li
 the count any more. Our model,
 **snap**, gives pi0.5 a small fast-weight memory that it fills with **its own words**: every tick (5 frames, 0.17 s) it
 decodes a short sub-task sentence such as "scoop 2 of 3: dig and carry", writes that sentence into the memory when it is
-new and every word is confident (differs from the last stored note, lowest token probability ≥ 0.8; each word is stored as
-a key/value association with the delta rule, decay 0.999 per tick), and reads the memory back two ways: 8 learned queries
-with a pointer bonus toward the 20 known sentences (**8 input tokens**), plus its own last note read back through the memory
-word by word (**48 input tokens**) — 56 memory tokens that every transformer block sees (this is snap **v4**, 2026-09-23;
-every row below is built on it). The ablations ask whether a *sensory*
+new and believable (differs from the last stored note, no word below probability 0.3, and decoded the same way on two
+consecutive ticks; each word is stored as a key/value association with the delta rule, decay 0.999 per tick), and reads the
+memory back two ways: 8 learned queries with a pointer bonus toward the 20 known sentences (**8 input tokens**), plus its own
+last note read back through the memory word by word (**48 input tokens**) — 56 memory tokens that every transformer block sees
+(this is snap **v4b**, 2026-09-23; every row below is built on it). The ablations ask whether a *sensory*
 memory — the same kind of fast-weight bank, but filled with what the camera sees and/or where the arm is instead of a
 sentence — adds anything on top of the narrated one. Every row starts from the same knowledge-insulation base checkpoint
 and is trained with the same recipe (3000 updates, the first 500 with a decaying probability of writing the label sentence
 instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs, checkpoints kept at 1000 / 2000 / 3000); a row differs from snap in exactly one thing.
-**Pull before launching**: rows started from a checkout older than **2026-09-23 00:35 PDT** are built on an earlier snap
-(v1: a note every tick, fixed questions; v3: a question shift that collapsed the 8 questions into one) and are not
-comparable with the v4 rows — stop them and relaunch after `git pull` (a relaunch starts fresh; the old checkpoint dirs
+**Pull before launching**: rows started from a checkout older than **2026-09-23 05:30 PDT** are built on an earlier snap
+(v1: a note every tick, fixed questions; v3: a question shift that collapsed the 8 questions into one; v4: a 0.8 write gate
+that let through one note per episode) and are not comparable with the v4b rows — stop them and relaunch after `git pull` (a relaunch starts fresh; the old checkpoint dirs
 `beans/checkpoints/pi05_yam_beans0922_ab_<row>/ab_<row>` must be renamed or removed first, or the launcher resumes into them).
 
 | row | script | memory tokens at the input | sensory bank written from (every tick) | update rule | status |

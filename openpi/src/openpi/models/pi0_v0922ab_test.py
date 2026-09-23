@@ -685,7 +685,7 @@ def test_v3_sampler_advances_the_sensory_bank_with_the_note_context(tiny_vis_v3)
     jax.tree.map(lambda a, b: np.testing.assert_array_equal(np.asarray(a), np.asarray(b)), frozen, visual)
 
 
-# --------------------------------------------------------------------------- (j) the v4 snap (beans0922, 09-23 00:35)
+# --------------------------------------------------------------------------- (j) the v4 / v4b snap (beans0922, 09-23)
 # snap moved to v4 = min-prob 0.8 change-only writes, the pointer bonus on the sentence read, the last note read back as
 # SENT extra tokens after the questions, decay 0.999/tick on both banks, wrong-token weight 5 (no v3 question shift). The
 # sensory bank must be unaffected: same every-tick writes, its tokens after the read-back tokens, flag off == the v4 snap.
@@ -701,8 +701,15 @@ class _TinyVisV4(_TinyV4):
 
     def __init__(self, rngs: nnx.Rngs, *, on: bool = True, image: bool = True, state: bool = False, rule: str = "delta"):
         super().__init__(rngs)
-        self.memory_v7_hard_token_ce_weight = 5.0
+        _apply_v4b_flags(self)
         _attach_vis(self, rngs, on=on, image=image, state=state, rule=rule, alpha_step=0.001)
+
+
+def _apply_v4b_flags(model) -> None:
+    """v4b (09-23 05:30): the write gate the model's own notes can pass -- every word >= 0.3, same sentence on two ticks."""
+    model.memory_v7_hard_token_ce_weight = 5.0
+    model.memory_v5_write_conf = 0.3
+    model.memory_v7_write_debounce_steps = 2
 
 
 @pytest.fixture(scope="module")
@@ -722,7 +729,7 @@ def tiny_snap_v4():
     try:
         gemma.PALIGEMMA_VOCAB_SIZE = 128
         ref = _TinyV4(nnx.Rngs(9))
-        ref.memory_v7_hard_token_ce_weight = 5.0
+        _apply_v4b_flags(ref)
         yield ref
     finally:
         gemma.PALIGEMMA_VOCAB_SIZE = original_vocab
@@ -783,15 +790,26 @@ def test_v4_sensory_bank_writes_every_valid_tick_and_trains_next_to_pointer_and_
         assert np.all(np.isfinite(np.asarray(value))), key
     np.testing.assert_array_equal(losses["vis_commit_count"], losses["vis_valid_count"])
     np.testing.assert_array_equal(losses["vis_commit_count"], 3.0)
-    assert 0.0 <= float(losses["v4_sem_commit_count"]) <= 3.0  # min-prob 0.8 change-only gate on the sentence bank
+    assert 0.0 <= float(losses["v4_sem_commit_count"]) <= 3.0  # v4b gate (every word >= 0.3, two-tick confirmation) on the sentence bank
     labelled = observation.replace(seq_label_write_prob=jnp.ones((1,), dtype=jnp.float32))
-    np.testing.assert_array_equal(model._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)["v4_sem_commit_count"], 3.0)
+    # v4b's two-tick confirmation (memory_v7_write_debounce_steps 2) applies to label writes as well -- they skip only the
+    # probability check -- so the tiny sequence, whose label sentence changes every tick, commits no note in 3 ticks; the
+    # sensory bank keeps writing regardless
+    out_v4b = model._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)
+    np.testing.assert_array_equal(out_v4b["v4_sem_commit_count"], 0.0)
+    np.testing.assert_array_equal(out_v4b["vis_commit_count"], 3.0)
+    # with the confirmation relaxed to one tick every label note commits, and the whole memory path trains together
+    model.memory_v7_write_debounce_steps = 1
+    try:
+        np.testing.assert_array_equal(model._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)["v4_sem_commit_count"], 3.0)
 
-    def total_loss(m):
-        out = m._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)
-        return jnp.sum(out["v4_decision_ce_steps"]) + jnp.sum(out["ce"]) + jnp.sum(out["flow"])
+        def total_loss(m):
+            out = m._compute_sequence_loss_v32(jax.random.key(922), labelled, actions, train=False)
+            return jnp.sum(out["v4_decision_ce_steps"]) + jnp.sum(out["ce"]) + jnp.sum(out["flow"])
 
-    grads = nnx.grad(total_loss)(model)
+        grads = nnx.grad(total_loss)(model)
+    finally:
+        model.memory_v7_write_debounce_steps = 2
     bad = ["/".join(str(k) for k in path) for path, leaf in jax.tree_util.tree_leaves_with_path(grads) if not bool(jnp.all(jnp.isfinite(jnp.asarray(leaf))))]
     assert not bad, bad[:10]
     for name in ("memory_vis_read_query_bank", "memory_vis_query_proj", "memory_vis_key_proj", "memory_vis_value_proj",
