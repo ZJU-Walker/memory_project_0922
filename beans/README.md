@@ -111,3 +111,33 @@ that tick weigh 5x (the count word is 1 token in ~50; the weight fades once lear
 telemetry). Tests: `openpi/src/openpi/models/pi0_v0920_query_context_test.py`, `beans0922_test.py`. Gates at every 500 updates:
 `scripts/v5_count_flip_eval.py` (true-note accuracy and flip-follow >= 0.9, blank ~1/3) + the held-out video probe (own = label
 go count, right in >= 5/6). Stop rule: flip-follow < 0.5 at 2000 -> v4 = v3 + B9's slot table instead of more training.
+
+**v3 verdict and the measurement behind v4 (2026-09-23, `beans/eval/token_bank_geometry.py`, `v3_question_shift_probe.py`,
+`v3_query_kernel_norms.py`; JSON results next to them).** Checkpoint v3/1000 videos: the first go count was right in 4/5
+readable episodes but drifted within the go phase, and "scoop k of x" was near random. The probes replay an episode's true
+notes into a fresh bank and read it three ways. (1) The store is fine: a stored digit reads back at cosine 1.00 with its exact
+context key ("light off:", "scoop 1 of"), and the three digit values sit at cosine 0.75-0.88 from each other. (2) v3's
+question shift was 170x longer than the base questions (the note embedding carries Gemma's sqrt(width) scale) and both shift
+maps were rank one, so all 8 questions collapsed into one: the 8 answers were identical to three decimals and the answers for a
+2-blink and a 3-blink episode were 0.92-0.98 alike through the scoop phase (0.63-0.77 with the fixed questions alone). Do not use
+`memory_v0920_query_context` as it stands. (3) An answer is a blend over the whole history: the go note fades 1 % per tick
+(exact-key read strength 1.00 -> 0.59 -> 0.36 -> 0.21 -> 0.15 across four scoop notes 40 ticks apart, cosine to the true digit
+0.71 at "done") while the newest note dominates, so "of x" was a noisy copy that flipped and then stayed wrong; the mean
+probability gate never fired at a wrong count. Also measured: the sentence-only count battery on v3/1000 answers the go count
+right with a BLANK history (63/63 first-go steps), so on the six development episodes the go count is not a memory read at all
+(appearance); that battery is not a memory test for the go step here.
+
+**v4 "token bank, exact copies" (user 09-23 23:55 "ok开始做"; keeps the token bank).** `pi05_yam_beans0922_v4`
+(`V4_TOKEN_EXACT` + `V4_BANK` in `beans0922_config.py`): v2's change-only write rule and the 5x token weight, no question shift,
+plus (a) `memory_v6_pointer_read` in context mode (beta 10, now admitted under the input read): while a token is decoded the
+bank is asked "what followed this exact context last time" and the answer is added to the token scores, so "scoop 2 of _"
+fetches the previous x exactly and "scoop _" the previous k; (b) `memory_v0920_prev_readback`: the last committed note is read
+back through the bank with its own write keys and enters the input as one exact token per note position (48 tokens after the
+8 questions; new leaves `memory_sem_readback_inject_w`, `memory_sem_readback_slot_embedding`), so the tray decision sees k and
+x instead of a blend; (c) bank decay 0.01 -> 0.001 per tick on both banks (half-life 115 s); (d) `memory_v5_write_conf_min`:
+the gate compares the lowest token probability with 0.8 (trainer, video script and robot server alike). Still learned rather
+than exact: the yellow-go count and the first scoop note's x (new contexts) come from the 8 fixed questions reading the fresh
+light-off / go note. Tests: `openpi/src/openpi/models/pi0_v0920_v4_token_test.py`, `beans0922_test.py`. Launcher
+`beans/logs/train_beans0922_v4.sh` (2xH200 batch 8; on 4xH100 batch 8 = 2 per card, fallback 4). Step-0 CE is ~250 (fresh
+memory leaves; v1 started at 90, v3 at 38) and is under 10 by step 30. Gates as before: videos at 1000, then the sentence
+battery (its go-step number is appearance-driven here; read the scoop-phase videos).
