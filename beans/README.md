@@ -186,3 +186,36 @@ the label sentence changes carries weight 6 instead of 3 (the onset is one tick 
 New telemetry `onset_sentence_exact` (commit 459a44a) logs that tick alone. Trade-off accepted: a wrong own note at deployment
 is now copied instead of "corrected", so the write side (blink misses, the "wait" confusion) is judged by the own-note videos
 at every 250 steps; if under-counting persists the fix belongs to the writer (tick rate, confirmation length), not to the reader.
+
+### 2026-09-23 14:40-16:31 -- why v4b/v4c fail at the go onset (onset A/B), and v4e
+
+Tool: `openpi/scripts/v5_onset_ab.py` scores ONE training window at the go onset two ways -- the training loss path with the
+count digit set to 1/2/3, and the rollout decode path (forced prefix, greedy) -- with switches for dropping note rows, blank
+images, zeroed robot state, pointer off, window start and step. Launchers `beans/eval/h100_onset_ab*.sh`, `h200_onset_ab.sh`,
+chains `h200_ab_seq*.sh`; logs `beans/eval/onset_ab_ep<ep>_<ckpt>_<condition>.log`. Both paths agree to 0.2 nats everywhere.
+
+Findings at v4c/2000 (training episodes; x = scoop count):
+- ep3 and ep8 (x=1): at the true go onset the model says "scoop 2 times" with p = 1.0 under every input change -- note rows
+  dropped one by one or all, pointer off, images blanked, state zeroed, mid-go tick, window started 2/8/16 ticks earlier with
+  the history teacher-forced inside the window. Only blank images AND no notes gives the null answer "3" (0.88). One single
+  note "light off: 1 green blink" with blank images still gives 2. Digit 1 is never predicted at a true onset (8-15 nats).
+- ep2 (x=2) -> 2 (0.78); ep0 (x=3) -> 3 (1.0). Images alone: 3 for ep0, 2 for ep3/ep8, soft 2 for ep2 -- an episode
+  fingerprint (the tray's leftover beans mark the recording session), not a count cue (frames checked).
+- v4/500 had p(1) = 0.48 at the same tick; v4b (own-content notes) turned it into 2 (0.999) and v4c did not undo it.
+- The count battery over REAL training windows (`v5_count_flip_eval.py --split train`, 48 windows, 452 go steps): x=1
+  correct 281/282 and still correct with the bank emptied. The true-count CE is ~0 on essentially every go step, i.e. these
+  are copy ticks: a decision phase lasts ~38 ticks and every tick after the first restates the note already committed. The
+  battery's "count_in_window" flag also never fires (it looks one token too early), so its "history only" summary meant
+  nothing. Training grades the onset itself (weight 6) but it is a sliver of the phase's loss, while the light-phase onsets
+  ("k blinks so far" -> "light on: k+1") outnumber the go onsets 2-3:1 and teach "onset digit = note digit + 1" -- which is
+  exactly the observed map 1->2, 2->2/3 (0.22 on 3), 3->3.
+
+v4e (`pi05_yam_beans0922_v4e`, commit ea22aa5), started 16:35 from the clean v4/500 (`archive/v4_500` hard-linked into the
+v4e experiment directory, user's choice) on the two H200s (hgx-2 job 17425063 GPUs 0,1, batch 8), write rule = v4c. Two
+existing generic knobs move the supervision onto the onsets: the transition-anchored start branch opens windows closer to
+a sentence change and more often (`memory_critical_start_pad` 75 -> 25 frames, `memory_critical_prob` 0.5 -> 0.7 -- the
+window begins with the notes prefilled and the change a few ticks ahead, the deployed situation), and the copy ticks of a
+decision phase whose arm already moves are down-weighted (`memory_v6_decision_ce_weight_after_motion` 1.0 -> 0.2).
+Success criterion, checked after every checkpoint by `beans/eval/eval_loop_v4e.sh` on the H100 (one line per checkpoint in
+`beans/eval/v4e_onset_summary.log`): p(1) at the true onset of ep3/ep8 with prefill notes only must climb from ~0; if it is
+still ~0 by 1000-1250 the "+1" habit dominates and the next change is on the read side, not more weight.
