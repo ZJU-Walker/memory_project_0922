@@ -6379,6 +6379,12 @@ class Pi0(_model.BaseModel):
                     decision_active = (x["decision_mask"] & transition_valid).astype(jnp.float32)
                     use_active = (x["use_pressure_mask"] & transition_valid).astype(jnp.float32)
                     evidence_active = (x["write_mask"] & transition_valid).astype(jnp.float32)
+                    # 09-23 telemetry: the onset ticks alone (label sentence differs from the previous tick). The
+                    # aggregate decision exact is dominated by copy ticks; the onset is one tick per window.
+                    onset_active = (
+                        (x["onset_mask"] & transition_valid).astype(jnp.float32) if "onset_mask" in x
+                        else jnp.zeros_like(evidence_active)
+                    )
                     sem_requested = sem_aux["commit_requested"][:, 0]
                     ring_valid = jnp.arange(key_ring.shape[1])[None, :] < jnp.minimum(ring_count, key_ring.shape[1])[:, None]
                     qk_cos = jnp.einsum("brk,bmk->brm", prepared["sem_queries"].astype(jnp.float32), key_ring)
@@ -6423,6 +6429,8 @@ class Pi0(_model.BaseModel):
                             "v5_evidence_count": evidence_active,
                             "v5_token_acc_decision": sentence_token_acc * decision_active,
                             "v5_exact_decision": sentence_exact.astype(jnp.float32) * decision_active,
+                            "v5_exact_onset": sentence_exact.astype(jnp.float32) * onset_active,
+                            "v5_onset_count": onset_active,
                             "v5_qk_cos_max": qk_cos_max * qk_active,
                             "v5_qk_count": qk_active,
                         }
@@ -6867,6 +6875,8 @@ class Pi0(_model.BaseModel):
                     "v5_evidence_count": jnp.sum(ys["v5_evidence_count"]),
                     "v5_token_acc_decision_sum": jnp.sum(ys["v5_token_acc_decision"]),
                     "v5_exact_decision_sum": jnp.sum(ys["v5_exact_decision"]),
+                    "v5_exact_onset_sum": jnp.sum(ys["v5_exact_onset"]),  # 09-23: onset ticks only
+                    "v5_onset_count": jnp.sum(ys["v5_onset_count"]),
                     "v5_qk_cos_sum": jnp.sum(ys["v5_qk_cos_max"]),
                     "v5_qk_count": jnp.sum(ys["v5_qk_count"]),
                     # A5: prefilled sentences per window (sum over the batch; 0 without prefill).

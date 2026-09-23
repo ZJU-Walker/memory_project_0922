@@ -1337,6 +1337,8 @@ _V5_INFO_KEYS = (
     "v5_evidence_count",
     "v5_token_acc_decision_sum",
     "v5_exact_decision_sum",
+    "v5_exact_onset_sum",
+    "v5_onset_count",
     "v5_qk_cos_sum",
     "v5_qk_count",
     "v4_decision_ce_sum",
@@ -1378,6 +1380,9 @@ def _sentence_quality_info(chunked_loss: dict[str, at.Array]) -> dict[str, at.Ar
         "wrong_sentence_tokens_per_tick": chunked_loss["v7_hard_token_count"] / valid,
         "decision_sentence_exact": chunked_loss["v5_exact_decision_sum"] / jnp.maximum(chunked_loss["v4_decision_count"], 1.0),
         "evidence_sentence_exact": chunked_loss["v5_exact_evidence_sum"] / jnp.maximum(chunked_loss["v5_evidence_count"], 1.0),
+        # 09-23: exact-sentence rate on the onset ticks alone (the tick where the label sentence changes; the aggregate
+        # decision exact is dominated by copy ticks and stayed at 0.99 while rollouts missed the onset).
+        "onset_sentence_exact": chunked_loss["v5_exact_onset_sum"] / jnp.maximum(chunked_loss["v5_onset_count"], 1.0),
     }
 
 
