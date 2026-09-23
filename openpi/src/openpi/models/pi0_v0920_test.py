@@ -47,8 +47,11 @@ def test_v0920_config_gate():
     assert pi0_config.Pi0Config(**_v5_kwargs()).memory_v0920_input_read is False
     with pytest.raises(ValueError, match="memory_v7_no_visual_block"):
         pi0_config.Pi0Config(**_v0_kwargs(memory_v7_no_visual_block=False))
+    # 0920_v4: the pointer bonus is admitted in context mode only (its decoder-feature query map never trained through this path)
     with pytest.raises(ValueError, match="pointer"):
-        pi0_config.Pi0Config(**_v0_kwargs(memory_v6_pointer_read=True))
+        pi0_config.Pi0Config(**_v0_kwargs(memory_v6_token_writes=True, memory_v6_pointer_read=True, memory_v6_pointer_query="hidden"))
+    ok = pi0_config.Pi0Config(**_v0_kwargs(memory_v6_token_writes=True, memory_v6_pointer_read=True, memory_v6_pointer_query="context"))
+    assert ok.memory_v6_pointer_read and ok.memory_v6_pointer_query == "context"
     with pytest.raises(ValueError, match="prompt slot"):
         pi0_config.Pi0Config(**_v0_kwargs(prompt_slot_len=16))
     with pytest.raises(ValueError, match="divide"):

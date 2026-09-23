@@ -75,3 +75,31 @@ def test_v3_is_v2_with_the_question_context():
     assert changed == {"memory_v0920_query_context", "memory_v7_hard_token_ce_weight"}
     assert v3.model.memory_v7_hard_token_ce_weight == 5.0 and v2.model.memory_v7_hard_token_ce_weight == 1.0
     assert v3.model.memory_v7_write_every_step is False and v3.model.memory_v5_write_conf == 0.9
+
+
+def test_v4_is_v2_with_exact_copies_and_a_slow_bank():
+    """v4 (09-23): v2's write rule + the 5x token weight, no question shift, pointer read (context, beta 10), the last note
+    read back at the input, the lowest-token-probability gate at 0.8, bank decay 0.001."""
+    from openpi.training import config as _config
+
+    v2 = _config.get_config("pi05_yam_beans0922_v2")
+    v3 = _config.get_config("pi05_yam_beans0922_v3")
+    v4 = _config.get_config("pi05_yam_beans0922_v4")
+    m = v4.model
+    assert (m.memory_v6_pointer_read, m.memory_v6_pointer_query, m.memory_v6_pointer_beta_init) == (True, "context", 10.0)
+    assert m.memory_v0920_prev_readback is True and m.memory_v0920_query_context is False
+    assert (m.memory_v5_write_conf_min, m.memory_v5_write_conf, m.memory_v7_write_every_step) == (True, 0.8, False)
+    assert m.memory_v7_hard_token_ce_weight == 5.0 and m.memory_v6_token_writes and m.memory_v6_whiten_keys
+    assert m.memory_semantic.alpha_step == 0.001 and v2.model.memory_semantic.alpha_step == 0.01
+    assert dataclasses.replace(m.memory_semantic, alpha_step=0.01) == v2.model.memory_semantic
+    changed = {f.name for f in dataclasses.fields(v2.model) if getattr(v2.model, f.name) != getattr(m, f.name)}
+    # (the v6.1 template already carries pointer_query="context" and beta_init 10; v0 only switched the pointer off)
+    assert changed == {"memory_v6_pointer_read", "memory_v0920_prev_readback", "memory_v5_write_conf_min", "memory_v5_write_conf",
+                       "memory_v7_hard_token_ce_weight", "memory_semantic", "memory"}
+    assert m.memory.alpha_step == 0.001 and dataclasses.replace(m.memory, alpha_step=0.01) == v2.model.memory
+    assert v3.model.memory_v0920_query_context is True  # v4 does not inherit the shift
+    for field in ("data", "weight_loader", "lr_schedule", "num_train_steps", "batch_size", "label_write_schedule_steps"):
+        assert getattr(v2, field) == getattr(v4, field), field
+    # the read-back tokens widen the memory block by one token per note position
+    assert v4.model.memory_v5_sentence_len == v2.model.memory_v5_sentence_len
+    s = _config.get_config("pi05_yam_beans0922_v4_smoke"); assert s.num_train_steps == 3 and not s.wandb_enabled

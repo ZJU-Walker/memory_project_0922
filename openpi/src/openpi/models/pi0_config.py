@@ -286,6 +286,11 @@ class Pi0Config(_model.BaseModelConfig):
     # Predicted mode commits only when the sentence changed vs the previous step AND the mean
     # probability of the argmax tokens over the sentence span is at least this value.
     memory_v5_write_conf: float = 0.9
+    # 0920_v4 (2026-09-23): compare the LOWEST token probability of the sentence with memory_v5_write_conf instead of the
+    # mean. The mean gate never fired at a wrong count (one doubtful digit among ~12 sure template words still averages
+    # > 0.9); with the minimum, one doubtful word keeps the note out of the bank until the model is sure of every word.
+    # Applied in the training scan, scripts/v5_heldout_video.py and scripts/serve_yam_memory.py alike.
+    memory_v5_write_conf_min: bool = False
     # 2026-09-05 (beans B3 demo11 relapse): with False the change detector compares the pending sentence with
     # the last PRODUCED sentence, so a sentence that first appears below memory_v5_write_conf is never written
     # unless it changes and comes back; with True it compares with the last COMMITTED sentence, i.e. a sentence
@@ -362,7 +367,18 @@ class Pi0Config(_model.BaseModelConfig):
     # masked-mean input embedding of the last committed note (the same `prev` the write rule keeps) through a second
     # ZERO-initialised map. At init the questions equal the fixed ones (bit-identical read); training can make them depend on
     # the frame and on the note. The answers still enter at the input for every block. Needs memory_v0920_input_read.
+    # 2026-09-23 measurement on beans0922_v3/1000: the two zero-init maps opened to a shift 170x the base questions, nearly the
+    # same vector for every note (rank-one maps; the sentence-mean embedding shares one big component), so all 8 questions
+    # collapsed into one. Do not use as is; a bounded, normalised shift would be needed. 0920_v4 drops it.
     memory_v0920_query_context: bool = False
+    # 0920_v4 "read back what you last said" (2026-09-23, user: keep the token bank). The last committed note is read back
+    # THROUGH the bank with its own token write keys (the same key function as the write, so every stored token returns
+    # exactly, measured cosine 1.00) and enters the input as one token per note position (memory_v5_sentence_len tokens,
+    # empty positions exactly zero and masked), after the 8 question tokens. The newest note's words -- the count words
+    # among them -- are then at the input exactly, instead of as a small part of a blended answer; the 8 questions keep
+    # serving older notes. Pairs with memory_v6_pointer_read (context queries) for the decode and a slow bank decay.
+    # Needs memory_v0920_input_read and memory_v6_token_writes.
+    memory_v0920_prev_readback: bool = False
     # beans0922 ablation (1) "snap + visual memory" (2026-09-22): a SECOND fast-weight bank, fed by the front camera and read
     # exactly like the sentence bank. Every valid tick the front camera's INPUT image tokens (SigLIP + projector, memory-blind,
     # stop-gradient) are pooled by `memory_vis_slots` learned queries; slot i is written as key = unit(P_k pooled_i + e_i),
@@ -582,8 +598,10 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("memory_v0920_input_read needs the sentence bank (memory_v5_sentence_bank).")
                 if not self.memory_v7_no_visual_block:
                     raise ValueError("memory_v0920_input_read needs memory_v7_no_visual_block (no visual columns).")
-                if self.memory_v6_pointer_read:
-                    raise ValueError("memory_v0920_input_read has no pointer bonus (memory_v6_pointer_read must be False).")
+                if self.memory_v6_pointer_read and self.memory_v6_pointer_query != "context":
+                    # 0920_v4 re-admits the pointer bonus, in context mode only (the decoder-feature query map of the layer-8
+                    # design was never trained through this path)
+                    raise ValueError("memory_v0920_input_read admits the pointer bonus only with memory_v6_pointer_query='context'.")
                 if self.prompt_slot_len or self.memory_v7_prompt_slot_from_bank:
                     raise ValueError("memory_v0920_input_read has no prompt slot.")
                 if self.memory_v0920_history_frames < 0 or self.memory_v0920_history_pool < 1:
@@ -594,6 +612,11 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("memory_v0920_history_dropout must lie in [0, 1).")
             if getattr(self, "memory_v0920_query_context", False) and not self.memory_v0920_input_read:
                 raise ValueError("memory_v0920_query_context needs memory_v0920_input_read (the input-read questions).")
+            if getattr(self, "memory_v0920_prev_readback", False):
+                if not self.memory_v0920_input_read:
+                    raise ValueError("memory_v0920_prev_readback needs memory_v0920_input_read (the tokens join the input read).")
+                if not self.memory_v6_token_writes:
+                    raise ValueError("memory_v0920_prev_readback reads the note back with its token write keys (memory_v6_token_writes).")
             if self.memory_vis_bank:
                 if not self.memory_v0920_input_read:
                     raise ValueError("memory_vis_bank needs memory_v0920_input_read (the visual tokens join the input read).")

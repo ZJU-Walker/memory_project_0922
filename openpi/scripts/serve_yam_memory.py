@@ -127,15 +127,17 @@ class V5SentenceMemory:
 
     def __init__(self, *, init_state, write_fn, sentence_len: int, write_conf: float, delay_steps: int, decode_text, prev_is_committed: bool = False,
                  debounce_steps: int = 1, vocab_rows=(), retract_steps: int = 0, retract_fn=None, delta_fn=None,
-                 first_write_debounce_steps: int | None = None, write_every_step: bool = False):
+                 first_write_debounce_steps: int | None = None, write_every_step: bool = False, conf_min: bool = False):
         """v7 robomme (09-17) generic write rules, the same as the training scan and scripts/v5_heldout_video.py:
         `debounce_steps` = commit only a sentence decoded N steps in a row; `vocab_rows` = if non-empty, commit only a
         sentence that equals one of these token tuples; `retract_steps` = K: an A -> B -> A flip-back within K steps
-        of B's commit ERASES B (`retract_fn(state, last_delta, age) -> state`, `delta_fn(before, after) -> delta`)."""
+        of B's commit ERASES B (`retract_fn(state, last_delta, age) -> state`, `delta_fn(before, after) -> delta`);
+        `conf_min` (0920_v4, memory_v5_write_conf_min) = gate on the LOWEST token probability instead of the mean."""
         self._init_state = init_state
         self._write = write_fn
         self._len = int(sentence_len)
         self._conf = float(write_conf)
+        self._conf_min = bool(conf_min)
         self._delay = int(delay_steps)
         self._prev_is_committed = bool(prev_is_committed)
         self._decode_text = decode_text
@@ -185,7 +187,11 @@ class V5SentenceMemory:
         produced_mask = np.zeros((1, self._len), dtype=bool)
         produced_mask[0, :n] = np.asarray(mask, dtype=bool)[:n]
         produced_tokens[0, :n] = np.where(produced_mask[0, :n], np.asarray(tokens)[:n], 0)
-        confidence = float(np.mean(np.asarray(probs)[np.asarray(mask, dtype=bool)])) if np.any(mask) else 0.0
+        if np.any(mask):
+            span_probs = np.asarray(probs)[np.asarray(mask, dtype=bool)]
+            confidence = float(np.min(span_probs) if self._conf_min else np.mean(span_probs))
+        else:
+            confidence = 0.0
         produced_conf = confidence >= self._conf
         if self._delay == 1:
             cur_tokens, cur_mask, cur_conf = self.pending_tokens, self.pending_mask, self.pending_conf
@@ -359,6 +365,7 @@ class MemoryPolicy(_policy.Policy):
                 write_fn=write_fn,
                 sentence_len=int(model.memory_v5_sentence_len),
                 write_conf=float(model.memory_v5_write_conf if write_conf is None else write_conf),
+                conf_min=bool(getattr(model, "memory_v5_write_conf_min", False)),
                 prev_is_committed=bool(getattr(model, "memory_v5_prev_is_committed", False)),
                 delay_steps=int(getattr(model, "memory_v5_write_delay_steps", 0)),
                 decode_text=lambda ids: decode_tokenizer.decode(ids).strip(),

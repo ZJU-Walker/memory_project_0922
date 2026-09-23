@@ -52,6 +52,18 @@ def make_attn_mask(input_mask, mask_ar):
     return jnp.logical_and(attn_mask, valid_mask)
 
 
+def v5_sentence_confidence(model, token_conf: at.Float[at.Array, "b s"], span: at.Bool[at.Array, "b s"]) -> at.Float[at.Array, " b"]:
+    """The write gate's sentence confidence from the per-token argmax probabilities over `span`: their mean, or with
+    `memory_v5_write_conf_min` (0920_v4) their MINIMUM (one doubtful word blocks the note). An empty span gives 0.
+    Module-level (like `digit_blind_rows`) so every model class that runs the training scan shares it."""
+    spanf = span.astype(jnp.float32)
+    has_span = jnp.any(span, axis=-1)
+    if getattr(model, "memory_v5_write_conf_min", False):
+        lowest = jnp.min(jnp.where(span, token_conf, 1.0), axis=-1)
+        return jnp.where(has_span, lowest, 0.0)
+    return jnp.sum(token_conf * spanf, axis=-1) / jnp.maximum(jnp.sum(spanf, axis=-1), 1.0)
+
+
 def digit_blind_rows(causal_tokens, patterns):
     """bool[b, L]: causal positions p whose token suffix (..., tokens[p]) equals one of `patterns` (tuples of token
     ids, each ending at the position that PREDICTS a digit). Padding/zero tokens never match a real pattern."""
@@ -718,6 +730,8 @@ class Pi0(_model.BaseModel):
                     self.memory_v5_prefill_history = bool(config.memory_v5_prefill_history)
                     self.memory_v5_prefill_max = int(config.memory_v5_prefill_max)
                     self.memory_v5_write_conf = config.memory_v5_write_conf
+                    # 0920_v4: the gate compares the LOWEST token probability of the sentence (not the mean) with the threshold
+                    self.memory_v5_write_conf_min = bool(getattr(config, "memory_v5_write_conf_min", False))
                     self.memory_v7_write_every_step = bool(getattr(config, "memory_v7_write_every_step", False))
                     self.memory_v7_write_debounce_steps = int(getattr(config, "memory_v7_write_debounce_steps", 1))
                     self.memory_v7_write_grammar = tuple(
@@ -875,6 +889,18 @@ class Pi0(_model.BaseModel):
                         self.memory_sem_query_prev_proj = nnx.Linear(
                             paligemma_config.width, config.memory_semantic.d_key, use_bias=False,
                             kernel_init=nnx.initializers.zeros, rngs=rngs,
+                        )
+                    # 0920_v4 (Pi0Config.memory_v0920_prev_readback): the last committed note is read back through the bank
+                    # with its own write keys and enters the input as one token per note position. Own tanh gate (the same
+                    # init as the question tokens) and zero-init per-position slot embeddings.
+                    self.memory_v0920_prev_readback = bool(getattr(config, "memory_v0920_prev_readback", False))
+                    if self.memory_v0920_prev_readback:
+                        readback_gate_w = jnp.arctanh(jnp.asarray(config.memory_sem_injection_gate_init, dtype=jnp.float32))
+                        self.memory_sem_readback_inject_w = nnx.Param(
+                            jnp.full((config.memory_semantic.d_value,), readback_gate_w, dtype=jnp.float32)
+                        )
+                        self.memory_sem_readback_slot_embedding = nnx.Param(
+                            jnp.zeros((config.memory_v5_sentence_len, config.memory_semantic.d_value), dtype=jnp.float32)
                         )
                     # A6 read-side fixes (Pi0Config.memory_v5_query_*).
                     self.memory_v5_query_standardize = bool(config.memory_v5_query_standardize)
@@ -1046,8 +1072,11 @@ class Pi0(_model.BaseModel):
         else:
             extra = self.memory_fact_slots
         if getattr(self, "memory_v7_no_visual_block", False):
-            # v7 (09-18): sentence-bank read tokens only, no visual columns in the sequence; the beans0922 ablation (1)
-            # appends the visual-bank read tokens after them (Pi0Config.memory_vis_bank)
+            # v7 (09-18): sentence-bank read tokens only, no visual columns in the sequence; 0920_v4 appends one read-back
+            # token per note position (Pi0Config.memory_v0920_prev_readback); the beans0922 ablation (1) appends the
+            # visual-bank read tokens after them (Pi0Config.memory_vis_bank)
+            if getattr(self, "memory_v0920_prev_readback", False):
+                extra += int(self.memory_v5_sentence_len)
             if getattr(self, "memory_vis_bank", False):
                 return extra + int(self.memory_vis_slots)
             return extra
@@ -2070,6 +2099,45 @@ class Pi0(_model.BaseModel):
         post_rms = jnp.sqrt(jnp.mean(jnp.square(tokens.astype(jnp.float32)), axis=(1, 2)))
         return tokens, valid, retrieved, queries, pre_rms, post_rms
 
+    def v0920_readback_tokens(
+        self,
+        semantic_state: _memory.MemoryState,
+        prev_tokens: at.Int[at.Array, "b s"],
+        prev_mask: at.Bool[at.Array, "b s"],
+        dtype: jnp.dtype,
+        *,
+        zero_read: bool = False,
+    ) -> tuple[at.Array, at.Array, at.Array, at.Array]:
+        """0920_v4 (Pi0Config.memory_v0920_prev_readback): the last committed note read back THROUGH the bank.
+
+        The note's own write keys (`v6_sentence_token_kv`, the same function the write used, so a stored token is returned
+        exactly) query the bank; position t's answer becomes one input token: fixed RMS (the question-token target), tanh
+        gate, + a per-position slot embedding. Positions outside the note, and every position of an empty note, are exactly
+        zero and invalid, so nothing is asked and nothing enters the sequence. Returns (tokens[b, s, d] in `dtype`,
+        valid[b, s], retrieved[b, s, dv] fp32, keys[b, s, dk] fp32)."""
+        has_note = jnp.any(prev_mask, axis=-1)
+        safe_mask = prev_mask & has_note[:, None]
+        safe_tokens = jnp.where(safe_mask, prev_tokens, 0).astype(jnp.int32)
+        keys, _, _ = self.v6_sentence_token_kv(safe_tokens, safe_mask)
+        keys = jax.lax.stop_gradient(keys) * safe_mask.astype(jnp.float32)[..., None]
+        retrieved = self.memory_semantic.read_key(semantic_state, keys).astype(jnp.float32)
+        if zero_read:
+            retrieved = jnp.zeros_like(retrieved)
+        retrieved = retrieved * safe_mask.astype(jnp.float32)[..., None]
+        target = self._v0920_input_scale()
+        rms = jnp.sqrt(jnp.mean(jnp.square(retrieved), axis=-1, keepdims=True) + 1e-12)
+        floor = target * (float(self.memory_sem_injection_tau) / float(self.memory_sem_injection_c))
+        injected = jnp.tanh(self.memory_sem_readback_inject_w.value) * (retrieved * (target / jnp.maximum(rms, floor)))
+        content = injected + self.memory_sem_readback_slot_embedding.value[None].astype(jnp.float32)
+        content = content * safe_mask.astype(jnp.float32)[..., None]
+        tokens = content.astype(dtype)
+        if getattr(self, "memory_mask_zero_tokens", False):
+            valid = safe_mask & jnp.any(tokens != 0, axis=-1)
+        else:
+            valid = safe_mask
+        return tokens, valid, retrieved, keys
+
+
     # ------------------------------------------------------------------------------------
     # beans0922 ablation (1), 2026-09-22 (Pi0Config.memory_vis_bank): a visual bank next to the sentence bank. Written every
     # valid tick from the front camera's input image tokens, read with fixed queries at the input like the sentence bank.
@@ -2163,7 +2231,8 @@ class Pi0(_model.BaseModel):
         """One pass through ALL blocks over [prefix | 8 memory tokens] (memory rows blind, memory columns visible to
         every row). Returns the dict the v3.2 call sites consume; the visual-bank entries are zeros (that bank is
         not read, not in the sequence, and its write receives zero tokens = a plain decay). `prev_tokens`/`prev_mask` =
-        the last committed note, used by the 0920_v2 question context (memory_v0920_query_context) only."""
+        the last committed note, used by the 0920_v2 question context (memory_v0920_query_context) and by the 0920_v4
+        read-back tokens (memory_v0920_prev_readback: one token per note position, appended after the question tokens)."""
         if semantic_state is None:
             raise ValueError("memory_v0920_input_read needs the sentence bank state at every call site.")
         batch, prefix_len = prefix_mask.shape
@@ -2174,6 +2243,16 @@ class Pi0(_model.BaseModel):
             semantic_state, batch, prefix_tokens.dtype, zero_read=zero_read,
             context=prefix_tokens, context_valid=prefix_mask, prev_tokens=prev_tokens, prev_mask=prev_mask,
         )
+        readback_out: dict[str, at.Array] = {}
+        if getattr(self, "memory_v0920_prev_readback", False):
+            if prev_tokens is None or prev_mask is None:
+                raise ValueError("memory_v0920_prev_readback needs prev_tokens/prev_mask (the last committed note) at every read.")
+            rb_tokens, rb_valid, rb_retrieved, rb_keys = self.v0920_readback_tokens(
+                semantic_state, prev_tokens, prev_mask, prefix_tokens.dtype, zero_read=zero_read
+            )
+            tokens8 = jnp.concatenate([tokens8, rb_tokens], axis=1)
+            valid8 = jnp.concatenate([valid8, rb_valid], axis=1)
+            readback_out = {"readback_retrieved": rb_retrieved, "readback_valid": rb_valid, "readback_keys": rb_keys}
         vis_out: dict[str, at.Array] = {}
         if getattr(self, "memory_vis_bank", False):
             # beans0922 ablation (1): read the visual bank with its fixed queries and append the tokens after the sentence
@@ -2217,6 +2296,7 @@ class Pi0(_model.BaseModel):
         zeros_b = jnp.zeros((batch,), dtype=jnp.float32)
         return {
             **vis_out,
+            **readback_out,
             "sem_queries": sem_queries,
             "sem_retrieved": sem_retrieved,
             "sem_injected_pre_cast_rms": pre_rms.astype(jnp.float32),
@@ -5787,9 +5867,10 @@ class Pi0(_model.BaseModel):
                     v5_read_kwargs = {"v5_prev_tokens": jnp.maximum(prev_sentence, 0), "v5_prev_mask": prev_sentence > 0}
             if getattr(self, "memory_v0920_input_read", False):
                 v0920_prev = {}
-                if getattr(self, "memory_v0920_query_context", False):
-                    # 0920_v2: the last committed note conditions the questions (the same prev the write rule keeps; with the
-                    # one-step write delay the pending sentence, exactly like the A6 rule above)
+                if getattr(self, "memory_v0920_query_context", False) or getattr(self, "memory_v0920_prev_readback", False):
+                    # 0920_v2: the last committed note conditions the questions; 0920_v4: it is read back through the bank
+                    # (the same prev the write rule keeps; with the one-step write delay the pending sentence, exactly like
+                    # the A6 rule above)
                     if getattr(self, "memory_v5_write_delay_steps", 0) == 1:
                         v0920_prev = {"prev_tokens": pending_sentence, "prev_mask": pending_span}
                     else:
@@ -5981,7 +6062,7 @@ class Pi0(_model.BaseModel):
                     spanf = sent_span.astype(jnp.float32)
                     span_count = jnp.maximum(jnp.sum(spanf, axis=-1), 1.0)
                     has_span = jnp.any(sent_span, axis=-1)
-                    sentence_conf = jnp.sum(pred_conf * spanf, axis=-1) / span_count
+                    sentence_conf = v5_sentence_confidence(self, pred_conf, sent_span)
                     sentence_token_correct = (pred_sentence == label_sentence) & sent_span
                     sentence_token_acc = jnp.sum(sentence_token_correct.astype(jnp.float32), axis=-1) / span_count
                     sentence_exact = jnp.all(sentence_token_correct | ~sent_span, axis=-1) & has_span

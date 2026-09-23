@@ -308,6 +308,7 @@ def main() -> None:
     lookahead = data_config.subtask_lookahead
     sentence_len = cfg.model.memory_v5_sentence_len
     conf_threshold = cfg.model.memory_v5_write_conf
+    conf_use_min = bool(getattr(cfg.model, "memory_v5_write_conf_min", False))
     # oracle_evidence: label writes stop at the closing segment (second-to-last sidecar segment = the restated note)
     # oracle_evidence: label notes are handed over up to the closing note; with a merged tail (sidecar "tail_merged":
     # closing + decision = one segment) that is the tail segment itself
@@ -411,7 +412,11 @@ def main() -> None:
             gen_mask = np.asarray(gen_mask)[0]
             gen_prob = np.asarray(gen_prob)[0]
             pred = _decode_text(sp, gen_tokens[gen_mask])
-            conf = float(gen_prob[gen_mask].mean()) if gen_mask.any() else 0.0
+            if gen_mask.any():
+                # the gate's sentence confidence: the mean token probability, or (memory_v5_write_conf_min, 0920_v4) the lowest
+                conf = float(gen_prob[gen_mask].min() if conf_use_min else gen_prob[gen_mask].mean())
+            else:
+                conf = 0.0
             # the sentence to (maybe) write
             oracle_here = args.write_mode == "oracle" or (args.write_mode == "oracle_evidence" and frame + lookahead < oracle_until)
             if oracle_here:

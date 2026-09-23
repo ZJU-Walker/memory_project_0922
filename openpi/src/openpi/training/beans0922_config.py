@@ -98,12 +98,37 @@ V2_WRITE_RULE = dict(memory_v7_write_every_step=False, memory_v5_write_conf=0.9)
 # prediction is wrong at that tick weigh 5x in the sentence CE (the count word is 1 token in ~50 per tick; the weight fades
 # once the word is learned) and the wrong-token telemetry v7_hard_token_count switches on.
 V3_QUERY_CONTEXT = dict(V2_WRITE_RULE, memory_v0920_query_context=True, memory_v7_hard_token_ce_weight=5.0)
+# v4 "token bank, exact copies" (user 09-23 23:55 "ok开始做", after the geometry probes on v3/1000 and v1/2000): the token
+# store and the writes were measured to be fine (a stored digit reads back at cosine 1.00 with its exact context key); what
+# failed was the READ -- (a) v3's question shift was 170x the base questions and rank-one, so all 8 questions collapsed into
+# one; (b) an answer is a blend over the whole history in which the go note fades (1 %/tick: 15 % strength by the third
+# scoop note, cosine to the true digit 0.71) and the newest note dominates, so "of x" was a noisy copy that flipped and
+# then stayed wrong. v4 = v2's write rule + the 5x error-driven token weight, WITHOUT the shift, plus:
+#   * memory_v6_pointer_read in "context" mode (beta 10, the v6.1 setting): while a token is decoded the bank is asked
+#     "what followed this exact context last time" and the answer is added to the token scores -- "scoop 2 of _" fetches
+#     the previous x exactly, "scoop _" the previous k; copies stop flipping;
+#   * memory_v0920_prev_readback: the last committed note is read back through the bank with its own keys and enters the
+#     input token by token (exact), so the tray decision (k == x -> done) sees both digits instead of a blend;
+#   * bank decay 0.01 -> 0.001 per tick (half-life 115 s instead of 69 ticks = 12 s; A6sd precedent): the go note stays
+#     readable through the whole scoop phase; with change-only writes (~15 notes per episode) nothing needs forgetting;
+#   * the write gate compares the LOWEST token probability (memory_v5_write_conf_min) with 0.8 instead of the mean with 0.9:
+#     one doubtful word keeps a note out; the mean gate never fired at a wrong count.
+# Still learned, not exact: the yellow-go count (context "scoop, scoop _" is new) and the first scoop note's x ("scoop 1
+# of _" is new) come from the 8 fixed questions reading the fresh light-off / go note.
+V4_TOKEN_EXACT = dict(
+    V2_WRITE_RULE, memory_v7_hard_token_ce_weight=5.0,
+    memory_v6_pointer_read=True, memory_v6_pointer_query="context", memory_v6_pointer_beta_init=10.0,
+    memory_v0920_prev_readback=True,
+    memory_v5_write_conf_min=True, memory_v5_write_conf=0.8,
+)
+V4_BANK = dict(alpha_step=0.001)
 
 
 def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps: int = MEM_STEPS, wandb: bool = True,
-                  batch: int = MEM_BATCH, model_overrides: dict | None = None) -> cfg.TrainConfig:
+                  batch: int = MEM_BATCH, model_overrides: dict | None = None, bank_overrides: dict | None = None) -> cfg.TrainConfig:
     """v1 structure on the beans v5 (B9) window / labels / sampling, from the beans0922 base with fresh memory leaves.
-    `model_overrides` = the flags a later revision changes on top of v1 (v2: V2_WRITE_RULE)."""
+    `model_overrides` = the flags a later revision changes on top of v1 (v2: V2_WRITE_RULE); `bank_overrides` = fields of
+    the sentence bank's MemoryConfig a revision changes (v4: the decay alpha_step)."""
     template = existing["pi05_yam_mem_v6_task1A2"]  # the linear delta-rule bank template every 0920 config derives from
     b9 = existing["pi05_yam_mem_v5_beansB9"]  # the beans v5 recipe: data, labels, window, reference tokens
     model_kwargs = dict(STRUCTURE)  # the v1 structure (includes prefill_history True, own writes, ramp-compatible flags)
@@ -118,6 +143,11 @@ def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps:
         memory_state_mask_prob=0.0,  # no state masking (user 09-22 00:36; B9 used 0.5)
     )
     model_kwargs.update(model_overrides or {})
+    if bank_overrides:
+        # both banks: Pi0Config requires memory_semantic.alpha_step == memory.alpha_step (the visual bank is inert in the
+        # 0920 design -- no visual columns -- but its config must agree)
+        model_kwargs["memory_semantic"] = dataclasses.replace(template.model.memory_semantic, **bank_overrides)
+        model_kwargs["memory"] = dataclasses.replace(template.model.memory, **bank_overrides)
     model = dataclasses.replace(template.model, **model_kwargs)
     data = _with_beans_data(b9.data)
     return dataclasses.replace(
@@ -144,4 +174,7 @@ def get_configs(existing: dict) -> list:
         memory_config(existing, "pi05_yam_beans0922_v2_smoke", steps=2, wandb=False, model_overrides=V2_WRITE_RULE),
         memory_config(existing, "pi05_yam_beans0922_v3", model_overrides=V3_QUERY_CONTEXT),
         memory_config(existing, "pi05_yam_beans0922_v3_smoke", steps=2, wandb=False, model_overrides=V3_QUERY_CONTEXT),
+        memory_config(existing, "pi05_yam_beans0922_v4", model_overrides=V4_TOKEN_EXACT, bank_overrides=V4_BANK),
+        memory_config(existing, "pi05_yam_beans0922_v4_smoke", steps=2, wandb=False, model_overrides=V4_TOKEN_EXACT,
+                      bank_overrides=V4_BANK),
     ]
