@@ -141,3 +141,15 @@ light-off / go note. Tests: `openpi/src/openpi/models/pi0_v0920_v4_token_test.py
 `beans/logs/train_beans0922_v4.sh` (2xH200 batch 8; on 4xH100 batch 8 = 2 per card, fallback 4). Step-0 CE is ~250 (fresh
 memory leaves; v1 started at 90, v3 at 38) and is under 10 by step 30. Gates as before: videos at 1000, then the sentence
 battery (its go-step number is appearance-driven here; read the scoop-phase videos).
+
+**v4 own-note probes and v4b (2026-09-23 05:25).** Own-note rollouts of v4 at 500 and 750 (pages linked from the 250 page):
+the trained gate (lowest word probability 0.8) let one note per episode through, because the model's own light-phase
+sentences decode at 0.4 to 0.5; with 0.5 applied offline the copy chain was exact and confident at 500 but the go count was
+still guessed (no light note ever written), and by 750 the model guessed confidently and overrode its own notes (27 writes
+flickering "of 2" / "of 3" on episode 25). Label-note rollouts at 500 were right in 6/6 episodes, so the read design holds and
+the gate was the fault. Teacher-forced decision/evidence exact stayed 0.99/0.92 throughout, because most training windows
+start with the label history prefilled: judge these models by the own-note videos, not by those curves. `pi05_yam_beans0922_v4b`
+(`V4B_WRITE_RULE`) = v4 with the gate at 0.3 plus the two-tick confirmation (`memory_v7_write_debounce_steps=2`), the same rule
+in training, in `v5_heldout_video.py` (self mode) and in `serve_yam_memory.py`; resumed from v4's checkpoint 500 (moved to the
+v4b experiment directory) on the two H200s, launcher `beans/logs/train_beans0922_v4.sh` with `CFG=pi05_yam_beans0922_v4b
+EXP=beans0922_v4b`.
