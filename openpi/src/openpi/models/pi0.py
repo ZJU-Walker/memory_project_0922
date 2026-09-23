@@ -6753,6 +6753,9 @@ class Pi0(_model.BaseModel):
                     "v4_decision_ce_steps": ys["v4_decision_ce"],
                     "v4_decision_active_steps": ys["v4_decision_count"],
                     "v5_step_ce_steps": ys.get("v5_step_ce", ys["v4_decision_ce"]),
+                    # 09-22: the per-step CE over the SENTENCE tokens only [T, b] (the step CE above averages the ~40 FAST action
+                    # tokens in too, so a count-variant contrast (v5_count_flip_eval) was dominated by the action tokens' likelihood)
+                    "v5_step_ce_lm_steps": ys["ce_lm_sum"] / jnp.maximum(ys["lm_token_count"], 1.0),
                     "v4_use_flow_sum": jnp.sum(ys["v4_use_flow"]),
                     "v4_use_count": jnp.sum(ys["v4_use_count"]),
                     "v4_sem_commit_count": jnp.sum(ys["v4_sem_commit"]),

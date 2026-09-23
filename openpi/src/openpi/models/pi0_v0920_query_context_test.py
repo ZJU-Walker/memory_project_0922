@@ -160,3 +160,17 @@ def test_sequence_loss_runs_through_the_training_scan_with_the_note_context(pair
     # the scan passes the last committed note and the prefix into the questions: both context maps get gradient
     assert float(jnp.max(jnp.abs(grads["memory_sem_query_context_proj"]["kernel"].value))) > 0.0
     assert float(jnp.max(jnp.abs(grads["memory_sem_read_query_bank"].value))) > 0.0
+
+
+def test_sequence_loss_exports_the_sentence_only_step_ce(pair):
+    from openpi.models.pi0_v4_test import _v4_sequence_observation
+
+    _, ctx = pair
+    observation = _v4_sequence_observation()
+    actions = jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+    losses = ctx._compute_sequence_loss_v32(jax.random.key(920), observation, actions, train=False)
+    lm = np.asarray(losses["v5_step_ce_lm_steps"]); allce = np.asarray(losses["v5_step_ce_steps"])
+    assert lm.shape == allce.shape and np.all(np.isfinite(lm)) and np.all(lm >= 0.0)
+    # the tiny fixture has no FAST tokens, so the sentence-only CE is the whole-buffer CE on every valid step
+    valid = np.asarray(losses["v4_decision_active_steps"]) > 0
+    np.testing.assert_allclose(lm[valid], allce[valid], rtol=1e-4, atol=1e-5)

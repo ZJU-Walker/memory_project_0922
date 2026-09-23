@@ -145,6 +145,10 @@ def main(argv=None) -> None:
                         help="override memory_v5_prev_is_committed for the in-window own writes (B configs)")
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--seed", type=int, default=4)
+    parser.add_argument("--tokens", choices=("all", "sentence"), default="all",
+                        help="which tokens the per-step CE contrast covers: 'all' = the historical measure (mean over the step's "
+                             "whole causal buffer, i.e. sentence AND ~40 FAST action tokens, which dominate the tiny count margins); "
+                             "'sentence' = the sentence tokens only (the count word, its plural and what follows; 09-22)")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
     args = parser.parse_args(argv)
 
@@ -248,7 +252,8 @@ def main(argv=None) -> None:
                 losses = sequence_loss(
                     step_rng, obs.replace(tokenized_causal=jax.numpy.asarray(causal_variant)), actions, train=False
                 )
-                ce[(cond, count)] = np.asarray(jax.device_get(losses["v4_decision_ce_steps"])).T  # [b, T]
+                ce_key = "v5_step_ce_lm_steps" if args.tokens == "sentence" else "v4_decision_ce_steps"
+                ce[(cond, count)] = np.asarray(jax.device_get(losses[ce_key])).T  # [b, T]
                 if active is None:
                     active = np.asarray(jax.device_get(losses["v4_decision_active_steps"])).T > 0.5
         for b in range(batch):
@@ -309,6 +314,7 @@ def main(argv=None) -> None:
         "batches": args.batches,
         "batch_size": args.batch_size,
         "seed": args.seed,
+        "tokens": args.tokens,
         "oracle_writes": oracle,
         "prev_is_committed": bool(getattr(model, "memory_v5_prev_is_committed", False)),
         "summary": summary,
