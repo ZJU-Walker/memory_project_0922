@@ -152,4 +152,7 @@ start with the label history prefilled: judge these models by the own-note video
 (`V4B_WRITE_RULE`) = v4 with the gate at 0.3 plus the two-tick confirmation (`memory_v7_write_debounce_steps=2`), the same rule
 in training, in `v5_heldout_video.py` (self mode) and in `serve_yam_memory.py`; resumed from v4's checkpoint 500 (moved to the
 v4b experiment directory) on the two H200s, launcher `beans/logs/train_beans0922_v4.sh` with `CFG=pi05_yam_beans0922_v4b
-EXP=beans0922_v4b`.
+EXP=beans0922_v4b`. Note (ablation session, 05:35): in the training scan the two-tick confirmation also applies to label notes,
+so under v4b a label note enters the bank at the second tick of its sentence (one tick later than v4); every beans sentence
+lasts several ticks at the 5-frame tick and the window prefill writes label notes directly, so the ramp changes by one tick
+of delay per label note.
