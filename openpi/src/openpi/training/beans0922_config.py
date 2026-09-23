@@ -131,6 +131,18 @@ V4_BANK = dict(alpha_step=0.001)
 # way on two consecutive ticks (memory_v7_write_debounce_steps = 2, the generic v7 rule; the video script's plain self mode
 # and serve_yam_memory.py already honour it). The same rule in training and at deployment.
 V4B_WRITE_RULE = dict(V4_TOKEN_EXACT, memory_v5_write_conf=0.3, memory_v7_write_debounce_steps=2)
+# v4c (prepared 09-23 07:45 after the v4b/750 own-note probe; launched only if 1000 confirms): with v4b the light notes are
+# written and right, but the go ONSET ignores them ("scoop 2 times" at 0.93 with "light off: 1" read back exactly, eps 29/73)
+# and mid-phase the model overrides its own correct note when the picture is ambiguous (ep 25: "3 times" / "done" while the
+# arm reaches for the scoop). Cause: between 500 and 700 the model trained on its own light notes while they were wrong
+# 10-25 % of the time, so the note became an unreliable feature at the onset and the model fell back on the picture / the
+# prior; the onset is one tick per window, so the teacher-forced curves never showed it. Two existing generic mechanisms:
+#   * memory_v5_own_commit_label_content=True (v6.2, the B2 lesson): the model still decides WHEN to write (change / gate /
+#     two ticks), but what enters the bank in training is the label sentence of that tick, so the bank never contradicts the
+#     targets and the note stays a reliable feature -- reliance on the note is what we want the model to learn;
+#   * memory_v7_onset_ce_weight 3 -> 6: more of the sentence loss on the ticks where the sentence changes (the onset), the
+#     only ticks that cannot be solved by copying the newest note.
+V4C_TRUST_NOTES = dict(V4B_WRITE_RULE, memory_v5_own_commit_label_content=True, memory_v7_onset_ce_weight=6.0)
 
 
 def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps: int = MEM_STEPS, wandb: bool = True,
@@ -188,5 +200,8 @@ def get_configs(existing: dict) -> list:
                       bank_overrides=V4_BANK),
         memory_config(existing, "pi05_yam_beans0922_v4b", model_overrides=V4B_WRITE_RULE, bank_overrides=V4_BANK),
         memory_config(existing, "pi05_yam_beans0922_v4b_smoke", steps=2, wandb=False, model_overrides=V4B_WRITE_RULE,
+                      bank_overrides=V4_BANK),
+        memory_config(existing, "pi05_yam_beans0922_v4c", model_overrides=V4C_TRUST_NOTES, bank_overrides=V4_BANK),
+        memory_config(existing, "pi05_yam_beans0922_v4c_smoke", steps=2, wandb=False, model_overrides=V4C_TRUST_NOTES,
                       bank_overrides=V4_BANK),
     ]

@@ -120,3 +120,20 @@ def test_v4b_is_v4_with_the_passable_write_gate():
     for field in ("data", "weight_loader", "lr_schedule", "num_train_steps", "batch_size", "label_write_schedule_steps"):
         assert getattr(v4, field) == getattr(v4b, field), field
     s = _config.get_config("pi05_yam_beans0922_v4b_smoke"); assert s.num_train_steps == 3 and not s.wandb_enabled
+
+
+def test_v4c_is_v4b_that_trusts_its_notes():
+    """v4c (prepared 09-23 07:45): v4b + label content on own-write commits (the bank never contradicts the targets) and the
+    onset weight 3 -> 6; nothing else changes."""
+    from openpi.training import config as _config
+
+    v4b = _config.get_config("pi05_yam_beans0922_v4b")
+    v4c = _config.get_config("pi05_yam_beans0922_v4c")
+    assert v4c.model.memory_v5_own_commit_label_content is True and v4b.model.memory_v5_own_commit_label_content is False
+    assert (v4c.model.memory_v7_onset_ce_weight, v4b.model.memory_v7_onset_ce_weight) == (6.0, 3.0)
+    assert (v4c.model.memory_v5_write_conf, v4c.model.memory_v7_write_debounce_steps, v4c.model.memory_v5_write_conf_min) == (0.3, 2, True)
+    changed = {f.name for f in dataclasses.fields(v4b.model) if getattr(v4b.model, f.name) != getattr(v4c.model, f.name)}
+    assert changed == {"memory_v5_own_commit_label_content", "memory_v7_onset_ce_weight"}
+    for field in ("data", "weight_loader", "lr_schedule", "num_train_steps", "batch_size", "label_write_schedule_steps"):
+        assert getattr(v4b, field) == getattr(v4c, field), field
+    s = _config.get_config("pi05_yam_beans0922_v4c_smoke"); assert s.num_train_steps == 3 and not s.wandb_enabled
