@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Generic launcher for ONE beans0922 ablation training on the GPUs you own (4 cards by default). Called by run_<ablation>.sh.
 #   CFG=<train config> EXP=<experiment dir name> [MODE=train|smoke] [JOB=<slurm job id>] [GPUS=0,1,2,3] [BATCH=16]
-#   [BATCH_FALLBACK="12 8"] [STEPS=3000] [WORKERS=16] [WAIT_FOR=<path>] bash beans/ablations/train_ablation.sh
+#   [BATCH_FALLBACK="12 8"] [STEPS=3000] [WORKERS=16|8 on a <200 GB job] [WAIT_FOR=<path>] bash beans/ablations/train_ablation.sh
 # - JOB set (this cluster): an `srun --overlap` step inside that allocation pinned to CUDA_VISIBLE_DEVICES=$GPUS. Two rows
 #   on one 4-card job: give both GRES=4 (the step sees all four cards, GPUS pins the pair); a 2-card step would be handed
 #   whichever two cards Slurm picks, and GPUS=2,3 would then name cards the step cannot see.
@@ -24,7 +24,21 @@ export HF_HOME="$ROOT/v35/cache/huggingface" HF_DATASETS_CACHE="$ROOT/v35/cache/
 export OPENPI_DATA_HOME="$ROOT/v35/cache/openpi" OPENPI_JAX_CACHE_DIR="$ROOT/v35/cache/jax" UV_CACHE_DIR="$ROOT/v35/cache/uv"
 mkdir -p "$HF_HOME" "$OPENPI_DATA_HOME" "$OPENPI_JAX_CACHE_DIR" "$UV_CACHE_DIR" 2>/dev/null; [ -e "$HF_DATASETS_CACHE" ] || mkdir -p "$HF_DATASETS_CACHE"
 CFG=${CFG:?set CFG}; EXP=${EXP:?set EXP}; MODE=${MODE:-train}
-GPUS=${GPUS:-0,1,2,3}; NGPU=$(echo "$GPUS" | tr ',' '\n' | wc -l); WORKERS=${WORKERS:-16}; WANDB=${WANDB:-1}
+GPUS=${GPUS:-0,1,2,3}; NGPU=$(echo "$GPUS" | tr ',' '\n' | wc -l); WANDB=${WANDB:-1}
+# Loader workers: 16 unless the Slurm job caps host RAM below 200 GB (Anvil: 4 GB per core, a 32-core job = 128 GB). The
+# checkpoint save copies model + optimizer state (~48 GB) to CPU RAM in one go on top of the workers (~3.5 GB each) and the
+# runtime (~25 GB): with 16 workers a 128 GB job was SIGKILLed by the cgroup at the first save (09-23). 8 workers still feed
+# the cards 2-3x faster than they train.
+if [ -z "${WORKERS:-}" ]; then
+  WORKERS=16
+  if [ -n "${SLURM_JOB_ID:-}" ] && command -v scontrol >/dev/null 2>&1; then
+    mem=$(scontrol show job "$SLURM_JOB_ID" 2>/dev/null | grep -o -E "mem=[0-9]+[GMT]" | head -1 | sed 's/mem=//')
+    case "$mem" in
+      *T) mem_gb=$(( ${mem%T} * 1024 )) ;; *G) mem_gb=${mem%G} ;; *M) mem_gb=$(( ${mem%M} / 1024 )) ;; *) mem_gb= ;;
+    esac
+    if [ -n "$mem_gb" ] && [ "$mem_gb" -lt 200 ]; then WORKERS=8; echo "job memory ${mem}: using 8 loader workers (WORKERS=... to override)"; fi
+  fi
+fi
 STEPS=${STEPS:-${OPENPI_BEANS_AB_STEPS:-3000}}  # updates (the label-write ramp stays 500)
 BATCH=${BATCH:-16}; FALLBACK=${BATCH_FALLBACK:-"12 8 4"}  # 4 x 80 GB (H100): expect 8-12; 4 x 141 GB (H200): 16 (32 aborts: per-device attention tensor > 2 GB)
 if [ "$MODE" = smoke ]; then CFG="${CFG}_smoke"; EXP="smoke_${EXP}"; WANDB=0; FALLBACK=${BATCH_FALLBACK:-}; fi

@@ -78,7 +78,7 @@ GPUS=4,5,6,7 nohup bash beans/ablations/run_state8_add.sh > beans/ablations/logs
 bash beans/ablations/ablation_ctl.sh status;  bash beans/ablations/ablation_ctl.sh stop vis8s_add
 ```
 
-Knobs (environment): `GPUS` (default `0,1,2,3`), `STEPS` (default 3000), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM — 4 × 80 GB usually
+Knobs (environment): `GPUS` (default `0,1,2,3`), `STEPS` (default 3000), `WORKERS` (loader processes; 16, or 8 when the Slurm job has < 200 GB of host RAM — the checkpoint save needs ~48 GB of CPU memory on top of the workers, and a 128 GB job was killed at its first save with 16), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM — 4 × 80 GB usually
 lands at 8–12), `WORKERS` (16 loader processes per row), `WANDB=0`. No scheduler is needed: python runs directly on the
 node. Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoints/<config>/<exp>/`; W&B project
 `beans0922_ablation` (the `vis_bank_norm`, `vis_read_rms`, `vis_read_injected_rms`, `vis_commit_rate` curves show the sensory bank).
