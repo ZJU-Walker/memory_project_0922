@@ -150,6 +150,8 @@ def main(argv=None) -> None:
                              "whole causal buffer, i.e. sentence AND ~40 FAST action tokens, which dominate the tiny count margins); "
                              "'sentence' = the sentence tokens only (the count word, its plural and what follows; 09-22)")
     parser.add_argument("--output-dir", type=pathlib.Path, required=True)
+    parser.add_argument("--dump-windows", action="store_true",
+                        help="also write windows.json: per window the episode index, the label sentence runs, the prefill rows and the pending row (09-23 diagnosis)")
     args = parser.parse_args(argv)
 
     output_dir = args.output_dir
@@ -189,6 +191,17 @@ def main(argv=None) -> None:
     print(f"config={args.config_name} oracle_writes={oracle} split={args.split}", flush=True)
 
     records: list[dict] = []
+    windows: list[dict] = []
+    sp = None
+    if args.dump_windows:
+        import sentencepiece
+        import openpi.shared.project_paths as project_paths
+        sp = sentencepiece.SentencePieceProcessor(
+            model_file=str(project_paths.project_path("v35/cache/openpi/big_vision/paligemma_tokenizer.model")))
+
+    def _txt(tokens, mask):
+        ids = [int(t) for t in np.asarray(tokens)[np.asarray(mask)]]
+        return sp.decode(ids) if ids else ""
     rng = jax.random.key(args.seed)
     for index, (observation, actions) in enumerate(loader):
         causal = np.asarray(observation.tokenized_causal)
@@ -204,6 +217,24 @@ def main(argv=None) -> None:
         prefill_mask = np.asarray(observation.memory_v5_prefill_mask)
         pending_tokens = np.asarray(observation.memory_v5_pending_tokens)
         pending_mask = np.asarray(observation.memory_v5_pending_mask)
+        if args.dump_windows:
+            ep_idx = None if observation.seq_episode_index is None else np.asarray(observation.seq_episode_index)
+            for b in range(batch):
+                runs = []
+                for t in range(steps):
+                    txt = _txt(causal[b, t], text_mask[b, t]) if text_mask[b, t].any() else ("<fast-only>" if fast_mask[b, t].any() else "<empty>")
+                    if runs and runs[-1][2] == txt:
+                        runs[-1][1] = t
+                    else:
+                        runs.append([t, t, txt])
+                windows.append({
+                    "batch": index, "row": b,
+                    "episode_index": None if ep_idx is None else int(np.asarray(ep_idx[b]).reshape(-1)[0]),
+                    "steps": int(steps),
+                    "sentence_runs": [[a, z, txt] for a, z, txt in runs],
+                    "prefill_rows": [_txt(prefill_tokens[b, r], prefill_mask[b, r]) for r in range(prefill_tokens.shape[1]) if prefill_mask[b, r].any()],
+                    "pending_row": _txt(pending_tokens[b], pending_mask[b]) if pending_mask[b].any() else "",
+                })
 
         # The window's non-go sentences (blink counts written in oracle mode) under the flip.
         flip_causal = causal.copy()
@@ -324,6 +355,9 @@ def main(argv=None) -> None:
         "argv": sys.argv,
     }
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    if args.dump_windows:
+        (output_dir / "windows.json").write_text(json.dumps(windows, indent=1) + "\n")
+        print(f"wrote {output_dir / 'windows.json'} ({len(windows)} windows)", flush=True)
     print(f"wrote {report_path}", flush=True)
 
 

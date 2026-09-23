@@ -143,13 +143,38 @@ V4B_WRITE_RULE = dict(V4_TOKEN_EXACT, memory_v5_write_conf=0.3, memory_v7_write_
 #   * memory_v7_onset_ce_weight 3 -> 6: more of the sentence loss on the ticks where the sentence changes (the onset), the
 #     only ticks that cannot be solved by copying the newest note.
 V4C_TRUST_NOTES = dict(V4B_WRITE_RULE, memory_v5_own_commit_label_content=True, memory_v7_onset_ce_weight=6.0)
+# v4d (prepared 09-23 15:15 after the onset A/B, scripts/v5_onset_ab.py; launched only if the drop test confirms). Finding: at
+# the go onset with the bank [wait, on 1, off 1] every checkpoint from 1000 on says "scoop 2 times" (p 0.999) in the TRAINING
+# forward as much as in the rollout, and v4c training made it worse (loss of the true "1 time" 7.1 -> 11.3 nats at 1000 ->
+# 2000). Cause: the two-tick confirmation counts consecutive identical TEACHER-FORCED sentences, and the teacher-forced
+# sentence changes exactly when the label changes, so a one-tick label ("light on: k", every blink, 179/179) is never
+# confirmed: from step 500 (v4b) on, in-window training banks hold [wait, off 1] for x=1 and [wait, off 1, off 2] for x=2,
+# while the label prefill and every rollout bank hold the "on" notes too. A rollout x=1 bank has the shape of a training x=2
+# bank, so the model learned to count notes. Fix, generic: no confirmation in training or deployment (the training bank is
+# then exactly the label history, one-tick notes included, identical to the prefill), and deployment flicker is handled by
+# the existing flip-back retraction (a note erased when the model returns to the previous sentence within 2 ticks) plus the
+# lowest-word gate 0.3. Nothing names a sentence.
+V4D_LABEL_TIMING = dict(V4C_TRUST_NOTES, memory_v7_write_debounce_steps=1, memory_v7_write_retract_steps=2)
+
+# v4e (09-23 16:30, after the onset diagnosis; see README "onset A/B"): the deployed model meets every decision at its ONSET
+# with the count only in the notes, but the training windows almost never grade that tick -- a decision phase lasts ~38 ticks
+# and every tick after the first copies the note already committed, so the digit is learned as a copy (the train-split
+# battery is 99.8 % right with the bank EMPTIED) while the true onset for x=1 answers "2" under every input ablation.
+# Two existing generic knobs move the supervision to the onsets: (a) the transition-anchored start branch draws more windows
+# and starts them closer to a sentence change (pad 75 -> 25 frames = 5 ticks, mass 0.5 -> 0.7), so a window opens with the
+# notes prefilled and the change a few ticks ahead -- the deployed situation; (b) the copy ticks of a decision phase whose
+# arm is already moving are down-weighted (1.0 -> 0.2), so the onset dominates the phase's sentence loss. Write rule = v4c.
+V4E_ONSET_MODEL = dict(V4C_TRUST_NOTES, memory_v6_decision_ce_weight_after_motion=0.2)
+V4E_ONSET_DATA = dict(memory_critical_start_pad=25, memory_critical_prob=0.7)
 
 
 def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps: int = MEM_STEPS, wandb: bool = True,
-                  batch: int = MEM_BATCH, model_overrides: dict | None = None, bank_overrides: dict | None = None) -> cfg.TrainConfig:
+                  batch: int = MEM_BATCH, model_overrides: dict | None = None, bank_overrides: dict | None = None,
+                  data_overrides: dict | None = None) -> cfg.TrainConfig:
     """v1 structure on the beans v5 (B9) window / labels / sampling, from the beans0922 base with fresh memory leaves.
     `model_overrides` = the flags a later revision changes on top of v1 (v2: V2_WRITE_RULE); `bank_overrides` = fields of
-    the sentence bank's MemoryConfig a revision changes (v4: the decay alpha_step)."""
+    the sentence bank's MemoryConfig a revision changes (v4: the decay alpha_step); `data_overrides` = DataConfig fields of the
+    window sampler a revision changes (v4e: the transition-anchored start branch)."""
     template = existing["pi05_yam_mem_v6_task1A2"]  # the linear delta-rule bank template every 0920 config derives from
     b9 = existing["pi05_yam_mem_v5_beansB9"]  # the beans v5 recipe: data, labels, window, reference tokens
     model_kwargs = dict(STRUCTURE)  # the v1 structure (includes prefill_history True, own writes, ramp-compatible flags)
@@ -171,6 +196,8 @@ def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps:
         model_kwargs["memory"] = dataclasses.replace(template.model.memory, **bank_overrides)
     model = dataclasses.replace(template.model, **model_kwargs)
     data = _with_beans_data(b9.data)
+    if data_overrides:
+        data = dataclasses.replace(data, base_config=dataclasses.replace(data.base_config, **data_overrides))
     return dataclasses.replace(
         template, name=name, model=model, data=data,
         checkpoint_base_dir=str(_root() / CHECKPOINTS_REL), assets_base_dir=str(_root() / "beans/assets"),
@@ -202,6 +229,13 @@ def get_configs(existing: dict) -> list:
         memory_config(existing, "pi05_yam_beans0922_v4b_smoke", steps=2, wandb=False, model_overrides=V4B_WRITE_RULE,
                       bank_overrides=V4_BANK),
         memory_config(existing, "pi05_yam_beans0922_v4c", model_overrides=V4C_TRUST_NOTES, bank_overrides=V4_BANK),
+        memory_config(existing, "pi05_yam_beans0922_v4e", model_overrides=V4E_ONSET_MODEL, bank_overrides=V4_BANK,
+                      data_overrides=V4E_ONSET_DATA),
+        memory_config(existing, "pi05_yam_beans0922_v4e_smoke", steps=2, wandb=False, model_overrides=V4E_ONSET_MODEL,
+                      bank_overrides=V4_BANK, data_overrides=V4E_ONSET_DATA),
+        memory_config(existing, "pi05_yam_beans0922_v4d", model_overrides=V4D_LABEL_TIMING, bank_overrides=V4_BANK),
+        memory_config(existing, "pi05_yam_beans0922_v4d_smoke", steps=2, wandb=False, model_overrides=V4D_LABEL_TIMING,
+                      bank_overrides=V4_BANK),
         memory_config(existing, "pi05_yam_beans0922_v4c_smoke", steps=2, wandb=False, model_overrides=V4C_TRUST_NOTES,
                       bank_overrides=V4_BANK),
     ]

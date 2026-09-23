@@ -137,3 +137,39 @@ def test_v4c_is_v4b_that_trusts_its_notes():
     for field in ("data", "weight_loader", "lr_schedule", "num_train_steps", "batch_size", "label_write_schedule_steps"):
         assert getattr(v4b, field) == getattr(v4c, field), field
     s = _config.get_config("pi05_yam_beans0922_v4c_smoke"); assert s.num_train_steps == 3 and not s.wandb_enabled
+
+
+def test_v4d_is_v4c_without_the_two_tick_confirmation():
+    """v4d (prepared 09-23 15:15 after the onset A/B): v4c minus the two-tick confirmation (under teacher forcing a one-tick
+    label sentence can never be confirmed, so training banks lacked every "light on" note while rollout banks had them) plus
+    the flip-back retraction within 2 ticks for deployment flicker. Everything else identical to v4c."""
+    from openpi.training import config as _config
+
+    v4c = _config.get_config("pi05_yam_beans0922_v4c")
+    v4d = _config.get_config("pi05_yam_beans0922_v4d")
+    assert (v4d.model.memory_v7_write_debounce_steps, v4c.model.memory_v7_write_debounce_steps) == (1, 2)
+    assert (v4d.model.memory_v7_write_retract_steps, v4c.model.memory_v7_write_retract_steps) == (2, 0)
+    assert v4d.model.memory_v5_own_commit_label_content is True and v4d.model.memory_v7_onset_ce_weight == 6.0
+    changed = {f.name for f in dataclasses.fields(v4c.model) if getattr(v4c.model, f.name) != getattr(v4d.model, f.name)}
+    assert changed == {"memory_v7_write_debounce_steps", "memory_v7_write_retract_steps"}, changed
+    for field in ("data", "batch_size", "num_train_steps", "lr_schedule", "optimizer", "freeze_filter", "checkpoint_base_dir"):
+        assert getattr(v4c, field) == getattr(v4d, field), field
+    s = _config.get_config("pi05_yam_beans0922_v4d_smoke"); assert s.num_train_steps == 3 and not s.wandb_enabled
+
+
+def test_v4e_moves_supervision_to_the_onsets_only():
+    """v4e (09-23 16:30): v4c's write rule; only the window sampler (transition-anchored starts closer and more often) and the
+    copy-tick weight of moving decision steps change."""
+    from openpi.training import config as _config
+
+    v4c = _config.get_config("pi05_yam_beans0922_v4c")
+    v4e = _config.get_config("pi05_yam_beans0922_v4e")
+    changed = {f.name for f in dataclasses.fields(v4c.model) if getattr(v4c.model, f.name) != getattr(v4e.model, f.name)}
+    assert changed == {"memory_v6_decision_ce_weight_after_motion"}, changed
+    assert (v4e.model.memory_v6_decision_ce_weight_after_motion, v4c.model.memory_v6_decision_ce_weight_after_motion) == (0.2, 1.0)
+    dc, de = v4c.data.base_config, v4e.data.base_config
+    data_changed = {f.name for f in dataclasses.fields(dc) if getattr(dc, f.name) != getattr(de, f.name)}
+    assert data_changed == {"memory_critical_start_pad", "memory_critical_prob"}, data_changed
+    assert (de.memory_critical_start_pad, de.memory_critical_prob) == (25, 0.7)
+    assert (dc.memory_critical_start_pad, dc.memory_critical_prob) == (75, 0.5)
+    assert v4e.model.memory_v5_own_commit_label_content is True and v4e.model.memory_v7_onset_ce_weight == 6.0
