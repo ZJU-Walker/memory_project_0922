@@ -156,3 +156,33 @@ EXP=beans0922_v4b`. Note (ablation session, 05:35): in the training scan the two
 so under v4b a label note enters the bank at the second tick of its sentence (one tick later than v4); every beans sentence
 lasts several ticks at the 5-frame tick and the window prefill writes label notes directly, so the ramp changes by one tick
 of delay per label note.
+
+**v4b own-note rollouts at 750 and 1000, the own-content bias, and v4c (2026-09-23 08:53; pages
+`X3czMsuo7hLqgyW3NQXU52` (750) and `95shkGGZgvQWzQWwXjD2Ab` (1000)).** The gate fix worked: at 750 the light notes were written
+and mostly right (episodes 25, 29, 73 exact; 64 wobbled; 72 one "off 3"; 59 missed blinks). The yellow-go count did not follow
+them: with the last light note saying 3 the model opened with "scoop 3 times" (episodes 64, 72; training episodes 0 and 3),
+with 2 it said 2 (25) or pushed to 3 (72, label notes: "light off: 3" at the onset tick), and with 1 it said 2 in every case,
+held-out and training alike (29, 73, 59, training episode 8), at 0.94-0.96 confidence, with a clean bank ("wait", "on 1",
+"off 1") in front of it. Picture memorisation is ruled out (training episodes fail the same way) and so is a broken read
+path (checkpoint 500 with label notes answered 1 for both x=1 episodes; the injection gates sit at their 0.5 init in both
+checkpoints, the pointer beta at 10). Label-note rollout of episode 29 at 750 (bank written from the labels: "wait", "on 1", "off 1") also opened with "scoop 2 times" at 0.96, so the bias does not depend on who wrote the bank. The explanation that fits the asymmetry: from step 500 the bank held the model's OWN
+notes with own content while they still under-counted 10-25 % of the time (a missed blink shows up as "off 1" where the label
+says 2 or 3; 3 can never be an under-count). The loss at the onset is always the label's count, so the model learned "a note
+saying 1 usually means 2" and "3 means 3": a correction for its own past errors, not a faithful read. By 1000 the loop had
+closed further: episodes 25 and 29 now call the light-off phases "wait for the light" (the picture alone cannot tell "off after
+k blinks" from "no blink yet"; only the bank can) and write that, so the last note before the go was "wait" and the go count
+was the prior 2. The archived v4/500 checkpoint under the v4b rule is not a fallback: its own sentences at 0.4-0.5
+confidence produce premature "off 1" notes at tick 2-3 and vocabulary garbage ("light on: 2 of 2 and carry", "<loc...>"
+strings), so the 500-1000 stretch is what taught the model to write; it is the read side that was spoiled.
+
+`pi05_yam_beans0922_v4c` (`V4C_TRUST_NOTES` = `V4B_WRITE_RULE` + `memory_v5_own_commit_label_content=True` +
+`memory_v7_onset_ce_weight=6.0`), resumed from v4b's checkpoint 1000 (hard-linked into the v4c experiment directory, W&B run
+pre-created) on the two H200s (v4b stopped at step ~1090 at 08:53, v4c restored 1000 and was compiling at 08:58; W&B run ybpotcga). Two existing generic mechanisms, no sentence or phase named: (1) the model still decides WHEN
+to write (change, lowest-word gate 0.3, two-tick confirmation on its own sentences) but the bank receives the label sentence
+of that tick (the v6.2 "B2" rule), so no under-counted note ever sits in the bank during training and the onset target can
+never disagree with the note it should copy; a bank digit means what it says again. Deployment is unchanged: own timing, own
+content, `v5_heldout_video.py` and the robot server write the model's own sentence. (2) The sentence loss on the ticks where
+the label sentence changes carries weight 6 instead of 3 (the onset is one tick per window; the aggregate exact hides it).
+New telemetry `onset_sentence_exact` (commit 459a44a) logs that tick alone. Trade-off accepted: a wrong own note at deployment
+is now copied instead of "corrected", so the write side (blink misses, the "wait" confusion) is judged by the own-note videos
+at every 250 steps; if under-counting persists the fix belongs to the writer (tick rate, confirmation length), not to the reader.
