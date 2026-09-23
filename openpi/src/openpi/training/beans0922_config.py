@@ -122,6 +122,15 @@ V4_TOKEN_EXACT = dict(
     memory_v5_write_conf_min=True, memory_v5_write_conf=0.8,
 )
 V4_BANK = dict(alpha_step=0.001)
+# v4b (user 09-23 05:18 "ok do it", after the 500 / 750 own-note probes): the 0.8 minimum-probability gate starved the bank --
+# the model's own light-phase sentences sit at 0.4-0.5, so after the label ramp almost no own note was written in training, the
+# model learned to guess the count without notes and (by 750) to override the notes it had (27 writes flickering "of 2" /
+# "of 3" on ep 25; "scoop 2 times" at 0.98 on the one-blink ep 29). Teacher-forced metrics did not show it because most
+# windows start with the LABEL history prefilled. v4b = v4 resumed from checkpoint 500 with the write rule the model can
+# actually pass: changed vs the last committed note, every word above 0.3 ("no word is very unlikely"), and decoded the same
+# way on two consecutive ticks (memory_v7_write_debounce_steps = 2, the generic v7 rule; the video script's plain self mode
+# and serve_yam_memory.py already honour it). The same rule in training and at deployment.
+V4B_WRITE_RULE = dict(V4_TOKEN_EXACT, memory_v5_write_conf=0.3, memory_v7_write_debounce_steps=2)
 
 
 def memory_config(existing: dict, name: str = "pi05_yam_beans0922_v1", *, steps: int = MEM_STEPS, wandb: bool = True,
@@ -176,5 +185,8 @@ def get_configs(existing: dict) -> list:
         memory_config(existing, "pi05_yam_beans0922_v3_smoke", steps=2, wandb=False, model_overrides=V3_QUERY_CONTEXT),
         memory_config(existing, "pi05_yam_beans0922_v4", model_overrides=V4_TOKEN_EXACT, bank_overrides=V4_BANK),
         memory_config(existing, "pi05_yam_beans0922_v4_smoke", steps=2, wandb=False, model_overrides=V4_TOKEN_EXACT,
+                      bank_overrides=V4_BANK),
+        memory_config(existing, "pi05_yam_beans0922_v4b", model_overrides=V4B_WRITE_RULE, bank_overrides=V4_BANK),
+        memory_config(existing, "pi05_yam_beans0922_v4b_smoke", steps=2, wandb=False, model_overrides=V4B_WRITE_RULE,
                       bank_overrides=V4_BANK),
     ]

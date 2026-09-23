@@ -32,7 +32,7 @@ for mode in $modes; do
     tag=$(printf 'ep%02d_%s%s' "$ep" "$mode" "${TAGSUF:-}")
     [ -e "$out/$tag.json" ] && [ -e "$out/$tag.mp4" ] && continue
     run "$PY" scripts/v5_heldout_video.py --config-name "$config" --params "$ck" --episode-index "$ep" \
-        --write-mode "$mode" --output-dir "$out" --manifest "$manifest" --sidecar "$sidecar" ${EXTRA:-} > "$out/${tag}_run.log" 2>&1
+        --write-mode "$mode" --output-dir "$out" --manifest "$manifest" --sidecar "$sidecar" --tag-suffix "${TAGSUF:-}" ${EXTRA:-} > "$out/${tag}_run.log" 2>&1
     echo "$tag exit=$? $(date +%H:%M) $(grep -o 'decision steps .*' "$out/${tag}_run.log" | tail -1 | cut -c1-160)" >> "$out/status.log"
   done
 done

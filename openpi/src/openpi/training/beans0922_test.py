@@ -103,3 +103,20 @@ def test_v4_is_v2_with_exact_copies_and_a_slow_bank():
     # the read-back tokens widen the memory block by one token per note position
     assert v4.model.memory_v5_sentence_len == v2.model.memory_v5_sentence_len
     s = _config.get_config("pi05_yam_beans0922_v4_smoke"); assert s.num_train_steps == 3 and not s.wandb_enabled
+
+
+def test_v4b_is_v4_with_the_passable_write_gate():
+    """v4b (09-23 05:18): v4 resumed from checkpoint 500 with the write gate the model's own sentences can pass -- lowest word
+    probability >= 0.3 and the same sentence on two consecutive ticks; nothing else changes."""
+    from openpi.training import config as _config
+
+    v4 = _config.get_config("pi05_yam_beans0922_v4")
+    v4b = _config.get_config("pi05_yam_beans0922_v4b")
+    assert (v4b.model.memory_v5_write_conf, v4b.model.memory_v7_write_debounce_steps) == (0.3, 2)
+    assert (v4.model.memory_v5_write_conf, v4.model.memory_v7_write_debounce_steps) == (0.8, 1)
+    assert v4b.model.memory_v5_write_conf_min and v4b.model.memory_v0920_prev_readback and v4b.model.memory_v6_pointer_read
+    changed = {f.name for f in dataclasses.fields(v4.model) if getattr(v4.model, f.name) != getattr(v4b.model, f.name)}
+    assert changed == {"memory_v5_write_conf", "memory_v7_write_debounce_steps"}
+    for field in ("data", "weight_loader", "lr_schedule", "num_train_steps", "batch_size", "label_write_schedule_steps"):
+        assert getattr(v4, field) == getattr(v4b, field), field
+    s = _config.get_config("pi05_yam_beans0922_v4b_smoke"); assert s.num_train_steps == 3 and not s.wandb_enabled

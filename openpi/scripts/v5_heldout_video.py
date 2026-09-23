@@ -240,6 +240,10 @@ def main() -> None:
                         "models = 167 ms ticks at 30 Hz). 8 emulates the robot client at --hz 20 with a replan every 5 "
                         "controls (250 ms ticks): the LED cue then spans 1.6x fewer memory steps than in training "
                         "(2026-09-06 21:00, real-robot report: ckpt 2750 sometimes opens with 'light on: 2 green blinks').")
+    parser.add_argument("--write-conf", type=float, default=None,
+                        help="override the checkpoint's memory_v5_write_conf threshold (the gate's rule, mean or lowest word, is the config's)")
+    parser.add_argument("--pointer-beta", type=float, default=None,
+                        help="diagnostic (0920_v4): override the trained pointer scale memory_v6_pointer_beta (0 = no pointer bonus)")
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -255,6 +259,9 @@ def main() -> None:
         print(f"set-param {path}: {old} -> {node[keys[-1]]}")
     model = cfg.model.load(params)
     model.eval()
+    if args.pointer_beta is not None and hasattr(model, "memory_v6_pointer_beta"):
+        model.memory_v6_pointer_beta.value = jnp.asarray(float(args.pointer_beta), dtype=jnp.float32)
+        print(f"pointer scale override: memory_v6_pointer_beta = {args.pointer_beta}", flush=True)
     data_config = cfg.data.create(cfg.assets_dirs, cfg.model)
     if args.stride > 0 and args.stride != data_config.memory_stride_frames:
         # Every stride read happens inside create_torch_dataset (window offsets, MemorySequenceSubtasks, the
@@ -307,7 +314,7 @@ def main() -> None:
     steps_per_window = cfg.model.memory_seq_steps
     lookahead = data_config.subtask_lookahead
     sentence_len = cfg.model.memory_v5_sentence_len
-    conf_threshold = cfg.model.memory_v5_write_conf
+    conf_threshold = cfg.model.memory_v5_write_conf if args.write_conf is None else float(args.write_conf)
     conf_use_min = bool(getattr(cfg.model, "memory_v5_write_conf_min", False))
     # oracle_evidence: label writes stop at the closing segment (second-to-last sidecar segment = the restated note)
     # oracle_evidence: label notes are handed over up to the closing note; with a merged tail (sidecar "tail_merged":
