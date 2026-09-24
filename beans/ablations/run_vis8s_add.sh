@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Row vis8s_add: snap + vision + state sensory bank, ADDITIVE rule (repeats accumulate); 8 sentence + 8 sensory memory tokens, 4 cards.
+# Optional SNAP + visual + state additive control. H100: BATCH=8 ACCUM=1.
 #   [GPUS=0,1,2,3] [BATCH=16] bash beans/ablations/run_vis8s_add.sh [smoke]
 D="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-MODE=${1:-train} CFG=pi05_yam_beans0922_ab_vis8s_add EXP=${EXP:-ab_vis8s_add} exec bash "$D/train_ablation.sh"
+MODE=${1:-train} CFG=pi05_yam_beans0922_ab_vis8s_add exec bash "$D/run_stages.sh"

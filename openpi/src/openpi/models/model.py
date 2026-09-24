@@ -189,6 +189,9 @@ class Observation(Generic[ArrayT]):
     memory_v5_prefill_gaps: at.Int[ArrayT, "*sb v5p"] | None = None
     memory_v5_pending_tokens: at.Int[ArrayT, "*sb v5l"] | None = None
     memory_v5_pending_mask: at.Bool[ArrayT, "*sb v5l"] | None = None
+    memory_vis_prefill_image: at.Float[ArrayT, "*sb vp h w c"] | None = None
+    memory_vis_prefill_state: at.Float[ArrayT, "*sb vp d"] | None = None
+    memory_vis_prefill_mask: at.Bool[ArrayT, "*sb vp"] | None = None
     seq_sparse_skip_o: at.Bool[ArrayT, "*sb"] | None = None
     seq_episode_index: at.Int[ArrayT, "*sb"] | None = None
     seq_collection_id: at.Int[ArrayT, "*sb"] | None = None
@@ -253,6 +256,9 @@ class Observation(Generic[ArrayT]):
             memory_v5_prefill_gaps=data.get("memory_v5_prefill_gaps"),
             memory_v5_pending_tokens=data.get("memory_v5_pending_tokens"),
             memory_v5_pending_mask=data.get("memory_v5_pending_mask"),
+            memory_vis_prefill_image=data.get("memory_vis_prefill_image"),
+            memory_vis_prefill_state=data.get("memory_vis_prefill_state"),
+            memory_vis_prefill_mask=data.get("memory_vis_prefill_mask"),
             seq_sparse_skip_o=data.get("seq_sparse_skip_o"),
             seq_episode_index=data.get("seq_episode_index"),
             seq_collection_id=data.get("seq_collection_id"),

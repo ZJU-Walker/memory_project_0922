@@ -65,7 +65,7 @@ def fmt(v) -> str:
 
 
 def report(row: str, project: str, use_wandb: bool) -> list[str]:
-    exp = f"probe_{row}"
+    exp = f"probe_slot_{row}_B"
     log = ROOT / "beans/ablations/logs" / f"train_{exp}.log"
     flags = []
     if not log.is_file():

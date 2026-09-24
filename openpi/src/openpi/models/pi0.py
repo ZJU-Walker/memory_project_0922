@@ -470,35 +470,9 @@ def _v5_slot_templates(rows: tuple[tuple[int, ...], ...], max_diff: int) -> tupl
     every position that varies inside a component is dropped for ALL rows of that component, so e.g. "scoop 1/2/3:
     dig and carry" and "scoop 1/2: dump and return" share one template even where a particular pair never occurs.
     Rows with no sibling keep every token."""
-    n = len(rows)
-    adj: list[set[int]] = [set() for _ in range(n)]
-    diffs: dict[tuple[int, int], list[int]] = {}
-    for i in range(n):
-        for j in range(i + 1, n):
-            if len(rows[i]) != len(rows[j]):
-                continue
-            diff = [p for p in range(len(rows[i])) if rows[i][p] != rows[j][p]]
-            if 1 <= len(diff) <= max_diff:
-                adj[i].add(j); adj[j].add(i); diffs[(i, j)] = diff
-    seen = [False] * n
-    keep: list[tuple[bool, ...]] = [()] * n
-    for start in range(n):
-        if seen[start]:
-            continue
-        comp, stack = [], [start]
-        seen[start] = True
-        while stack:
-            k = stack.pop(); comp.append(k)
-            for m in adj[k]:
-                if not seen[m]:
-                    seen[m] = True; stack.append(m)
-        variable: set[int] = set()
-        for (a, b), d in diffs.items():
-            if a in comp and b in comp:
-                variable.update(d)
-        for k in comp:
-            keep[k] = tuple(p not in variable for p in range(len(rows[k])))
-    return tuple(keep)
+    from openpi.models.sentence_slots import template_masks
+
+    return template_masks(rows, max_diff)
 
 
 class Pi0(_model.BaseModel):
@@ -764,6 +738,11 @@ class Pi0(_model.BaseModel):
                     )
                     # A8 slot templates: per reference row, which positions are NOT variable (kept for the key).
                     self.memory_v5_slot_keep = _v5_slot_templates(self.memory_v5_reference_tokens, self.memory_v5_slot_max_diff)
+                    self.memory_template_read = bool(config.memory_template_read)
+                    if self.memory_template_read:
+                        from openpi.models.sentence_slots import template_representatives
+
+                        self.memory_template_rows = template_representatives(self.memory_v5_reference_tokens, self.memory_v5_slot_max_diff)
                     if config.memory_v5_pooling == "standardized_attention":
                         self.memory_sem_sentence_pool = MemoryQueryCompressor(
                             num_queries=config.memory_v5_pool_queries,
@@ -828,6 +807,7 @@ class Pi0(_model.BaseModel):
                     # itself is `self.memory` (configured as a linear delta bank); these are its pooler, key/value maps, fixed
                     # read queries, gate and slot embeddings. Every leaf name carries "memory" (fresh-init / grad-clip rules).
                     self.memory_vis_bank = bool(getattr(config, "memory_vis_bank", False))
+                    self.memory_vis_prefill_steps = int(config.memory_vis_prefill_steps)
                     self.memory_vis_slots = int(getattr(config, "memory_vis_slots", 8))
                     self.memory_vis_input_rms = getattr(config, "memory_vis_input_rms", None)
                     self.memory_vis_zero_read = bool(getattr(config, "memory_vis_zero_read", False))
@@ -1423,6 +1403,11 @@ class Pi0(_model.BaseModel):
             ref_key_raw = self.memory_sem_key_proj(self.v5_encode_sentence(tpl_tokens, tpl_mask).astype(jnp.float32))
             mu_k, u_k, scale_k = self._v5_whiten_map(ref_key_raw)
             key = _memory.l2_normalize(self._v5_apply_whiten(key_raw.astype(jnp.float32), mu_k, u_k, scale_k))
+            if getattr(self, "memory_template_read", False):
+                # Use the same reference calculation on both sides; avoid batch-dependent
+                # encoder rounding changing the address. Unknown sentences do not have a slot.
+                reference_keys = _memory.l2_normalize(self._v5_apply_whiten(ref_key_raw.astype(jnp.float32), mu_k, u_k, scale_k))
+                key = reference_keys[jnp.argmax(match, axis=-1)] * any_match[:, None]
         else:
             key = _memory.l2_normalize(self.memory_sem_key_proj(encoded.astype(jnp.float32)).astype(jnp.float32))
         return key[:, None, :], value[:, None, :]
@@ -1541,7 +1526,27 @@ class Pi0(_model.BaseModel):
     ) -> tuple[_memory.MemoryState, dict[str, at.Array]]:
         """One sentence commit (delta rule = one test-time gradient step) or, when `commit` is
         False, exactly one analytic decay step -- the same transition contract as the v4 bank."""
-        return self.memory_semantic.delta_write_kv_multi(state, keys, values, commit[:, None])
+        if not getattr(self, "memory_template_read", False):
+            return self.memory_semantic.delta_write_kv_multi(state, keys, values, commit[:, None])
+        addresses = self.v5_template_keys()
+        distance = jnp.max(jnp.abs(keys[:, :1] - addresses[None]), axis=-1)
+        matched = distance < 1e-4
+        # An out-of-vocabulary sentence has no template address: do not let an arbitrary
+        # fallback key damage existing slots. No task-specific sentence or phase rule.
+        commit = commit & jnp.any(matched, axis=-1)
+        new_state, aux = self.memory_semantic.delta_write_kv_multi(state, keys, values, commit[:, None])
+        if state.slot_written is None:
+            raise ValueError("template bank state needs slot occupancy")
+        written = jnp.maximum(state.slot_written, (matched & aux["commit_applied"][:, :1]).astype(jnp.float32))
+        return new_state._replace(slot_written=jax.lax.stop_gradient(written)), aux
+
+    def v5_template_keys(self) -> at.Array:
+        """The exact same template encoding/whitening used by v5_sentence_kv, once per address."""
+        tokens, mask = self.v5_reference_template_rows(int(self.memory_v5_sentence_len))
+        raw = self.memory_sem_key_proj(self.v5_encode_sentence(tokens, mask).astype(jnp.float32))
+        mu, u, scale = self._v5_whiten_map(raw)
+        keys = _memory.l2_normalize(self._v5_apply_whiten(raw.astype(jnp.float32), mu, u, scale))
+        return keys[jnp.asarray(self.memory_template_rows, dtype=jnp.int32)]
 
     def v5_bank_sentence(
         self,
@@ -2066,6 +2071,8 @@ class Pi0(_model.BaseModel):
         `prev_tokens`/`prev_mask` [b, s] = the last committed note (an empty note shifts nothing). Z_ctx / Z_prev are
         zero-initialised, so a fresh model asks exactly the fixed questions.
         """
+        if getattr(self, "memory_template_read", False):
+            return self.v5_template_read_tokens(semantic_state, batch, dtype, zero_read=zero_read)
         base = self.memory_sem_read_query_bank.value.astype(jnp.float32)
         base_b = jnp.broadcast_to(base[None], (batch,) + base.shape)
         pre = self.memory_sem_query_proj(base_b).astype(jnp.float32)  # [b, r, dk]
@@ -2098,6 +2105,27 @@ class Pi0(_model.BaseModel):
         pre_rms = jnp.sqrt(jnp.mean(jnp.square(injected), axis=(1, 2)))
         post_rms = jnp.sqrt(jnp.mean(jnp.square(tokens.astype(jnp.float32)), axis=(1, 2)))
         return tokens, valid, retrieved, queries, pre_rms, post_rms
+
+    def v5_template_read_tokens(self, state, batch, dtype, *, zero_read=False):
+        """Read all induced addresses in parallel. Occupancy masks cross-talk into unwritten slots."""
+        keys = self.v5_template_keys()
+        queries = jnp.broadcast_to(keys[None], (batch,) + keys.shape)
+        if state.slot_written is None:
+            raise ValueError("template bank state needs slot occupancy")
+        valid = state.slot_written > 0.5
+        if zero_read:
+            valid = jnp.zeros_like(valid)
+        retrieved = self.memory_semantic.read_key(state, queries).astype(jnp.float32)
+        retrieved = jnp.where(valid[..., None], retrieved, 0.0)
+        target = self._v0920_input_scale()
+        rms = jnp.sqrt(jnp.mean(jnp.square(retrieved), axis=-1, keepdims=True) + 1e-12)
+        floor = target * (float(self.memory_sem_injection_tau) / float(self.memory_sem_injection_c))
+        injected = jnp.tanh(self.memory_sem_inject_w.value) * retrieved * (target / jnp.maximum(rms, floor))
+        content = jnp.where(valid[..., None], injected + self.memory_sem_slot_embedding.value[None], 0.0)
+        tokens = content.astype(dtype)
+        return (tokens, valid, retrieved, queries,
+                jnp.sqrt(jnp.mean(jnp.square(injected), axis=(1, 2))),
+                jnp.sqrt(jnp.mean(jnp.square(tokens.astype(jnp.float32)), axis=(1, 2))))
 
     def v0920_readback_tokens(
         self,
@@ -2185,6 +2213,31 @@ class Pi0(_model.BaseModel):
         decay step; the same delta rule and decay as a sentence commit). `aux["commit_applied"]` is per slot [b, s]."""
         slots = jnp.broadcast_to(commit.astype(bool)[:, None], keys.shape[:2])
         return self.memory.delta_write_kv_multi(state, keys, values, slots, slot_loop="unrolled")
+
+    def vis_prefill(self, observation, state):
+        """Replay past observations chronologically, without loss/backprop or any current/future frame."""
+        valid = observation.memory_vis_prefill_mask
+        if valid is None or observation.memory_vis_prefill_state is None:
+            raise ValueError("sensory prefill requires past states and validity masks")
+        batch = valid.shape[0]
+        xs = {"valid": jnp.swapaxes(valid, 0, 1), "state": jnp.swapaxes(observation.memory_vis_prefill_state, 0, 1)}
+        if self.memory_vis_image_write:
+            if observation.memory_vis_prefill_image is None:
+                raise ValueError("visual prefill requires past front-camera images")
+            xs["image"] = jnp.swapaxes(observation.memory_vis_prefill_image, 0, 1)
+
+        def tick(bank, item):
+            def write_past(old):
+                front = (self._image_tower_tokens("base_0_rgb", item["image"]) if self.memory_vis_image_write
+                         else jnp.zeros((batch, 1, self.memory.config.d_value), dtype=jnp.float32))
+                keys, values, _ = self.vis_write_kv(front, item["state"])
+                new, _ = self.vis_bank_write(old, keys, values, item["valid"])
+                return jax.tree.map(lambda a, b: jnp.where(item["valid"].reshape((batch,) + (1,) * (a.ndim - 1)), a, b), new, old)
+
+            new = jax.lax.cond(jnp.any(item["valid"]), write_past, lambda old: old, bank)
+            return jax.tree.map(jax.lax.stop_gradient, new), None
+
+        return jax.lax.scan(tick, state, xs)[0]
 
     def vis_read_tokens(
         self, state: _memory.MemoryState, front_tokens: at.Array, dtype: jnp.dtype, *, zero_read: bool = False
@@ -6603,6 +6656,8 @@ class Pi0(_model.BaseModel):
             return state, outputs
 
         initial_state = self.memory.init_state(b)
+        if getattr(self, "memory_vis_bank", False) and getattr(self, "memory_vis_prefill_steps", 0):
+            initial_state = self.vis_prefill(observation, initial_state)
         v5_prefill_count = jnp.zeros((b,), dtype=jnp.float32)
         if v5_on:
             sem_init_state = self.memory_semantic.init_state(b)

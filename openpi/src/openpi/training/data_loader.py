@@ -231,6 +231,14 @@ def create_torch_dataset(
             ]
         # NOTE: no task_index delta_timestamps -- lerobot requires a scalar task_index per item
         # (it .item()s it); the per-step subtask labels come from MemorySequenceSubtasks below.
+        prefill = int(getattr(model_config, "memory_vis_prefill_steps", 0))
+        if prefill:
+            if hist_n:
+                raise ValueError("sensory prefill and stacked input-image history cannot be combined")
+            past_offsets = [k * stride / dataset_meta.fps for k in range(-prefill, 0)]
+            delta_timestamps["state"] = past_offsets + step_offsets
+            if model_config.memory_vis_image_write:
+                delta_timestamps["image"] = past_offsets + step_offsets
     else:
         delta_timestamps = {
             key: [(t + action_offset) / dataset_meta.fps for t in range(action_horizon)]
@@ -254,6 +262,11 @@ def create_torch_dataset(
         root=dataset_root,
         delta_timestamps=delta_timestamps,
     )
+    if use_memory and getattr(model_config, "memory_vis_prefill_steps", 0):
+        dataset = TransformedDataset(dataset, [_transforms.SplitSensoryPrefill(
+            steps=model_config.memory_vis_prefill_steps, stride=data_config.memory_stride_frames,
+            image=model_config.memory_vis_image_write,
+        )])
     if not use_memory and data_config.prompt_state_history > 0:
         dataset = TransformedDataset(dataset, [_transforms.SplitStateHistory(data_config.prompt_state_history)])
     if use_memory and data_config.memory_image_history_frames > 0:

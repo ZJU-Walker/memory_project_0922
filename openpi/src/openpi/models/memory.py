@@ -145,7 +145,12 @@ class MemoryConfig:
     association_norm_floor: float = 1e-6
     hidden_norm_sq_floor: float = 1e-6
 
+    # Optional occupancy for template-addressed sentence banks; never learned parameters.
+    slot_count: int = 0
+
     def __post_init__(self) -> None:
+        if self.slot_count < 0:
+            raise ValueError("slot_count must be nonnegative")
         if not math.isfinite(self.eta_scale) or not 0.0 <= self.eta_scale <= 1.0:
             raise ValueError(f"eta_scale must be finite and in [0, 1], got {self.eta_scale!r}.")
         if self.write_rule not in ("gradient", "delta_output"):
@@ -188,6 +193,7 @@ class MemoryState(NamedTuple):
 
     fast_weights: dict[str, at.Array]
     momentum: dict[str, at.Array]
+    slot_written: at.Array | None = None
 
 
 def _l2_norm(x: at.Array, eps: float = 1e-6) -> at.Array:
@@ -309,7 +315,8 @@ class TitansMemory(nnx.Module):
                     # Checkpoint parameters may be stored in BF16, but v3.5 fast state never is.
                     value = value.astype(jnp.float32)
                 fast[name] = jnp.broadcast_to(value, (batch_size, *value.shape))
-        return MemoryState(fast_weights=fast, momentum=jax.tree.map(jnp.zeros_like, fast))
+        slots = jnp.zeros((batch_size, self.config.slot_count), dtype=jnp.float32) if self.config.slot_count else None
+        return MemoryState(fast_weights=fast, momentum=jax.tree.map(jnp.zeros_like, fast), slot_written=slots)
 
     @property
     def _output_weight_name(self) -> str:
@@ -453,10 +460,11 @@ class TitansMemory(nnx.Module):
             fast, momentum = _clip_state_cotangent(
                 (state.fast_weights, state.momentum), self.config.state_cotangent_clip
             )
-            state = MemoryState(fast_weights=fast, momentum=momentum)
+            state = MemoryState(fast_weights=fast, momentum=momentum, slot_written=state.slot_written)
         return MemoryState(
             fast_weights=jax.tree.map(lambda leaf: leaf.astype(jnp.float32), state.fast_weights),
             momentum=jax.tree.map(lambda leaf: leaf.astype(jnp.float32), state.momentum),
+            slot_written=state.slot_written,
         )
 
     def _canonical_delta_state(self, state: MemoryState, w3: at.Array) -> MemoryState:
@@ -470,7 +478,7 @@ class TitansMemory(nnx.Module):
             else:
                 fast_weights[name] = leaf.astype(jnp.float32)
         momentum = jax.tree.map(lambda leaf: jnp.zeros_like(leaf, dtype=jnp.float32), fast_weights)
-        return MemoryState(fast_weights=fast_weights, momentum=momentum)
+        return MemoryState(fast_weights=fast_weights, momentum=momentum, slot_written=state.slot_written)
 
     def _delta_decay_factor(self, n_steps: at.Array) -> at.Array:
         """Fixed-alpha FP32 decay factor, excluded from outer differentiation."""
@@ -822,7 +830,7 @@ class TitansMemory(nnx.Module):
         if self.config.state_cotangent_clip is not None:
             # Backward-only guardrail on the recurrent chain; the forward values are identical.
             fast, mom = _clip_state_cotangent((state.fast_weights, state.momentum), self.config.state_cotangent_clip)
-            state = MemoryState(fast_weights=fast, momentum=mom)
+            state = MemoryState(fast_weights=fast, momentum=mom, slot_written=state.slot_written)
         if self.config.kv_cotangent_clip is not None:
             # Backward-only guardrail on what one write may send toward the VLM tokens.
             k, v = _clip_state_cotangent((k, v), self.config.kv_cotangent_clip)
@@ -856,7 +864,7 @@ class TitansMemory(nnx.Module):
             "eta": eta,
             "alpha": alpha,
         }
-        return MemoryState(fast_weights, momentum), aux
+        return MemoryState(fast_weights, momentum, state.slot_written), aux
 
     @at.typecheck
     def gates(self, h: at.Float[at.Array, "b n d"]) -> tuple[at.Array, at.Array, at.Array]:

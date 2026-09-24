@@ -1,104 +1,68 @@
-# beans0922 ablations — how the rows work
+# Template-slot SNAP ablations
 
-Everything here is one gated model flag, `Pi0Config.memory_vis_bank`, plus two switches for what feeds it and one for the
-update rule. With the flag off the model is snap, bit for bit (tested). The top-level README has the row table and the
-commands; this page explains the mechanism so the rows can be read.
+The [main README](../../README.md) is the current runbook: stop/update/archive commands, the four main rows, and A250→B3000.
+Historical token-bank recipes are not interchangeable with this recipe (`template_slot_ab_v1`).
 
-## Snap in one tick
+## One tick
 
-1. Prefix: 3 cameras × 256 image tokens + 80 prompt tokens + **8 question tokens + 48 read-back tokens** from the sentence
-   memory (v4), all at the input of the 18-block language model. The memory tokens are appended after the prompt; they attend
-   only to each other (blind), everything else may attend to them.
-2. Read: 8 learned queries → the sentence bank W (a 512 × 2048 matrix per episode) → 8 vectors → tanh gate + RMS
-   matched to the word embeddings + slot embedding = the 8 question tokens. A fresh bank reads exactly zero and the tokens are
-   masked. v4 adds two things: a *pointer bonus* (`memory_v6_pointer_read`, context queries, β = 10) that sharpens each
-   answer toward the tokens of the 20 known sentences, and the *read-back* (`memory_v0920_prev_readback`): the last stored
-   note is read back through W with its own write keys, one token per note position (48), gated and slot-embedded like the
-   questions. (v3's "look before you ask" question shift is off: it grew to 170× the questions and rank one, so all 8
-   questions collapsed into one.)
-3. The model decodes its sub-task sentence (up to 48 tokens) and the action chunk.
-4. Write: each word of the sentence becomes an association (key = the memory-blind context of the words before it,
-   value = the word's embedding); committed with the **delta rule**, then the whole bank decays by 0.999 per tick (v4
-   `alpha_step` 0.001; v1–v3 used 0.99) — and only when the sentence differs from the last stored note, no word of it is below
-   probability 0.3 and it was decoded the same way on two consecutive ticks (`memory_v7_write_every_step` False,
-   `memory_v5_write_conf_min`, `memory_v5_write_conf` 0.3, `memory_v7_write_debounce_steps` 2 — v4b; v4's 0.8 threshold let
-   one note per episode through, v1 wrote every tick and drifted a wrong count into the bank). In training the label
-   sentence is written instead of the model's own with probability 1 → 0 over the first 500 updates (label writes always
-   count as confident), and sentence tokens the model gets wrong weigh 5× in the sentence loss (`memory_v7_hard_token_ce_weight`).
+1. Read every automatically induced sentence-template address from the sentence fast-weight bank. Current vocabulary: 5.
+   Occupancy masks hide unwritten addresses. Retrieval is parallel, not sequential token decoding.
+2. Inject those vectors at the existing input-layer interface (after the prompt, before transformer blocks).
+   Memory tokens keep their existing blind-attention contract; the language/action streams may use them.
+3. Decode the sentence/actions. A writes the label; B trains its writer with teacher-forced argmax; deployment decodes freely.
+4. Encode the whole committed sentence as the value. Its template encoding is the key. Update using the delta rule and
+   one decay step. Writes require a known reference sentence, a changed note, and minimum token probability 0.3.
+   One-tick debounce preserves short light events. No token pointer or 48-token read-back exists in these configs.
 
-## The sensory bank (rows vis8 / vis8s / state8 and their `_add` twins)
+Keys and values keep the B9 text-only encoder/pooling/whitening design. Read keys use the same reference computation as
+write keys. Direct read removes the need to learn which template address to ask for; it does not remove cross-talk,
+sentence-generation errors, or the transformer's need to learn how to use retrieved values.
 
-A second bank, same size, same decay (0.999 per tick under v4) and same read mechanism, next to the sentence bank:
+Template induction groups equal-length training token sequences connected by at most two differing positions, then masks
+all variable positions per connected component. Distinct retained token sequences become addresses. A new task supplies a
+new sentence vocabulary and re-runs this procedure; groups must be inspected because this heuristic is not universal
+semantic schema induction. There is no hand-coded wait/light/go/scoop/done router.
 
-- **Read** — 8 more fixed learned queries → the sensory bank → tanh gate (same 0.5 init) + RMS matched to the sample's own
-  image tokens + slot embedding → **8 more input tokens** after the sentence tokens (v4 order: 8 questions | 48 read-back |
-  8 sensory = 64 memory tokens; no pointer bonus on the sensory queries). Empty bank ⇒ exactly zero, masked, so tick 0 equals
-  snap. Nothing else about the model changes (the sentence/action tokens simply sit 8 positions later).
-- **Write, every valid tick** (the sentence bank's v4b write gate does not apply here: the training scan and the serving
-  transition gate this bank on tick validity only), from memory-blind, stop-gradient inputs so the bank can never store what it read:
-  - *image slots* (`memory_vis_image_write`): the front camera's 256 input image tokens (SigLIP + projector) are pooled by 8
-    learned queries into 8 vectors v₁..v₈; slot i is stored as key = unit(P_k v_i + e_i), value = unit(P_v v_i);
-  - *state slot* (`memory_vis_state_slot`): the normalised 14-D joint state through a fresh linear map φ; key =
-    unit(P_k φ + e_state), value = unit(P_v φ).
-  P_k, P_v, the pooling queries and the slot offsets e are trained; keys of one tick land in distinct directions because
-  of the offsets. In training the bank is only as old as the window (40 ticks = 6.7 s); at serving it runs from the first
-  tick of the episode. Unlike the sentence bank it cannot be pre-filled from labels for windows that start mid-episode.
-- **Update rule** (`memory.commit_rule`), applied slot by slot within the tick, then one decay step:
-  - `delta` — W ← ρW + η (v − W k) kᵀ: only the error is written. A repeated association adds ≈ nothing: a *presence*
-    memory ("this was seen"), with error correction between different items. This is also the rule of the sentence bank
-    and of gradient-based test-time-training layers (RoboTTT-style).
-  - `additive` — W ← ρW + η v kᵀ: the value itself is written every time. Repeats accumulate (three identical writes read
-    back as (1 + ρ + ρ²) v; with the v4 decay ρ = 0.999 that is almost linear over a 40-tick window): a *tally* memory ("how
-    often"), at the price of small cross-talk between items. The
-    read token is RMS-normalised, so the network sees relative strengths, not absolute counts.
-- The old visual bank of the v3 line is the same parameter slot (`model.memory`), reconfigured as the linear delta bank the
-  sentence bank uses; its old layer-8 compressors stay inert. The v3.5 telemetry still sees snap's zero write, so the losses
-  and side probes are unchanged.
+## Auxiliary bank
 
-## Recipe (identical for every row)
+- `vis8`: eight learned pooling queries over the front camera's memory-blind image tokens produce eight write vectors.
+- `state8`: normalized proprioceptive state passes through a learned projection, producing one write vector.
+- `vis8s`: both sources write into one shared bank (eight visual + one state association per tick).
+- All three read eight learned-query vectors, appended after the five sentence vectors. Gates use the existing fixed 0.5
+  initialization; auxiliary injection is scaled to image-token RMS.
+- Main rows use delta updates; optional `*_add` rows use additive updates in this bank only.
+- Inputs to the auxiliary writer are stop-gradient; its pooler/projections still learn through the in-window sequence.
+- Training first replays past observations chronologically with no gradient/loss. Negative offsets exclude the sampled
+  window; clamped pre-episode padding neither writes nor decays. Capacity 320 ticks covers the current data and fails
+  explicitly if a start frame exceeds it. Increase it for longer tasks.
+- Offline full-episode evaluation now carries this bank across ticks; serving already did so. `--vis-zero-read` is the
+  matched reliance intervention. The sentence-bank reliance switch remains available separately.
 
-Warm start from `beans0922_base/10000` (pi0.5 + knowledge insulation, trained on the same data) with fresh memory
-parameters; 3000 updates; label-write probability 1 → 0 over the first 500; lr 2.5e-5 constant after a 100-step warm-up;
-FSDP over 4 GPUs; batch = the largest that fits (launcher default 16, fallback 12 / 8 / 4); checkpoints every 250 (two newest
-kept for resume), 1000 / 2000 / 3000 permanent (~27 GB each; `OPENPI_BEANS_AB_KEEP=500` for a finer grid); W&B project
-`beans0922_ablation`. Tick 5 frames, 40-tick windows, TBPTT 25, the 20 target-carry sentences, no
-state masking — all snap's (`openpi/src/openpi/training/beans0922_config.py`).
+## A/B and comparability
 
-## Telemetry to watch (W&B, plain keys next to the losses)
+Each row: KI base/10000 → own A250 (oracle writes) → own B3000 (predicted-content writes). B loads **all** A parameters,
+with fresh optimizer, rather than accidentally fresh-initializing memory. Both stages retain label sentence-history
+prefill; B is not purely free-running autoregressive training. No 500-step write-label ramp.
 
-`vis_bank_norm` (Frobenius norm of the sensory bank per valid tick: bounded under the delta rule, climbs to a plateau under
-the additive rule — a norm that keeps growing is the thing to report), `vis_read_rms` (the raw retrieval before the gate),
-`vis_read_injected_rms` (after the gate; ≈ 0.5 × image-token RMS once the bank is non-empty), `vis_commit_rate` (fraction of
-valid ticks that wrote; ≈ 1 for write-every-tick), next to snap's sentence/flow losses and `memory_grad_norm`. The raw sums
-behind them (`vis_*_sum`, `vis_commit_count`, `vis_valid_count`) stay under `diagnostic/`, which the recipe does not log.
+Common: 4 GPUs, seed 42, v4e onset sampling/losses, lr 2.5e-5, 40 ticks, 5-frame stride, TBPTT25, decay 0.999/tick.
+User-selected batches: H200 `BATCH=16 ACCUM=1`; H100 `BATCH=8 ACCUM=1`. Both run without accumulation.
+Equal steps therefore expose H200 to twice as many training windows; report this confound in cross-cluster comparisons.
+No automatic OOM batch reduction. A/B have separate config/experiment names, with per-run recipe guards.
+Auxiliary history is expensive (video decoding and frozen image encoding); measure throughput before large sweeps.
 
-## Tests
-
-`openpi/src/openpi/models/pi0_v0922ab_test.py` (tiny model): flag off == snap bit-for-bit; empty bank reads zero; the write is
-stop-gradient and trains only `memory_vis_*`; commit / exact-decay / invalid-tick contract; a second association does not
-destroy the first; sequence loss finite with gradients to every sensory leaf; zeroed read cannot leak the write; the sampler
-advances the bank in "normal" mode only; additive accumulates and delta does not; the state slot depends on the state only;
-state-only rows ignore the images. `openpi/src/openpi/training/beans0922_ablation_test.py`: every row differs from the
-control in exactly the intended fields. Serving: `openpi/scripts/serve_yam_memory.py` advances the sensory bank once per
-served tick; `--vis-zero-read` silences its read for a reliance test.
-
-## Node-local data (speed) and the two path guards
-
-The loader memory-maps its arrow cache; over NFS that stalls training (measured: 2 s/update vs 1.8 updates/s local). The
-tree's path guards only accept in-project paths, with two sanctioned exceptions for node-local disks: symlinks at or below
-`v35/cache/` (caches) and entries of `local/` (mirrors of project data). `00_download.sh LOCAL_DISK=<dir>` creates both
-links (`local/bean_scoop_0905_v5` and `v35/cache/huggingface/datasets`); `train_ablation.sh` uses `local/bean_scoop_0905_v5`
-automatically when it exists. Do not point `OPENPI_BEANS_DATASET_ROOT` or `HF_DATASETS_CACHE` at a raw outside path for a
-memory run: the v3.5 authorization refuses it.
-
-## Files
+## Files and checks
 
 | file | purpose |
 | --- | --- |
-| `setup_other_cluster.sh` | one-shot setup on another machine: clone + `uv sync` + `00_download.sh` |
-| `run_tests.sh cpu\|smoke\|probe\|all` | the test runner: unit tests without a GPU, 2-update smokes of every row, 100-update stability probes + the `probe_report.py` table |
-| `00_download.sh` | once per machine: dataset + norm stats + the published base checkpoint (the final step 10000; re-run once if you downloaded step 5000 earlier) from the Hub, tokenizer caches; `LOCAL_DISK=<dir>` keeps dataset + cache on the node's disk |
-| `train_ablation.sh` | generic 4-GPU launcher (waits for the base checkpoint and free cards, OOM fallback ladder, resume) |
-| `run_snap.sh`, `run_vis8.sh`, `run_vis8s.sh`, `run_vis8s_add.sh`, `run_state8.sh`, `run_state8_add.sh` | one row each: `[GPUS=0,1,2,3] bash beans/ablations/run_<row>.sh [smoke]` |
-| `ablation_ctl.sh` | `status` / `stop [<row>]` |
-| `hf_upload.py` (+ `_node.sh`) | the one-off pushes to the Hub (dataset done 2026-09-22; base pushed when 10k lands) |
+| `run_<row>.sh` | unchanged user-facing row entrypoints |
+| `run_stages.sh` | recipe guard, per-row A→B and resume |
+| `train_slot_stage.sh` | one stage, direct or Slurm; allows 1 GB keep-alives |
+| `train_ablation.sh` | legacy launcher retained for historical reproducibility; not used by new wrappers |
+| `ablation_ctl.sh`, `manage_runs.py` | checkout-scoped status/stop/recoverable archive |
+| `run_tests.sh` | CPU regressions; A2→B2 real-data smokes; optional short probes |
+| `00_download.sh`, `setup_other_cluster.sh` | unchanged dataset/base/cache setup |
+
+Tests cover template discovery, read/write address equality, unwritten masking, unknown rejection, finite sequence gradients,
+stage parity, auxiliary row differences, past-only replay and padding, and the existing bank/serving contracts.
+Logs retain normal telemetry keys: `vis_bank_norm`, `vis_read_rms`, `vis_read_injected_rms`, `vis_commit_rate`,
+`memory_grad_norm`, sentence/flow losses.

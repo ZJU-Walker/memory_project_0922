@@ -1,5 +1,9 @@
 # beans0922 — LED bean-scoop memory policy (real YAM station)
 
+Current ablations use template-slot SNAP, per-row A250→B3000: global batch 16 on 4 H200, 8 on 4 H100, both ACCUM=1.
+See [the current runbook](../README.md) and [mechanism](ablations/README.md). The sections below preserve historical runs,
+including token-bank v4e, and are not launch instructions for the new ablations.
+
 The real-robot line of the 0920 memory structure: a pi0.5 that writes its own sub-task sentence into a small fast-weight bank
 every tick and reads it back through 8 learned queries at the input (see `openpi/src/openpi/training/robomme_0920_config.py`
 for the structure and `beans0922_config.py` for this task). Task: "scoop the beans into the tray as many times as the green

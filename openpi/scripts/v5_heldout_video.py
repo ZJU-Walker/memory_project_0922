@@ -63,14 +63,20 @@ def _decode_text(sp, tokens):
     return sp.decode(ids).strip()
 
 
-def make_decode_fn(model, max_decode_steps: int):
-    """One rollout step: read both banks (visual bank blank; injection follows the config), greedily
-    decode the subtask sentence against the memory-extended cache, return tokens / per-token probs."""
+def make_decode_fn(model, max_decode_steps: int, *, carry_visual: bool = False):
+    """Read carried banks, decode, then advance the auxiliary bank once.
+
+    Auxiliary configs require carry_visual=True and the returned state on the next tick.
+    """
 
     @nnx.jit
-    def decode(model, observation, state_token_mask, sem_state, prev_tokens, prev_mask):
+    def decode(model, observation, state_token_mask, sem_state, prev_tokens, prev_mask, visual_state=None):
         preprocessed = _model.preprocess_observation(None, observation, train=False)
         batch = preprocessed.state.shape[0]
+        if getattr(model, "memory_vis_bank", False) and (visual_state is None or not carry_visual):
+            raise ValueError("sensory evaluation must carry visual_state between ticks (carry_visual=True)")
+        if visual_state is None:
+            visual_state = model.memory.init_state(batch)
         prefix_tokens, prefix_mask, prefix_ar = model.embed_prefix(preprocessed)
         prefix_len = prefix_mask.shape[1]
         num_img = prefix_len - model.max_token_len
@@ -86,7 +92,7 @@ def make_decode_fn(model, max_decode_steps: int):
                 prefix_ar,
                 sem_state,
                 top_token_count=top_tokens,
-                visual_state=model.memory.init_state(batch),
+                visual_state=visual_state,
                 state=preprocessed.state,
                 prev_tokens=prev_tokens,
                 prev_mask=prev_mask,
@@ -177,7 +183,12 @@ def make_decode_fn(model, max_decode_steps: int):
         carry = (gen_tokens, gen_mask, gen_prob, done, token0, kv_cache, jnp.asarray(1, dtype=jnp.int32))
         gen_tokens, gen_mask, gen_prob, _, _, _, _ = jax.lax.while_loop(cond, step, carry)
         sem_rms = jnp.sqrt(jnp.mean(jnp.square(prepared["sem_retrieved"].astype(jnp.float32)), axis=(1, 2)))
-        return gen_tokens, gen_mask, gen_prob, sem_rms, prepared.get("sem_queries")
+        if getattr(model, "memory_vis_bank", False):
+            visual_state, _ = model.vis_bank_write(
+                visual_state, prepared["vis_keys"], prepared["vis_values"], jnp.ones((batch,), dtype=bool)
+            )
+        result = (gen_tokens, gen_mask, gen_prob, sem_rms, prepared.get("sem_queries"))
+        return (*result, visual_state) if carry_visual else result
 
     return decode
 
@@ -198,6 +209,7 @@ def make_write_fn(model):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--vis-zero-read", action="store_true", help="Silence auxiliary reads while carrying its normal history")
     parser.add_argument("--config-name", default="pi05_yam_mem_v5_stageA2")
     parser.add_argument("--params", type=pathlib.Path, required=True)
     parser.add_argument("--episode-index", type=int, required=True, help="LeRobot episode index (manifest episode_index)")
@@ -322,10 +334,13 @@ def main() -> None:
     _evidence_end = segments[-1]["start"] if sidecar.get("tail_merged") else (segments[-2]["start"] if len(segments) >= 2 else length)
     oracle_until = int(_evidence_end) if args.write_mode == "oracle_evidence" else length
     prev_is_committed = bool(args.write_retry or getattr(cfg.model, "memory_v5_prev_is_committed", False))
-    decode = make_decode_fn(model, args.max_decode_steps)
+    if args.vis_zero_read:
+        model.memory_vis_zero_read = True
+    decode = make_decode_fn(model, args.max_decode_steps, carry_visual=True)
     write = make_write_fn(model)
 
     sem_state = model.memory_semantic.init_state(1)
+    visual_state = model.memory.init_state(1)
     prev_tokens = np.full((1, sentence_len), -1, dtype=np.int32)
     pending = (np.zeros((1, sentence_len), dtype=np.int32), np.zeros(sentence_len, dtype=bool), False)
     bank: list[str] = []
@@ -411,9 +426,10 @@ def main() -> None:
                 q_tokens, q_mask = pending[0], pending[1][None]
             else:
                 q_tokens, q_mask = np.maximum(prev_tokens, 0), prev_tokens > 0
-            gen_tokens, gen_mask, gen_prob, sem_rms, sem_queries = decode(
+            gen_tokens, gen_mask, gen_prob, sem_rms, sem_queries, visual_state = decode(
                 model, observation, state_token_mask, sem_state,
                 jnp.asarray(q_tokens, dtype=jnp.int32), jnp.asarray(q_mask),
+                visual_state,
             )
             gen_tokens = np.asarray(gen_tokens)[0]
             gen_mask = np.asarray(gen_mask)[0]

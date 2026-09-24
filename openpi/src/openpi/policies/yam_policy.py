@@ -80,7 +80,11 @@ class YamInputs(transforms.DataTransformFn):
             inputs["prev_subtask"] = data["prev_subtask"]
 
         # Memory sequence-training extras pass through.
+        if "memory_vis_prefill_image" in data:
+            inputs["memory_vis_prefill_image"] = _parse_image(data["memory_vis_prefill_image"])
         for key in (
+            "memory_vis_prefill_state",
+            "memory_vis_prefill_mask",
             "seq_step_mask",
             "seq_block_boundary",
             "seq_probe_labels",

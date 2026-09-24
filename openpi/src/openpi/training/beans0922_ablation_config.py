@@ -1,41 +1,13 @@
-"""beans0922 ablations (2026-09-22) -- variants of the LED bean-scoop memory policy ("snap", beans0922_config.memory_config)
-for the ablation table, every one trained with the SAME 4-card recipe so the rows differ in one thing only.
+"""Automatic template-slot SNAP and sensory ablations: per-row A250 -> B3000.
 
-snap = the beans0922 **v4b** structure since 2026-09-23 05:30 (user, relayed by the base session: every ablation row adopts the
-same read/write changes; v3 (09-22 15:30, question shift collapsed the questions) and v4 (09-23 00:35, its 0.8 gate starved the
-bank: one own note per episode) are superseded): v1 + beans0922_config.V4B_WRITE_RULE + V4_BANK = change-only own writes that
-pass when every word's probability is >= 0.3 AND the same sentence is decoded on two consecutive ticks (memory_v7_write_every_step
-False, memory_v5_write_conf_min, memory_v5_write_conf 0.3, memory_v7_write_debounce_steps 2), the pointer bonus on the sentence read
-(memory_v6_pointer_read, context queries, beta 10), the last committed note read back through the bank as 48 extra input tokens
-after the 8 question tokens (memory_v0920_prev_readback), a slower decay for BOTH banks (alpha_step 0.001 = 0.999 per tick) and
-the error-driven sentence-token weight 5 (memory_v7_hard_token_ce_weight). No question context (v3's shift is off). The sensory
-bank is unaffected by all of it except the decay it shares: it writes every valid tick (training scan and serving transition
-gate it on tick validity, not on the sentence write decision), its 8 fixed read queries have no pointer bonus, and its tokens
-are appended after the read-back tokens (memory block = 8 questions | 48 read-back | 8 sensory = 64 tokens). Rows started
-before 09-23 05:30 (the 09-22 Anvil v3 runs, the 09-23 04:35 Anvil v4 runs, the 09-22 Stanford v1 run) used an earlier snap
-and are not comparable with the v4b rows.
-
-  pi05_yam_beans0922_ab_snap   snap itself under the ablation recipe (the control row): 8 sentence-bank read tokens.
-  pi05_yam_beans0922_ab_vis8   ablation (1) "snap + visual memory": a second fast-weight bank fed by the front camera
-                               (Pi0Config.memory_vis_bank, 8 slots) and read with 8 fixed queries at the input next to
-                               the 8 sentence tokens; the bank is `Pi05Config.memory` reconfigured as the SAME linear
-                               delta-rule bank as the sentence bank (decay 0.99 per tick, rate 1, blank start).
-  pi05_yam_beans0922_ab_vis8s  vision + state: the same bank with one more write slot per tick from the 14-D state
-                               (memory_vis_state_slot); delta rule (a presence memory: repeats add nothing).
-  pi05_yam_beans0922_ab_vis8s_add   vision + state with the ADDITIVE commit rule (memory.commit_rule = "additive",
-                               Hebbian / outer product: repeats accumulate, a tally memory), same decay, same read.
-  pi05_yam_beans0922_ab_state8      state slot only (memory_vis_image_write False), delta rule, 8 read tokens.
-  pi05_yam_beans0922_ab_state8_add  state slot only, additive rule.
-  <name>_smoke                 2 updates, no W&B, for the launch check.
-
-Ablation recipe (user 2026-09-22 04:39: "make full use ... batch size larger ... target 3k steps and same first 500 label
-descend"): warm start from the beans0922 knowledge-insulation base (base/10000, OPENPI_BEANS_BASE_PARAMS) with fresh memory
-leaves, 3000 updates, label-write probability 1 -> 0 over the first 500 updates, lr 2.5e-5, FSDP over the 4 cards, batch
-from the launcher (beans/ablations/train_ablation.sh, default 16 with an OOM fallback ladder), checkpoints every 250 (the two
-newest kept for resume) with 1000 / 2000 / 3000 permanent (OPENPI_BEANS_AB_KEEP=500 for a finer eval grid; ~27 GB each). Everything else (window, tick, labels, sampling, losses) is beans0922_config.memory_config.
-
-Env knobs: OPENPI_BEANS_AB_STEPS / _BATCH / _FSDP / _WORKERS (defaults 3000 / 16 / 4 / 16) plus the beans0922 dataset /
-checkpoint overrides (OPENPI_BEANS_DATASET_ROOT, OPENPI_BEANS_ASSETS_DIR, OPENPI_BEANS_BASE_PARAMS).
+A writes label sentences; B writes predicted sentence contents, with no label ramp.
+B loads all of its own row\'s A parameters and starts a fresh optimizer. The training
+writer uses argmax under teacher forcing (as B9); deployment decodes autoregressively.
+Both stages retain label-supervised sentence-history prefill. Auxiliary banks replay
+past observations without gradients before a window, and persist across rollout ticks.
+All rows share KI base/10000, seed, v4e sampling/losses and bank decay.
+The requested hardware recipes use batch 16 on H200 and batch 8 on H100, no accumulation.
+Slot addresses and their count come from the training vocabulary, never task names.
 """
 
 import dataclasses
@@ -44,33 +16,51 @@ import os
 from openpi.shared import nnx_utils
 from openpi.training import beans0922_config as _b
 from openpi.training import config as cfg
+from openpi.training import weight_loaders
+from openpi.models.sentence_slots import template_representatives
 
 PROJECT = "beans0922_ablation"  # W&B project of every ablation row
 AB_STEPS = int(os.environ.get("OPENPI_BEANS_AB_STEPS", "3000"))
 AB_BATCH = int(os.environ.get("OPENPI_BEANS_AB_BATCH", "16"))
+AB_ACCUM = int(os.environ.get("OPENPI_BEANS_AB_ACCUM", "1"))
 AB_FSDP = int(os.environ.get("OPENPI_BEANS_AB_FSDP", "4"))
-AB_WORKERS = int(os.environ.get("OPENPI_BEANS_AB_WORKERS", "16"))
-AB_LABEL_WRITE_STEPS = _b.MEM_LABEL_WRITE_STEPS  # 500, as snap
+AB_WORKERS = int(os.environ.get("OPENPI_BEANS_AB_WORKERS", "8"))
+AB_LABEL_WRITE_STEPS = 0
+A_STEPS = int(os.environ.get("OPENPI_BEANS_AB_A_STEPS", "250"))
+PREFILL_STEPS = int(os.environ.get("OPENPI_BEANS_AB_PREFILL_STEPS", "320"))
+RECIPE = "template_slot_ab_v1"
 AB_SAVE_EVERY = 250  # rolling checkpoints for resume (the 2 newest are kept)
 AB_KEEP_EVERY = int(os.environ.get("OPENPI_BEANS_AB_KEEP", "1000"))  # permanent: 1000 / 2000 / 3000 (~27 GB each); 500 if disk allows
 VIS_SLOTS = 8
-SNAP_OVERRIDES = _b.V4B_WRITE_RULE  # the snap revision every row is built on (v4b; see the module docstring)
+SNAP_OVERRIDES = dict(
+    _b.V4E_ONSET_MODEL,
+    memory_template_read=True, memory_v5_slot_keys=True, memory_v5_whiten_values=True,
+    memory_v6_token_writes=False, memory_v6_pointer_read=False, memory_v6_whiten_keys=False,
+    memory_v0920_prev_readback=False, memory_v0920_query_context=False,
+    memory_v5_own_commit_label_content=False,
+    memory_v7_write_debounce_steps=1, memory_v7_write_retract_steps=0,
+)
 SNAP_BANK_OVERRIDES = _b.V4_BANK  # v4: alpha_step 0.001 on both banks (the sensory bank copies memory_semantic, so it follows)
 
 
-def _recipe(existing: dict, name: str, *, steps: int, wandb: bool, batch: int) -> cfg.TrainConfig:
+def _recipe(existing: dict, name: str, *, steps: int, wandb: bool, batch: int, oracle: bool = False) -> cfg.TrainConfig:
     """snap's memory config under the 4-card ablation recipe (steps, batch, FSDP, checkpoint cadence, W&B project)."""
-    base = _b.memory_config(existing, name, steps=steps, wandb=wandb, batch=batch, model_overrides=SNAP_OVERRIDES,
-                            bank_overrides=SNAP_BANK_OVERRIDES)
+    references = existing["pi05_yam_mem_v5_beansB9"].model.memory_v5_reference_tokens
+    count = len(template_representatives(references))
+    overrides = dict(SNAP_OVERRIDES, memory_v5_read_queries=count, memory_v5_oracle_writes=oracle)
+    base = _b.memory_config(existing, name, steps=steps, wandb=wandb, batch=batch, model_overrides=overrides,
+                            bank_overrides=dict(SNAP_BANK_OVERRIDES, slot_count=count), data_overrides=_b.V4E_ONSET_DATA)
     return dataclasses.replace(
-        base, fsdp_devices=AB_FSDP, num_workers=AB_WORKERS, project_name=PROJECT,
+        base, model=dataclasses.replace(base.model, memory=dataclasses.replace(base.model.memory, slot_count=0)),
+        fsdp_devices=AB_FSDP, num_workers=AB_WORKERS, project_name=PROJECT,
+        gradient_accumulation_steps=AB_ACCUM,
         save_interval=AB_SAVE_EVERY, keep_period=AB_KEEP_EVERY, label_write_schedule_steps=AB_LABEL_WRITE_STEPS,
     )
 
 
 def snap_config(existing: dict, name: str = "pi05_yam_beans0922_ab_snap", *, steps: int = AB_STEPS, wandb: bool = True,
                 batch: int = AB_BATCH) -> cfg.TrainConfig:
-    """The control row: snap, unchanged, under the ablation recipe."""
+    """Control row: template-slot SNAP under the shared ablation recipe."""
     return _recipe(existing, name, steps=steps, wandb=wandb, batch=batch)
 
 
@@ -78,16 +68,17 @@ def sensory_config(existing: dict, name: str, *, image: bool = True, state: bool
                    steps: int = AB_STEPS, wandb: bool = True, batch: int = AB_BATCH, slots: int = VIS_SLOTS) -> cfg.TrainConfig:
     """snap + a sensory bank (Pi0Config.memory_vis_bank) read as `slots` fixed-query tokens at the input. `image` = the
     pooled front-camera slots, `state` = the state slot, `rule` = the commit rule of the bank ("delta" or "additive").
-    The bank is `model.memory` reconfigured as a copy of the sentence bank's MemoryConfig (linear, decay 0.99, blank start)
+    The bank is `model.memory` reconfigured as a copy of the sentence bank's MemoryConfig (linear, decay 0.999, blank start)
     with that commit rule."""
     base = _recipe(existing, name, steps=steps, wandb=wandb, batch=batch)
     model = dataclasses.replace(
         base.model,
-        memory=dataclasses.replace(base.model.memory_semantic, commit_rule=rule),
+        memory=dataclasses.replace(base.model.memory_semantic, slot_count=0, commit_rule=rule),
         memory_vis_bank=True,
         memory_vis_slots=slots,
         memory_vis_image_write=image,
         memory_vis_state_slot=state,
+        memory_vis_prefill_steps=PREFILL_STEPS,
     )
     # snap freezes its sentence gate at tanh(w) = 0.5 (memory_sem_inject_w in the freeze filter); the sensory gate gets the
     # same treatment so the two banks inject at the same fixed scale and the rows stay controlled
@@ -113,10 +104,30 @@ ROWS = {  # name suffix -> (image slots, state slot, commit rule); every row = s
 }
 
 
+def stage_a_params(row: str) -> str:
+    return os.environ.get("OPENPI_BEANS_AB_A_PARAMS") or str(
+        _b._root() / _b.CHECKPOINTS_REL / f"pi05_yam_beans0922_ab_{row}_A" / f"slot_{row}_A" / str(A_STEPS) / "params"
+    )
+
+
+def row_config(existing: dict, row: str, *, stage: str = "B", smoke: bool = False) -> cfg.TrainConfig:
+    name = f"pi05_yam_beans0922_ab_{row}" + ("_A" if stage == "A" else "") + ("_smoke" if smoke else "")
+    kwargs = dict(steps=2 if smoke else (A_STEPS if stage == "A" else AB_STEPS), wandb=not smoke, batch=AB_BATCH)
+    if row == "snap":
+        base = snap_config(existing, name, **kwargs)
+    else:
+        image, state, rule = ROWS[row]
+        base = sensory_config(existing, name, image=image, state=state, rule=rule, **kwargs)
+    loader = base.weight_loader if stage == "A" else weight_loaders.AuditedPartialCheckpointWeightLoader(
+        stage_a_params(row), matched_allowlist=(r".+",), fresh_init_allowlist=(),
+        ignored_source_allowlist=(), source_cast_dtype="float32",
+    )
+    return dataclasses.replace(
+        base, model=dataclasses.replace(base.model, memory_v5_oracle_writes=stage == "A"), weight_loader=loader,
+        keep_period=A_STEPS if stage == "A" else AB_KEEP_EVERY, seed=42,
+    )
+
+
 def get_configs(existing: dict) -> list:
-    configs = [snap_config(existing), snap_config(existing, "pi05_yam_beans0922_ab_snap_smoke", steps=2, wandb=False)]
-    for suffix, (image, state, rule) in ROWS.items():
-        name = f"pi05_yam_beans0922_ab_{suffix}"
-        configs.append(sensory_config(existing, name, image=image, state=state, rule=rule))
-        configs.append(sensory_config(existing, f"{name}_smoke", image=image, state=state, rule=rule, steps=2, wandb=False))
-    return configs
+    return [row_config(existing, row, stage=stage, smoke=smoke)
+            for row in ("snap", *ROWS) for stage in ("A", "B") for smoke in (False, True)]

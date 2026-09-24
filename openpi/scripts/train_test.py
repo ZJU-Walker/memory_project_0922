@@ -835,7 +835,7 @@ def test_detached_diagnostic_probe_does_not_change_total_loss_or_main_update():
     )
 
 
-@pytest.mark.parametrize("accumulation_steps", [3, 6])
+@pytest.mark.parametrize("accumulation_steps", [2, 3, 6])
 def test_gradient_accumulation_matches_one_effective_full_batch_update(accumulation_steps: int):
     base_config = dataclasses.replace(
         _config.get_config("debug"),

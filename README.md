@@ -1,94 +1,130 @@
-# memory_project_0922 — a self-narrated memory policy for the LED bean-scoop task, and its ablations
+# memory_project_0922 — template-slot SNAP and ablations
 
-## What is being compared (one paragraph for the reader)
+## What is being compared
 
-The policy is a pi0.5 VLA on the real YAM station for the task *"scoop the beans into the tray as many times as the green
-light blinked"*: the green LED blinks 1–3 times at the start, then a yellow light says "go" and nothing in the scene says
-the count any more. Our model,
-**snap**, gives pi0.5 a small fast-weight memory that it fills with **its own words**: every tick (5 frames, 0.17 s) it
-decodes a short sub-task sentence such as "scoop 2 of 3: dig and carry", writes that sentence into the memory when it is
-new and believable (differs from the last stored note, no word below probability 0.3, and decoded the same way on two
-consecutive ticks; each word is stored as a key/value association with the delta rule, decay 0.999 per tick), and reads the
-memory back two ways: 8 learned queries with a pointer bonus toward the 20 known sentences (**8 input tokens**), plus its own
-last note read back through the memory word by word (**48 input tokens**) — 56 memory tokens that every transformer block sees
-(this is snap **v4b**, 2026-09-23; every row below is built on it). The ablations ask whether a *sensory*
-memory — the same kind of fast-weight bank, but filled with what the camera sees and/or where the arm is instead of a
-sentence — adds anything on top of the narrated one. Every row starts from the same knowledge-insulation base checkpoint
-and is trained with the same recipe (3000 updates, the first 500 with a decaying probability of writing the label sentence
-instead of the model's own, lr 2.5e-5, FSDP over 4 GPUs, checkpoints kept at 1000 / 2000 / 3000); a row differs from snap in exactly one thing.
-**Pull before launching**: rows started from a checkout older than **2026-09-23 05:30 PDT** are built on an earlier snap
-(v1: a note every tick, fixed questions; v3: a question shift that collapsed the 8 questions into one; v4: a 0.8 write gate
-that let through one note per episode) and are not comparable with the v4b rows — stop them and relaunch after `git pull` (a relaunch starts fresh; the old checkpoint dirs
-`beans/checkpoints/pi05_yam_beans0922_ab_<row>/ab_<row>` must be renamed or removed first, or the launcher resumes into them).
+Current recipe: **template_slot_ab_v1 (2026-09-23), per-row A250 → B3000**.
+SNAP writes a whole narrated sentence into a fast-weight sentence bank. It retains the current **input-layer injection**
+interface, but disables token-level writes, token pointer and 48-token read-back. Every tick it reads all induced template
+addresses in parallel, then lets the transformer use those retrieved vectors. This is **not an exact B9 reproduction**:
+B9's template writer is paired with direct template reads instead of learned retrieval queries.
 
-| row | script | memory tokens at the input | sensory bank written from (every tick) | update rule | status |
-| --- | --- | --- | --- | --- | --- |
-| control (snap) | `run_snap.sh` | 8 sentence (+48 read-back) | – | delta | **to run (v4)** — Stanford |
-| vis8 | `run_vis8.sh` | 8 sentence + 8 sensory | front camera (256 image tokens pooled into 8 slots) | delta | **to run (v4)** — the 09-22 runs (Stanford v1, Anvil v3) are superseded |
-| vis8s | `run_vis8s.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | delta | **to run (v4): node 1, GPUs 0–3** — the 09-22 Anvil run is v3, superseded |
-| vis8s_add | `run_vis8s_add.sh` | 8 sentence + 8 sensory | front camera (8 slots) + arm state (1 slot) | **additive** | **to run: node 1, GPUs 4–7** |
-| state8 | `run_state8.sh` | 8 sentence + 8 sensory | arm state (1 slot) | delta | **to run: node 2, GPUs 0–3** |
-| state8_add | `run_state8_add.sh` | 8 sentence + 8 sensory | arm state (1 slot) | **additive** | **to run: node 2, GPUs 4–7** |
+Templates are induced from the supplied training sentence vocabulary by token differences; no beans phase names or fixed
+five-way task rules are coded into discovery. The current 20-sentence vocabulary produces **5 addresses**. This is not
+open-vocabulary automatic task discovery: a new task still needs its training sentence vocabulary/labels; inspect the induced
+groups, and out-of-vocabulary sentences are rejected as writes. A slot is a sentence-template family, not one slot per word.
+Unwritten addresses are masked even if other writes cause fast-weight cross-talk.
 
-*Delta rule* (W ← ρW + η(v − Wk)kᵀ) stores whether something occurred — a repeat adds nothing. *Additive rule*
-(W ← ρW + η·v·kᵀ, the outer-product update of linear attention) stores how often — repeats accumulate until the decay
-balances them. The sentence bank is always delta (a note must be retrieved exactly). Details: `beans/ablations/README.md`.
+| row | script | input memory tokens | auxiliary bank writes |
+| --- | --- | --- | --- |
+| SNAP | `run_snap.sh` | 5 sentence | none |
+| SNAP + visual | `run_vis8.sh` | 5 sentence + 8 auxiliary | 8 pooled front-camera vectors |
+| SNAP + visual + sensory | `run_vis8s.sh` | 5 sentence + 8 auxiliary | 8 camera vectors + 1 joint-state vector |
+| SNAP + sensory | `run_state8.sh` | 5 sentence + 8 auxiliary | 1 joint-state vector |
+| optional additive controls | `run_vis8s_add.sh`, `run_state8_add.sh` | same as corresponding row | same sources, additive update |
 
-## 1. Set up a machine (once; needs git, [uv](https://docs.astral.sh/uv/), a CUDA-12 driver, internet, ~60 GB)
+Here “sensory” means **proprioceptive joint state**. Visual + sensory share one auxiliary bank, not two independent banks.
+The four main rows all use the delta rule. It corrects the residual of a retrieved association; it is not a guarantee of
+perfect recall or exact counting. The optional additive rows accumulate associations and are secondary controls.
+
+All rows use the same KI base **10000**, split (77 train / 6 val / 6 test), seed 42, 4 GPUs,
+learning-rate schedule, v4e onset sampling/loss weights, and decay 0.999/tick. By user choice, global batch is **16 on H200**
+and **8 on H100**, both without accumulation. This is a training-budget difference: at equal updates H200 sees twice as many
+windows, so cross-cluster comparisons are not strictly bank-only ablations. The launcher never silently reduces batch.
+Every row trains its own A (250 updates, label writes), then loads **all its own A parameters** into B (3000 updates,
+predicted-content writes, fresh optimizer; no 500-step label-write ramp).
+B's in-window writer is argmax **under teacher forcing**, not free-running autoregressive training. Both phases retain
+label-based past-sentence prefill; serving/evaluation decode autoregressively. Keep this distinction in experiment reports.
+
+The write gate keeps minimum word probability 0.3 and change-only writes; debounce is **one tick** so a one-tick light
+observation is not discarded. Tick = 5 frames, window = 40 ticks, TBPTT = 25, no state masking.
+Auxiliary banks replay **past-only real observations** before the sampled window (stop-gradient); full-episode rollout carries
+their state between ticks. Capacity 320 past ticks covers this dataset; longer tasks fail explicitly and need a larger bound.
+Visual replay adds decoding/encoder cost; do not silently turn it off for one row.
+
+## 1. New machine setup
+
+Needs git, uv, a CUDA-12 driver, enough CPU RAM for workers/checkpoint saves, and dataset/checkpoint storage.
+The existing setup/download script format is unchanged:
 
 ```bash
 curl -sO https://raw.githubusercontent.com/ZJU-Walker/memory_project_0922/main/beans/ablations/setup_other_cluster.sh
-bash setup_other_cluster.sh ~/memory_project_beans0922     # clone + venv + dataset + base checkpoint + tokenizer caches
-#   LOCAL_DISK=/local/ssd bash setup_other_cluster.sh ...   # if the clone is on a network filesystem: dataset + loader cache on the node's disk (3-4x faster)
+bash setup_other_cluster.sh ~/memory_project_beans0922
 cd ~/memory_project_beans0922
-openpi/.venv/bin/wandb login                                # once; or WANDB=0 on every launch. A new-format (long) W&B key is
-                                                            # refused by this wandb's save step: export WANDB_API_KEY=<key> instead
+# Optional node-local data/cache: LOCAL_DISK=/your/local/ssd on the setup/download command.
+# W&B: openpi/.venv/bin/wandb login; or export WANDB=0
 ```
 
-## 1b. Test the code (any time; the GPU parts need the download from step 1)
+## 2. Existing cluster: stop old training, update, clean obsolete active directories
+
+Run inside the checkout on the node running that checkout's old training. Fetching does not change live source files.
+The stop helper is taken from the new commit before pulling; it matches this UID and checkout only, includes child workers,
+and never cancels the Slurm allocation or kills `cluster_scripts/train_hs.py` keep-alives.
 
 ```bash
-bash beans/ablations/run_tests.sh cpu                    # no GPU, ~6 min: unit tests of the ablation code (gates, configs, telemetry)
-GPUS=0,1,2,3 bash beans/ablations/run_tests.sh smoke     # 2-update smoke of all six rows (or ROWS="vis8s state8" ...)
-GPUS=0,1,2,3 bash beans/ablations/run_tests.sh probe     # 100 updates per row + a table of losses / gradient norms / bank curves
+cd ~/memory_project_beans0922
+git fetch origin main
+ctl=$(mktemp /tmp/beans0922-ctl.XXXXXX.py)
+git show origin/main:beans/ablations/manage_runs.py > "$ctl"
+python3 "$ctl" status --root "$PWD"
+python3 "$ctl" stop --root "$PWD"
+git pull --ff-only origin main
+bash beans/ablations/ablation_ctl.sh archive             # preview
+bash beans/ablations/ablation_ctl.sh archive --apply     # recoverable cleanup
+bash beans/ablations/00_download.sh                     # ensures KI base/10000 + data
 ```
 
-Each line prints PASS/FAIL per row and appends to `beans/ablations/logs/run_tests.log`; the exit code counts the failures.
-The probe table (`beans/ablations/probe_report.py`) flags non-finite values, a growing gradient norm and a sensory-bank norm
-that keeps climbing — the things that would make a row unusable.
+On the Stanford development checkout the corresponding remote is `origin0922`, not `origin`.
+Archive moves only old `ab_<row>`, `smoke_ab_<row>`, and `probe_<row>` experiment directories into
+`beans/checkpoints/_archive/<timestamp>/`. It **does not free disk space**; no permanent deletion of checkpoints,
+datasets, evaluation results or historical v4e runs is performed. New runs use `slot_<row>_A/B` and never resume old token-bank runs.
+Do not use broad `pkill python` or `scancel <allocation>`: those can kill keep-alives or unrelated work.
 
-## 2. Smoke-test once per node (2 updates: compile + one real batch; also builds the data cache, ~40 min the first time)
+## 3. Test, then train (same launch format on each cluster)
 
 ```bash
-GPUS=0,1,2,3 bash beans/ablations/run_vis8s.sh smoke
+bash beans/ablations/run_tests.sh cpu
+GPUS=0,1,2,3 BATCH=16 WORKERS=8 bash beans/ablations/run_snap.sh smoke
+# For an auxiliary row, smoke that row on its target hardware too:
+GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 bash beans/ablations/run_vis8s.sh smoke
 ```
 
-## 3. The four remaining rows: two 8×H100 nodes, two rows per node (3000 updates each; a relaunch resumes)
+Smoke executes **A2 → B2**, including checkpoint loading. It has separate experiment names and no W&B.
+Run one main row per four available GPUs (choose the appropriate line on each node; not all on the same cards):
 
 ```bash
-# node 1, GPUs 0-3: vision + state bank, delta rule
-GPUS=0,1,2,3 nohup bash beans/ablations/run_vis8s.sh      > beans/ablations/logs/run_vis8s.out 2>&1 &
-# node 1, GPUs 4-7: vision + state bank, additive rule
-GPUS=4,5,6,7 nohup bash beans/ablations/run_vis8s_add.sh  > beans/ablations/logs/run_vis8s_add.out 2>&1 &
-# node 2, GPUs 0-3: state-only bank, delta rule
-GPUS=0,1,2,3 nohup bash beans/ablations/run_state8.sh     > beans/ablations/logs/run_state8.out 2>&1 &
-# node 2, GPUs 4-7: state-only bank, additive rule
-GPUS=4,5,6,7 nohup bash beans/ablations/run_state8_add.sh > beans/ablations/logs/run_state8_add.out 2>&1 &
-# any node: progress of every row / stop one row
-bash beans/ablations/ablation_ctl.sh status;  bash beans/ablations/ablation_ctl.sh stop vis8s_add
+mkdir -p beans/ablations/logs
+# Stanford 4 H200: SNAP; when outside an existing allocation set JOB=<allocation> GRES=4.
+setsid nohup env GPUS=0,1,2,3 BATCH=16 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_snap.sh > beans/ablations/logs/run_slot_snap.out 2>&1 < /dev/null &
+# Other node / four free cards: SNAP + visual
+setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_slot_vis8.out 2>&1 < /dev/null &
+# Other node / four free cards: SNAP + visual + sensory
+setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8s.sh > beans/ablations/logs/run_slot_vis8s.out 2>&1 < /dev/null &
+# Other node / four free cards: SNAP + sensory
+setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_state8.sh > beans/ablations/logs/run_slot_state8.out 2>&1 < /dev/null &
 ```
 
-Knobs (environment): `GPUS` (default `0,1,2,3`), `STEPS` (default 3000), `WORKERS` (loader processes; 16, or 8 when the Slurm job has < 200 GB of host RAM — the checkpoint save needs ~48 GB of CPU memory on top of the workers, and a 128 GB job was killed at its first save with 16), `BATCH` (default 16, falls back to 12 / 8 / 4 on OOM — 4 × 80 GB usually
-lands at 8–12), `WORKERS` (16 loader processes per row), `WANDB=0`. No scheduler is needed: python runs directly on the
-node. Logs: `beans/ablations/logs/train_<exp>.log`; checkpoints: `beans/checkpoints/<config>/<exp>/`; W&B project
-`beans0922_ablation` (the `vis_bank_norm`, `vis_read_rms`, `vis_read_injected_rms`, `vis_commit_rate` curves show the sensory bank).
+An 8-GPU node can run two rows with `GPUS=0,1,2,3` and `GPUS=4,5,6,7`.
+4×H200 uses `BATCH=16 ACCUM=1` (4 samples/GPU). 4×H100 uses `BATCH=8 ACCUM=1` (2 samples/GPU).
+There is no gradient accumulation in either requested recipe. No automatic OOM fallback changes the batch.
+A250/B3000 and the learning rate are unchanged; record the hardware/batch difference in reports and smoke-test each target node.
+Each script chains A→B without user intervention. Rerunning the same command resumes a completed numeric checkpoint;
+a completed A is skipped. To start a new experiment use `RUN_NAME=slot_vis8_seed42_retry`, never delete an active directory.
 
-Data and weights (public, fetched by the setup script): dataset `kewalk123/yam_bean_scoop_0905_v5` (89 episodes, LeRobot
-layout), base checkpoint `kewalk123/beans0922_pi05_base_10k` (pi0.5 with knowledge insulation on this data — what every
-row warm-starts from). The repo holds the **final step 10000** (its `STEP` file says so; step 5000 was published earlier,
-while the base run was still going); `00_download.sh` places it under
-`beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/10000/params` and the launcher warm-starts from the largest
-step present. A machine that ran the download before 2026-09-22 08:30 PDT has step 5000 only: re-run
-`bash beans/ablations/00_download.sh` once (a row's `train_<exp>_status.log` names the base it started from). Adding a row = one entry in `ROWS` of
-`openpi/src/openpi/training/beans0922_ablation_config.py` + a two-line `beans/ablations/run_<row>.sh`.
-More: `beans/ablations/README.md` (how the sensory bank works, tests), `beans/README.md` (the policy, base + memory runs, serving).
+```bash
+bash beans/ablations/ablation_ctl.sh status
+bash beans/ablations/ablation_ctl.sh stop vis8s           # this checkout, this row only
+tail -f beans/ablations/logs/train_slot_snap_A.log        # then train_slot_snap_B.log
+```
+
+Checkpoint locations:
+
+- A: `beans/checkpoints/pi05_yam_beans0922_ab_<row>_A/slot_<row>_A/250/params`
+- B: `beans/checkpoints/pi05_yam_beans0922_ab_<row>/slot_<row>_B/{1000,2000,3000}/params`
+
+Step names retain this repository's existing zero-based convention (including Step 0): A250/B3000 name the final
+checkpoint steps. Smoke A2/B2 likewise ends at checkpoint step 2.
+
+W&B project: `beans0922_ablation`; standard sentence/flow losses and sensory-bank telemetry retain their existing names.
+Defaults: `ACCUM=1`, `WORKERS=8`, `A_STEPS=250`, `STEPS=3000`, `BATCH=16`, `GPUS=0,1,2,3`.
+`JOB` enables an overlapping Slurm step; omit it when already on allocated GPUs. 1 GB keep-alives are permitted by
+the launcher and must be left running. Source/data details: [mechanism](beans/ablations/README.md), [run history](beans/README.md).

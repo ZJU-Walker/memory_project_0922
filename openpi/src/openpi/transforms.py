@@ -146,6 +146,9 @@ class Normalize(DataTransformFn):
         if self.norm_stats is None:
             return data
 
+        if "memory_vis_prefill_state" in data:
+            normalizer = self._normalize_quantile if self.use_quantiles else self._normalize
+            data["memory_vis_prefill_state"] = normalizer(data["memory_vis_prefill_state"], self.norm_stats["state"])
         return apply_tree(
             data,
             self.norm_stats,
@@ -207,6 +210,31 @@ class ResizeImages(DataTransformFn):
 
     def __call__(self, data: DataDict) -> DataDict:
         data["image"] = {k: image_tools.resize_with_pad(v, self.height, self.width) for k, v in data["image"].items()}
+        if "memory_vis_prefill_image" in data:
+            pixels = image_tools.resize_with_pad(data["memory_vis_prefill_image"], self.height, self.width)
+            data["memory_vis_prefill_image"] = pixels.astype(np.float32) / 255.0 * 2.0 - 1.0
+        return data
+
+
+@dataclasses.dataclass(frozen=True)
+class SplitSensoryPrefill(DataTransformFn):
+    """Past-only observations fetched with negative offsets; clamped padding never writes."""
+
+    steps: int
+    stride: int
+    image: bool = True
+
+    def __call__(self, data: DataDict) -> DataDict:
+        frame = int(np.asarray(data["frame_index"]).item())
+        if frame > self.steps * self.stride:
+            raise ValueError("sensory history exceeds memory_vis_prefill_steps; increase the capacity, never truncate silently")
+        data = dict(data)
+        data["memory_vis_prefill_mask"] = frame + np.arange(-self.steps, 0) * self.stride >= 0
+        states = np.asarray(data["state"])
+        data["memory_vis_prefill_state"], data["state"] = states[:self.steps], states[self.steps:]
+        if self.image:
+            images = np.asarray(data["image"])
+            data["memory_vis_prefill_image"], data["image"] = images[:self.steps], images[self.steps:]
         return data
 
 
@@ -1463,6 +1491,8 @@ class PadStatesAndActions(DataTransformFn):
 
     def __call__(self, data: DataDict) -> DataDict:
         data["state"] = pad_to_dim(data["state"], self.model_action_dim, axis=-1)
+        if "memory_vis_prefill_state" in data:
+            data["memory_vis_prefill_state"] = pad_to_dim(data["memory_vis_prefill_state"], self.model_action_dim, axis=-1)
         if "actions" in data:
             data["actions"] = pad_to_dim(data["actions"], self.model_action_dim, axis=-1)
         return data

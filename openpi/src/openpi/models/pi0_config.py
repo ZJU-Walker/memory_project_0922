@@ -342,6 +342,8 @@ class Pi0Config(_model.BaseModelConfig):
     # `memory_v0920_input_rms`: target RMS of an injected token; None = the RMS of the embedder rows of the reference
     # sentences, measured in the forward pass (the tokens live next to word embeddings, so they get their scale).
     memory_v0920_input_read: bool = False
+    # Read each automatically discovered sentence template at its own write address.
+    memory_template_read: bool = False
     memory_v0920_input_rms: float | None = None
     # Short visual history as prefix tokens: `memory_v0920_history_frames` extra image keys `history_<i>_rgb` (oldest
     # first) go through the unchanged image tower, are average-pooled by `memory_v0920_history_pool` per axis on the
@@ -389,6 +391,8 @@ class Pi0Config(_model.BaseModelConfig):
     # embedding, appended at the INPUT after the sentence-bank tokens (16 memory tokens for 8 + 8). Needs
     # memory_v0920_input_read and memory_v35_enabled (the tick transition). Default off: every existing config is bit-identical.
     memory_vis_bank: bool = False
+    # Maximum past ticks replayed without gradients before a training window (0 = legacy empty bank).
+    memory_vis_prefill_steps: int = 0
     memory_vis_slots: int = 8
     memory_vis_input_rms: float | None = None
     # serving / eval switch: read exactly zero from the visual bank while its writes continue (reliance test)
@@ -610,6 +614,18 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("memory_v0920_history_pool must divide the 16x16 patch grid.")
                 if not 0.0 <= self.memory_v0920_history_dropout < 1.0:
                     raise ValueError("memory_v0920_history_dropout must lie in [0, 1).")
+            if self.memory_template_read:
+                from openpi.models.sentence_slots import template_representatives
+
+                if not self.memory_v0920_input_read or not self.memory_v5_slot_keys or not self.memory_v5_whiten_values:
+                    raise ValueError("memory_template_read needs input read, slot keys and whitened sentence values")
+                if self.memory_v6_token_writes or self.memory_v6_pointer_read or self.memory_v0920_prev_readback or self.memory_v0920_query_context:
+                    raise ValueError("memory_template_read is incompatible with token writes, pointer, readback or shifted queries")
+                count = len(template_representatives(self.memory_v5_reference_tokens, self.memory_v5_slot_max_diff))
+                if not count or self.memory_v5_read_queries != count or self.memory_semantic.slot_count != count:
+                    raise ValueError("template count must equal memory_v5_read_queries and memory_semantic.slot_count")
+                if self.memory_v7_write_retract_steps:
+                    raise ValueError("template occupancy does not support write retraction")
             if getattr(self, "memory_v0920_query_context", False) and not self.memory_v0920_input_read:
                 raise ValueError("memory_v0920_query_context needs memory_v0920_input_read (the input-read questions).")
             if getattr(self, "memory_v0920_prev_readback", False):
@@ -618,6 +634,8 @@ class Pi0Config(_model.BaseModelConfig):
                 if not self.memory_v6_token_writes:
                     raise ValueError("memory_v0920_prev_readback reads the note back with its token write keys (memory_v6_token_writes).")
             if self.memory_vis_bank:
+                if self.memory_vis_prefill_steps < 0:
+                    raise ValueError("memory_vis_prefill_steps must be nonnegative")
                 if not self.memory_v0920_input_read:
                     raise ValueError("memory_vis_bank needs memory_v0920_input_read (the visual tokens join the input read).")
                 if not self.memory_v35_enabled:
@@ -995,6 +1013,14 @@ class Pi0Config(_model.BaseModelConfig):
                             }
                             if self.memory_v35_enabled
                             else {}
+                        ),
+                        **(
+                            {
+                                "memory_vis_prefill_mask": jax.ShapeDtypeStruct([batch_size, self.memory_vis_prefill_steps], bool),
+                                "memory_vis_prefill_state": jax.ShapeDtypeStruct([batch_size, self.memory_vis_prefill_steps, self.action_dim], jnp.float32),
+                                **({"memory_vis_prefill_image": jax.ShapeDtypeStruct([batch_size, self.memory_vis_prefill_steps, 224, 224, 3], jnp.float32)}
+                                   if self.memory_vis_image_write else {}),
+                            } if self.memory_vis_bank and self.memory_vis_prefill_steps else {}
                         ),
                         **(
                             {
