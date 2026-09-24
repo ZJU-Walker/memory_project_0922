@@ -5,7 +5,7 @@ participate in the model PyTree, change ``MemoryState``, or alter the online wri
 rule.  They are intended for evaluation interventions and diagnostics, where a
 single memory state must be copied into independent counterfactual branches.
 
-Hashes and snapshots cover *both* ``fast_weights`` and ``momentum``.  Hashing is
+Hashes and snapshots cover ``fast_weights``, ``momentum`` and optional template occupancy. Hashing is
 bit-exact and canonical across NumPy and JAX arrays of the same dtype, shape, and
 contents.  Snapshot metadata is restricted to JSON values so an NPZ never needs
 pickle to load.
@@ -103,6 +103,22 @@ def validate_memory_state(state: MemoryState, *, require_finite: bool = False) -
             )
         if require_finite and (not np.all(np.isfinite(fast)) or not np.all(np.isfinite(momentum))):
             raise ValueError(f"non-finite values in fast-memory leaf {name}")
+    if state.slot_written is not None:
+        slots = _host_array(state.slot_written, path="slot_metadata/written")
+        if slots.ndim != 2 or slots.shape[0] != batch_size or slots.shape[1] < 1:
+            raise ValueError("slot_written must have shape [batch, positive slot count]")
+        if _canonical_dtype_name(slots.dtype) != "float32":
+            raise TypeError("slot_written must be float32")
+        if require_finite and not np.all(np.isfinite(slots)):
+            raise ValueError("non-finite slot_written")
+
+
+def _state_groups(state):
+    # An absent optional group leaves legacy hashes/snapshot bytes unchanged.
+    yield "fast_weights", state.fast_weights
+    yield "momentum", state.momentum
+    if state.slot_written is not None:
+        yield "slot_metadata", {"written": state.slot_written}
 
 
 def clone_memory_state(state: MemoryState, *, backend: ArrayBackend = "preserve") -> MemoryState:
@@ -118,6 +134,7 @@ def clone_memory_state(state: MemoryState, *, backend: ArrayBackend = "preserve"
     return MemoryState(
         fast_weights={name: _clone_array(value, backend) for name, value in state.fast_weights.items()},
         momentum={name: _clone_array(value, backend) for name, value in state.momentum.items()},
+        slot_written=None if state.slot_written is None else _clone_array(state.slot_written, backend),
     )
 
 
@@ -142,7 +159,7 @@ def memory_state_hash(state: MemoryState) -> str:
     digest = hashlib.sha256()
     _hash_field(digest, "schema", SNAPSHOT_SCHEMA)
     _hash_field(digest, "state_hash_version", str(SNAPSHOT_VERSION))
-    for group_name, group in (("fast_weights", state.fast_weights), ("momentum", state.momentum)):
+    for group_name, group in _state_groups(state):
         _hash_field(digest, "group", group_name)
         _hash_field(digest, "leaf_count", str(len(group)))
         for name in sorted(group):
@@ -183,8 +200,8 @@ def memory_states_share_mutable_storage(left: MemoryState, right: MemoryState) -
 
     validate_memory_state(left)
     validate_memory_state(right)
-    left_leaves = [*left.fast_weights.values(), *left.momentum.values()]
-    right_leaves = [*right.fast_weights.values(), *right.momentum.values()]
+    left_leaves = jax.tree.leaves(left)
+    right_leaves = jax.tree.leaves(right)
     for left_leaf in left_leaves:
         if not isinstance(left_leaf, np.ndarray):
             continue
@@ -293,7 +310,7 @@ def save_memory_snapshot(
     arrays: dict[str, np.ndarray] = {}
     leaf_manifest = []
     array_index = 0
-    for group_name, group in (("fast_weights", snapshot.state.fast_weights), ("momentum", snapshot.state.momentum)):
+    for group_name, group in _state_groups(snapshot.state):
         for name in sorted(group):
             npz_key = f"array_{array_index:06d}"
             array = _canonical_host_array(group[name], path=f"{group_name}/{name}")
@@ -367,7 +384,7 @@ def load_memory_snapshot(
         _validate_manifest(manifest)
 
         expected_npz_keys = {_MANIFEST_KEY}
-        groups: dict[str, dict[str, Any]] = {"fast_weights": {}, "momentum": {}}
+        groups: dict[str, dict[str, Any]] = {"fast_weights": {}, "momentum": {}, "slot_metadata": {}}
         seen_paths = set()
         for leaf in manifest["leaves"]:
             _validate_leaf_manifest(leaf)
@@ -399,7 +416,8 @@ def load_memory_snapshot(
             raise ValueError(f"memory snapshot contains undeclared arrays: {sorted(extra_keys)}")
 
     snapshot = MemoryStateSnapshot(
-        state=MemoryState(fast_weights=groups["fast_weights"], momentum=groups["momentum"]),
+        state=MemoryState(fast_weights=groups["fast_weights"], momentum=groups["momentum"],
+                          slot_written=groups["slot_metadata"].get("written")),
         writes=manifest["writes"],
         metadata=_canonical_metadata(manifest["metadata"]),
         state_hash=manifest["state_hash"],
@@ -547,8 +565,10 @@ def _validate_leaf_manifest(leaf: Any) -> None:
     required = {"group", "name", "npz_key", "dtype", "shape"}
     if not isinstance(leaf, dict) or set(leaf) != required:
         raise ValueError(f"invalid memory snapshot leaf manifest: {leaf!r}")
-    if leaf["group"] not in ("fast_weights", "momentum"):
+    if leaf["group"] not in ("fast_weights", "momentum", "slot_metadata"):
         raise ValueError(f"invalid memory snapshot leaf group: {leaf['group']!r}")
+    if leaf["group"] == "slot_metadata" and leaf["name"] != "written":
+        raise ValueError("unknown template slot metadata")
     if not isinstance(leaf["name"], str) or not leaf["name"]:
         raise ValueError("memory snapshot leaf name must be a non-empty string")
     if not isinstance(leaf["npz_key"], str) or not leaf["npz_key"].startswith("array_"):

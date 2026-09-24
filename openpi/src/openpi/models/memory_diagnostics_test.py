@@ -90,6 +90,23 @@ def test_hash_is_deterministic_across_mapping_order_and_jax_numpy_backends():
     assert diagnostics.memory_state_hash(changed_momentum) != expected
 
 
+def test_template_occupancy_survives_forks_hashes_and_snapshots(tmp_path):
+    state = _numpy_state()._replace(slot_written=np.array([[1., 0.], [0., 1.]], dtype=np.float32))
+    clone = diagnostics.clone_memory_state(state)
+    diagnostics.assert_memory_states_equal(state, clone)
+    diagnostics.assert_memory_states_isolated(state, clone)
+    clone.slot_written[0, 1] = 1
+    assert state.slot_written[0, 1] == 0
+    assert diagnostics.memory_state_hash(state) != diagnostics.memory_state_hash(clone)
+    snapshot = diagnostics.create_memory_snapshot(state, writes=3)
+    path = diagnostics.save_memory_snapshot(tmp_path / 'slots.npz', snapshot)
+    restored = diagnostics.load_memory_snapshot(path)
+    diagnostics.assert_memory_states_equal(state, restored.state)
+    restored.state.slot_written[0, 1] = 1
+    with pytest.raises(ValueError, match='hash mismatch'):
+        diagnostics.validate_memory_snapshot(restored)
+
+
 @pytest.mark.parametrize(
     ("state", "error"),
     [
