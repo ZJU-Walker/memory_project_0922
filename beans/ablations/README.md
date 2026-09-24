@@ -45,8 +45,8 @@ with fresh optimizer, rather than accidentally fresh-initializing memory. Both s
 prefill; B is not purely free-running autoregressive training. No 500-step write-label ramp.
 
 Common: 4 GPUs, seed 42, v4e onset sampling/losses, lr 2.5e-5, 40 ticks, 5-frame stride, TBPTT25, decay 0.999/tick.
-User-selected batches: H200 `BATCH=16 ACCUM=1`; H100 `BATCH=8 ACCUM=1`. Both run without accumulation.
-Equal steps therefore expose H200 to twice as many training windows; report this confound in cross-cluster comparisons.
+User-selected batches: H200 `BATCH=16 ACCUM=1`; H100 `BATCH=12 ACCUM=1`. Both run without accumulation.
+Equal steps therefore expose H200 to 4/3 as many training windows; report this confound in cross-cluster comparisons.
 No automatic OOM batch reduction. A/B have separate config/experiment names, with per-run recipe guards.
 Auxiliary history is expensive (video decoding and frozen image encoding); measure throughput before large sweeps.
 

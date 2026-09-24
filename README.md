@@ -28,7 +28,7 @@ perfect recall or exact counting. The optional additive rows accumulate associat
 
 All rows use the same KI base **10000**, split (77 train / 6 val / 6 test), seed 42, 4 GPUs,
 learning-rate schedule, v4e onset sampling/loss weights, and decay 0.999/tick. By user choice, global batch is **16 on H200**
-and **8 on H100**, both without accumulation. This is a training-budget difference: at equal updates H200 sees twice as many
+and **12 on H100**, both without accumulation. This is a training-budget difference: at equal updates H200 sees 4/3 as many
 windows, so cross-cluster comparisons are not strictly bank-only ablations. The launcher never silently reduces batch.
 Every row trains its own A (250 updates, label writes), then loads **all its own A parameters** into B (3000 updates,
 predicted-content writes, fresh optimizer; no 500-step label-write ramp).
@@ -85,7 +85,7 @@ Do not use broad `pkill python` or `scancel <allocation>`: those can kill keep-a
 bash beans/ablations/run_tests.sh cpu
 GPUS=0,1,2,3 BATCH=16 WORKERS=8 bash beans/ablations/run_snap.sh smoke
 # For an auxiliary row, smoke that row on its target hardware too:
-GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 bash beans/ablations/run_vis8s.sh smoke
+GPUS=0,1,2,3 BATCH=12 ACCUM=1 WORKERS=4 bash beans/ablations/run_vis8s.sh smoke
 ```
 
 Smoke executes **A2 → B2**, including checkpoint loading. It has separate experiment names and no W&B.
@@ -96,19 +96,21 @@ mkdir -p beans/ablations/logs
 # Stanford 4 H200: SNAP; when outside an existing allocation set JOB=<allocation> GRES=4.
 setsid nohup env GPUS=0,1,2,3 BATCH=16 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_snap.sh > beans/ablations/logs/run_slot_snap.out 2>&1 < /dev/null &
 # Other node / four free cards: SNAP + visual
-setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_slot_vis8.out 2>&1 < /dev/null &
+setsid nohup env GPUS=0,1,2,3 BATCH=12 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_slot_vis8.out 2>&1 < /dev/null &
 # Other node / four free cards: SNAP + visual + sensory
-setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8s.sh > beans/ablations/logs/run_slot_vis8s.out 2>&1 < /dev/null &
+setsid nohup env GPUS=0,1,2,3 BATCH=12 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8s.sh > beans/ablations/logs/run_slot_vis8s.out 2>&1 < /dev/null &
 # Other node / four free cards: SNAP + sensory
-setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_state8.sh > beans/ablations/logs/run_slot_state8.out 2>&1 < /dev/null &
+setsid nohup env GPUS=0,1,2,3 BATCH=12 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_state8.sh > beans/ablations/logs/run_slot_state8.out 2>&1 < /dev/null &
 ```
 
 An 8-GPU node can run two rows with `GPUS=0,1,2,3` and `GPUS=4,5,6,7`.
-4×H200 uses `BATCH=16 ACCUM=1` (4 samples/GPU). 4×H100 uses `BATCH=8 ACCUM=1` (2 samples/GPU).
+4×H200 uses `BATCH=16 ACCUM=1` (4 samples/GPU). 4×H100 uses `BATCH=12 ACCUM=1` (3 samples/GPU).
 There is no gradient accumulation in either requested recipe. No automatic OOM fallback changes the batch.
 A250/B3000 and the learning rate are unchanged; record the hardware/batch difference in reports and smoke-test each target node.
 Each script chains A→B without user intervention. Rerunning the same command resumes a completed numeric checkpoint;
 a completed A is skipped. To start a new experiment use `RUN_NAME=slot_vis8_seed42_retry`, never delete an active directory.
+If you already launched the earlier H100 batch-8 recipe, stop that row and use a new name such as
+`RUN_NAME=slot_vis8s_b12`; do not resume its batch-8 checkpoint as a batch-12 ablation. The recipe guard enforces this.
 
 ```bash
 bash beans/ablations/ablation_ctl.sh status

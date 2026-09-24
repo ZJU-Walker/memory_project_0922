@@ -6,7 +6,7 @@ writer uses argmax under teacher forcing (as B9); deployment decodes autoregress
 Both stages retain label-supervised sentence-history prefill. Auxiliary banks replay
 past observations without gradients before a window, and persist across rollout ticks.
 All rows share KI base/10000, seed, v4e sampling/losses and bank decay.
-The requested hardware recipes use batch 16 on H200 and batch 8 on H100, no accumulation.
+The requested hardware recipes use batch 16 on H200 and batch 12 on H100, no accumulation.
 Slot addresses and their count come from the training vocabulary, never task names.
 """
 

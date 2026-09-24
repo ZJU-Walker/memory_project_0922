@@ -1,6 +1,6 @@
 # beans0922 — LED bean-scoop memory policy (real YAM station)
 
-Current ablations use template-slot SNAP, per-row A250→B3000: global batch 16 on 4 H200, 8 on 4 H100, both ACCUM=1.
+Current ablations use template-slot SNAP, per-row A250→B3000: global batch 16 on 4 H200, 12 on 4 H100, both ACCUM=1.
 See [the current runbook](../README.md) and [mechanism](ablations/README.md). The sections below preserve historical runs,
 including token-bank v4e, and are not launch instructions for the new ablations.
 
