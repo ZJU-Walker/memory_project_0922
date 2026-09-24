@@ -807,13 +807,14 @@ class Pi0(_model.BaseModel):
                     # itself is `self.memory` (configured as a linear delta bank); these are its pooler, key/value maps, fixed
                     # read queries, gate and slot embeddings. Every leaf name carries "memory" (fresh-init / grad-clip rules).
                     self.memory_vis_bank = bool(getattr(config, "memory_vis_bank", False))
+                    self.memory_vis_layer8 = bool(config.memory_vis_layer8)
                     self.memory_vis_prefill_steps = int(config.memory_vis_prefill_steps)
                     self.memory_vis_slots = int(getattr(config, "memory_vis_slots", 8))
                     self.memory_vis_input_rms = getattr(config, "memory_vis_input_rms", None)
                     self.memory_vis_zero_read = bool(getattr(config, "memory_vis_zero_read", False))
                     self.memory_vis_image_write = bool(getattr(config, "memory_vis_image_write", True))
                     self.memory_vis_state_slot = bool(getattr(config, "memory_vis_state_slot", False))
-                    if self.memory_vis_bank:
+                    if self.memory_vis_bank and not self.memory_vis_layer8:
                         vis_dk = config.memory.d_key
                         width = paligemma_config.width
                         if self.memory_vis_image_write:
@@ -987,6 +988,15 @@ class Pi0(_model.BaseModel):
                     jnp.zeros((sem_slots, config.memory_semantic.d_value), dtype=jnp.float32)
                 )
 
+        # Append new parameters AFTER all historical parameters: shared A9 initializers
+        # consume exactly the same RNG sequence as sentence-only SNAP.
+        if getattr(self, "memory_vis_layer8", False):
+            self._init_vis_layer8(
+                width=paligemma_config.width, num_heads=config.memory_query_heads,
+                dtype=jnp.dtype(config.dtype), qk_norm=config.memory_qk_norm,
+                action_dim=config.action_dim, rngs=rngs,
+            )
+
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
 
@@ -1060,6 +1070,8 @@ class Pi0(_model.BaseModel):
             if getattr(self, "memory_vis_bank", False):
                 return extra + int(self.memory_vis_slots)
             return extra
+        if getattr(self, "memory_vis_layer8", False):
+            extra += self.memory_vis_slots
         return self.memory_query_tokens + extra
 
     def _v32_content_gate(self) -> at.Array:
@@ -1850,6 +1862,7 @@ class Pi0(_model.BaseModel):
         semantic_state: _memory.MemoryState | None = None,
         v5_prev_tokens: at.Array | None = None,
         v5_prev_mask: at.Array | None = None,
+        sensory_state: at.Array | None = None,
     ) -> dict[str, at.Array | _gemma.KVCache]:
         """Run only blocks 0..memory_layer and materialize the dual-query interface.
 
@@ -2004,6 +2017,22 @@ class Pi0(_model.BaseModel):
                 "sem_injected_post_cast_rms": sem_post_cast_rms.astype(jnp.float32),
             }
 
+        vis_outputs = {}
+        if getattr(self, "memory_vis_layer8", False):
+            # The auxiliary writer sees memory-blind INPUT image tokens / raw state;
+            # its reader follows A9's layer-8 instruction + previous-note conditioning.
+            vis_tokens, vis_valid, vis_retrieved, vis_queries, vis_pre, vis_post = self.vis_layer8_read_tokens(
+                memory_state, h8_all[:, sem_num_img:], sem_context_mask, prefix_tokens.dtype,
+                prev_tokens=v5_prev_tokens, prev_mask=v5_prev_mask, zero_read=zero_read,
+            )
+            vis_keys, vis_values, vis_pooled = self.vis_write_kv(prefix_tokens[:, :top_token_count], sensory_state)
+            memory_tokens = jnp.concatenate([memory_tokens, vis_tokens], axis=1)
+            vis_outputs = dict(
+                vis_keys=vis_keys, vis_values=vis_values, vis_pooled=vis_pooled,
+                vis_retrieved=vis_retrieved, vis_queries=vis_queries, vis_valid=vis_valid,
+                vis_injected_pre_cast_rms=vis_pre, vis_injected_post_cast_rms=vis_post,
+            )
+
         if getattr(self, "memory_mask_zero_tokens", False):
             # Per-slot late-block key visibility (Pi0Config.memory_mask_zero_tokens): an
             # exactly-zero token is invisible to every other row, so no cotangent enters its
@@ -2014,6 +2043,7 @@ class Pi0(_model.BaseModel):
 
         return {
             **sem_outputs,
+            **vis_outputs,
             "cache": cache,
             "h8_all": h8_all,
             "h8_top": h8_top,
@@ -2237,7 +2267,79 @@ class Pi0(_model.BaseModel):
             new = jax.lax.cond(jnp.any(item["valid"]), write_past, lambda old: old, bank)
             return jax.tree.map(jax.lax.stop_gradient, new), None
 
-        return jax.lax.scan(tick, state, xs)[0]
+        replayed = jax.lax.scan(tick, state, xs)[0]
+        if getattr(self, "memory_vis_layer8", False):
+            # Delta writes never change hidden weights. Truncate history through
+            # the dynamic output matrix, but reattach the SAME static hidden
+            # leaves so the three-layer core can learn from the current window.
+            # Forward values are identical; no gradient enters historical writes.
+            replayed = replayed._replace(fast_weights={
+                name: leaf if name == self.memory._output_weight_name else state.fast_weights[name]
+                for name, leaf in replayed.fast_weights.items()
+            })
+        return replayed
+
+    def _init_vis_layer8(self, *, width, num_heads, dtype, qk_norm, action_dim, rngs):
+        """Identical auxiliary parameter layout/initializers across all three source ablations."""
+        slots, dk = self.memory_vis_slots, self.memory.config.d_key
+        self.memory_vis_pooler = MemoryQueryCompressor(
+            num_queries=slots, width=width, num_heads=num_heads, compute_dtype=dtype, qk_norm=qk_norm, rngs=rngs,
+        )
+        self.memory_vis_state_proj = nnx.Linear(action_dim, width, rngs=rngs)
+        self.memory_vis_state_key = nnx.Param(jax.random.normal(rngs.params(), (dk,), dtype=jnp.float32) / jnp.sqrt(jnp.float32(dk)))
+        self.memory_vis_key_proj = nnx.Linear(width, dk, use_bias=False, rngs=rngs)
+        self.memory_vis_value_proj = nnx.Linear(width, width, use_bias=False, rngs=rngs)
+        self.memory_vis_value_proj.kernel.value = jnp.eye(width, dtype=jnp.float32)
+        self.memory_vis_slot_key = nnx.Param(jax.random.normal(rngs.params(), (slots, dk), dtype=jnp.float32) / jnp.sqrt(jnp.float32(dk)))
+        self.memory_vis_read_query_bank = nnx.Param(
+            jax.random.normal(rngs.params(), (slots, width), dtype=jnp.float32) / jnp.sqrt(jnp.float32(width))
+        )
+        self.memory_vis_read_conditioner = MemoryQueryConditioner(
+            num_queries=slots, width=width, num_heads=num_heads, compute_dtype=dtype, qk_norm=qk_norm, rngs=rngs,
+        )
+        self.memory_vis_query_proj = nnx.Linear(width, dk, use_bias=False, rngs=rngs)
+        self.memory_vis_inst_query_proj = nnx.Linear(width, width, use_bias=False, rngs=rngs)
+        self.memory_vis_inst_query_proj.kernel.value = jnp.eye(width, dtype=jnp.float32)
+        self.memory_vis_prev_query_proj = nnx.Linear(width, width, use_bias=False, rngs=rngs)
+        self.memory_vis_prev_query_proj.kernel.value = jnp.zeros((width, width), dtype=jnp.float32)
+        self.memory_vis_inject_w = nnx.Param(self.memory_sem_inject_w.value.copy())
+        self.memory_vis_slot_embedding = nnx.Param(jnp.zeros((slots, width), dtype=jnp.float32))
+
+    def vis_layer8_read_tokens(
+        self, state, h8_text, context_mask, dtype, *, prev_tokens=None, prev_mask=None, zero_read=False,
+    ):
+        """Independent auxiliary queries with the SAME A9 conditioning and calibration equations.
+
+        Only bank/reader parameters differ from v5_semantic_queries / _v4_inject_semantic.
+        State-digit exclusion is supplied by the same interface context mask as the sentence reader.
+        """
+        h8_text = h8_text.astype(jnp.float32)
+        weight = context_mask.astype(jnp.float32)[..., None]
+        mu, sd = self._v5_reference_stats(self.memory_v5_sentence_len)
+        context = (h8_text - mu) / sd * weight
+        inst = jnp.sum(context, axis=1) / jnp.maximum(jnp.sum(weight, axis=1), 1.0)
+        inst = _memory.l2_normalize(inst) * jnp.any(context_mask, axis=-1).astype(jnp.float32)[:, None]
+        base = self.memory_vis_read_query_bank.value[None] + self.memory_vis_inst_query_proj(inst)[:, None, :]
+        if prev_tokens is not None:
+            if prev_mask is None:
+                raise ValueError("prev_tokens needs prev_mask.")
+            prev = self.v5_encode_sentence(prev_tokens, prev_mask)[:, :base.shape[-1]]
+            shift = self.memory_vis_prev_query_proj(prev.astype(jnp.float32)).astype(jnp.float32)
+            base = base + (shift * jnp.any(prev_mask, axis=-1).astype(jnp.float32)[:, None])[:, None, :]
+        queries = self.memory_vis_read_conditioner(base, context, context_mask)
+        queries = _memory.l2_normalize(self.memory_vis_query_proj(queries.astype(jnp.float32)).astype(jnp.float32))
+        retrieved = self.memory.read_key(state, queries).astype(jnp.float32)
+        if zero_read or self.memory_vis_zero_read:
+            retrieved = jnp.zeros_like(retrieved)
+        rms = jnp.sqrt(jnp.mean(jnp.square(retrieved), axis=-1, keepdims=True) + 1e-12)
+        injected = jnp.tanh(self.memory_vis_inject_w.value) * (
+            retrieved * (self.memory_sem_injection_c / jnp.maximum(rms, self.memory_sem_injection_tau))
+        )
+        tokens = (injected + self.memory_vis_slot_embedding.value[None]).astype(dtype)
+        valid = jnp.any(tokens != 0, axis=-1) if self.memory_mask_zero_tokens else jnp.ones(tokens.shape[:2], dtype=bool)
+        return (tokens, valid, retrieved, queries,
+                jnp.sqrt(jnp.mean(jnp.square(injected), axis=(1, 2))),
+                jnp.sqrt(jnp.mean(jnp.square(tokens.astype(jnp.float32)), axis=(1, 2))))
 
     def vis_read_tokens(
         self, state: _memory.MemoryState, front_tokens: at.Array, dtype: jnp.dtype, *, zero_read: bool = False
@@ -2413,6 +2515,7 @@ class Pi0(_model.BaseModel):
         semantic_state: _memory.MemoryState | None = None,
         v5_prev_tokens: at.Array | None = None,
         v5_prev_mask: at.Array | None = None,
+        sensory_state: at.Array | None = None,
     ) -> dict[str, at.Array | _gemma.KVCache]:
         """Run blocks 0..8, form q/z, inject the memory reads, then run blocks 9..17 once.
 
@@ -2434,6 +2537,7 @@ class Pi0(_model.BaseModel):
             semantic_state=semantic_state,
             v5_prev_tokens=v5_prev_tokens,
             v5_prev_mask=v5_prev_mask,
+            sensory_state=sensory_state,
         )
         batch, prefix_len = prefix_mask.shape
         mem_len = self._memory_token_total
@@ -4841,6 +4945,7 @@ class Pi0(_model.BaseModel):
                 semantic_state=semantic_state,
                 v5_prev_tokens=v5_prev_tokens,
                 v5_prev_mask=v5_prev_mask,
+                sensory_state=preprocessed.state,
             )
         kv_cache = prepared["cache"]
         final_prefix = prepared["final_prefix"]
@@ -5941,6 +6046,7 @@ class Pi0(_model.BaseModel):
                     top_token_count=top_tokens,
                     state_token_mask=state_token_mask,
                     semantic_state=read_sem_state,
+                    sensory_state=obs_k.state,
                     **v5_read_kwargs,
                 )
             if dual_view:
@@ -5955,6 +6061,7 @@ class Pi0(_model.BaseModel):
                     top_token_count=top_tokens,
                     state_token_mask=state_token_mask,
                     semantic_state=sem_state if v4_on else None,
+                    sensory_state=obs_k.state,
                     **v5_read_kwargs,
                 )
                 write_tokens = full_prepared["write_tokens"]

@@ -13,7 +13,10 @@ training recipe, except RTC15 and fresh KI initialization, with A500 -> B3000.
 Only its B stage batches the frozen image tower outside the sequence scan; A stays unchanged.
 The paired snap_token_mlp3_a9align row changes only the writer representation to
 whitened contextual token keys/standardized token values; no pointer or read-back.
-The requested hardware recipes use batch 16 on H200 and batch 12 on H100, no accumulation.
+The three *_mlp3_a9align auxiliary rows add source-controlled 3-layer banks with
+the A9-conditioned layer-8 read, retaining the sentence-only baseline unchanged.
+Hardware recipes use effective batch 16 on H200 and 12 on H100; the new 80GB-H100
+auxiliary runbook uses accumulation 3, with no automatic OOM fallback.
 Slot addresses and their count come from the training vocabulary, never task names.
 """
 
@@ -153,7 +156,12 @@ SENTENCE_ROWS = ("snap", "snap_mlp3")
 DIRECT_READ_ROWS = (*SENTENCE_ROWS, *ROWS)
 A9ALIGN_ROW = "snap_mlp3_a9align"
 TOKEN_A9ALIGN_ROW = "snap_token_mlp3_a9align"
-A9ALIGN_ROWS = (A9ALIGN_ROW, TOKEN_A9ALIGN_ROW)
+A9ALIGN_AUX_ROWS = {
+    "vis8_mlp3_a9align": (True, False),
+    "state8_mlp3_a9align": (False, True),
+    "vis8s_mlp3_a9align": (True, True),
+}
+A9ALIGN_ROWS = (A9ALIGN_ROW, TOKEN_A9ALIGN_ROW, *A9ALIGN_AUX_ROWS)
 ALL_ROWS = (*DIRECT_READ_ROWS, *A9ALIGN_ROWS)
 
 
@@ -181,12 +189,30 @@ def a9align_config(existing: dict, *, stage: str, smoke: bool = False, row: str 
     B loads every parameter of this experiment's own A500, with a fresh optimizer.
     User 2026-09-24: leave A's execution path untouched; B computes the frozen image
     tower outside the rematerialized tick scan. No parameter or reader-layout change.
+    Opt-in auxiliary rows append eight independent layer-8-conditioned reads and
+    activate visual/state writes in the previously inactive core; common A9 rules stay fixed.
     """
     if row not in A9ALIGN_ROWS or stage not in ("A", "B"):
         raise ValueError(f"Invalid aligned row/stage: {row}/{stage}")
     source = existing[f"pi05_yam_mem_v5_beans{stage}9"]
     name = f"pi05_yam_beans0922_ab_{row}" + ("_A" if stage == "A" else "") + ("_smoke" if smoke else "")
     model = dataclasses.replace(source.model, simulated_delay=15, memory_v0920_vision_outside_scan=stage == "B")
+    freeze = source.freeze_filter
+    if row in A9ALIGN_AUX_ROWS:
+        image, state = A9ALIGN_AUX_ROWS[row]
+        model = dataclasses.replace(
+            model, memory_vis_bank=True, memory_vis_layer8=True, memory_vis_slots=VIS_SLOTS,
+            memory_vis_image_write=image, memory_vis_state_slot=state, memory_vis_prefill_steps=PREFILL_STEPS,
+        )
+        # The formerly inactive visual core becomes the auxiliary delta bank. Only
+        # its m0 layers train; historical projections/gates/compressors stay frozen.
+        # All shared non-auxiliary freeze rules remain exactly A9/B9's.
+        pattern = freeze.pattern.pattern
+        if "memory/|" not in pattern or "memory_sem_inject_w" not in pattern:
+            raise ValueError("Unexpected historical A9 freeze filter")
+        pattern = pattern.replace("memory/|", "memory/(?!m0/)|", 1)
+        pattern = pattern.replace("memory_sem_inject_w", "memory_sem_inject_w|memory_vis_inject_w", 1)
+        freeze = nnx_utils.PathRegex(pattern, sep=freeze.sep)
     if row == TOKEN_A9ALIGN_ROW:
         # A whole sentence still passes one change/confidence gate. Its valid tokens
         # then commit sequentially, with decay once per tick (not once per token).
@@ -203,7 +229,7 @@ def a9align_config(existing: dict, *, stage: str, smoke: bool = False, row: str 
         ignored_source_allowlist=(), source_cast_dtype="float32",
     )
     return dataclasses.replace(
-        source, name=name, model=model,
+        source, name=name, model=model, freeze_filter=freeze,
         data=_b._with_beans_data(source.data), weight_loader=loader,  # noqa: SLF001
         checkpoint_base_dir=str(checkpoint_root()),
         assets_base_dir=str(_b._root() / "beans/assets"),  # noqa: SLF001

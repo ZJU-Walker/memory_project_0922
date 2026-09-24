@@ -5,14 +5,16 @@ import numpy as np
 import pytest
 
 from openpi.models.pi0_v0922ab_test import _tiny
+from openpi.models.pi0_a9align_aux_test import TinyAlignedAux
 from openpi.models.pi0_v35_test import _single_observation
 from openpi.models import gemma
 from v5_heldout_video import make_decode_fn
 
 
-def test_offline_decode_requires_and_returns_carried_auxiliary_state(monkeypatch):
+@pytest.mark.parametrize("layer8", [False, True])
+def test_offline_decode_requires_and_returns_carried_auxiliary_state(monkeypatch, layer8):
     monkeypatch.setattr(gemma, 'PALIGEMMA_VOCAB_SIZE', 128)
-    model = _tiny(image=False, state=True)
+    model = TinyAlignedAux(image=False, state=True) if layer8 else _tiny(image=False, state=True)
     observation = _single_observation()
     sem = model.memory_semantic.init_state(1)
     visual = model.memory.init_state(1)

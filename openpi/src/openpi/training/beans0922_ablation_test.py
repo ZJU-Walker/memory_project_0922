@@ -179,6 +179,36 @@ def test_token_aligned_changes_only_writer_representation(stage):
         assert token.weight_loader.params_path != slot.weight_loader.params_path
 
 
+@pytest.mark.parametrize("row", ab.A9ALIGN_AUX_ROWS)
+@pytest.mark.parametrize("stage", ["A", "B"])
+def test_aligned_auxiliary_rows_preserve_sentence_bank_reader_and_recipe(row, stage):
+    suffix = "_A" if stage == "A" else ""
+    base = config.get_config(f"pi05_yam_beans0922_ab_{ab.A9ALIGN_ROW}{suffix}")
+    variant = config.get_config(f"pi05_yam_beans0922_ab_{row}{suffix}")
+    image, state = ab.A9ALIGN_AUX_ROWS[row]
+    assert variant.model == dataclasses.replace(
+        base.model, memory_vis_bank=True, memory_vis_layer8=True, memory_vis_slots=8,
+        memory_vis_image_write=image, memory_vis_state_slot=state, memory_vis_prefill_steps=ab.PREFILL_STEPS,
+    )
+    assert variant.model.memory == variant.model.memory_semantic == base.model.memory
+    assert dataclasses.replace(variant, name=base.name, model=base.model,
+                               freeze_filter=base.freeze_filter, weight_loader=base.weight_loader) == base
+    for path in ("memory/m0/w0", "memory/m0/w1", "memory/m0/w2", "memory/m0/w3", "memory_vis_key_proj/kernel",
+                 "memory_vis_read_conditioner/output_proj/kernel", "memory_vis_prev_query_proj/kernel"):
+        assert not variant.freeze_filter(tuple(path.split("/")), None), path
+    for path in ("memory/w_k/kernel", "memory/gate/kernel", "memory_vis_inject_w", "memory_sem_inject_w",
+                 "read_query_compressor/query_bank", "write_query_compressor/query_bank", "PaliGemma/img/kernel"):
+        assert variant.freeze_filter(tuple(path.split("/")), None), path
+    if stage == "B":
+        assert variant.weight_loader.params_path.endswith(f"slot_{row}_A/500/params")
+
+
+def test_aligned_auxiliary_source_flags_are_the_only_model_differences():
+    models = [config.get_config(f"pi05_yam_beans0922_ab_{row}").model for row in ab.A9ALIGN_AUX_ROWS]
+    assert all(dataclasses.replace(m, memory_vis_image_write=True, memory_vis_state_slot=True)
+               == models[-1] for m in models)
+
+
 @pytest.mark.parametrize("row", ab.A9ALIGN_ROWS)
 def test_external_checkpoint_root_is_shared_by_own_a_loader_and_b_saves(monkeypatch, tmp_path, row):
     monkeypatch.setenv("OPENPI_BEANS_AB_CHECKPOINT_ROOT", str(tmp_path))

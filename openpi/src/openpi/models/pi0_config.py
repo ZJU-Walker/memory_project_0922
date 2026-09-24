@@ -391,6 +391,10 @@ class Pi0Config(_model.BaseModelConfig):
     # embedding, appended at the INPUT after the sentence-bank tokens (16 memory tokens for 8 + 8). Needs
     # memory_v0920_input_read and memory_v35_enabled (the tick transition). Default off: every existing config is bit-identical.
     memory_vis_bank: bool = False
+    # A9-aligned auxiliary bank: eight instruction/previous-note-conditioned reads at
+    # the layer-8 boundary, with A9 semantic tanh/RMS calibration (not input RMS).
+    # Retains the historical 16 inactive visual columns and the unchanged sentence block.
+    memory_vis_layer8: bool = False
     # Maximum past ticks replayed without gradients before a training window (0 = legacy empty bank).
     memory_vis_prefill_steps: int = 0
     memory_vis_slots: int = 8
@@ -636,7 +640,16 @@ class Pi0Config(_model.BaseModelConfig):
             if self.memory_vis_bank:
                 if self.memory_vis_prefill_steps < 0:
                     raise ValueError("memory_vis_prefill_steps must be nonnegative")
-                if not self.memory_v0920_input_read:
+                if self.memory_vis_layer8:
+                    if (self.memory_v0920_input_read or not self.memory_v5_sentence_bank
+                            or self.memory_architecture != "v32_layer8_dual_query"
+                            or self.memory_v7_no_visual_block or self.memory_v4_visual_injection):
+                        raise ValueError("memory_vis_layer8 needs the A9 sentence/layer-8 layout, with legacy visual injection off.")
+                    if not (self.memory_v5_query_standardize and self.memory_v5_query_prev_sentence):
+                        raise ValueError("memory_vis_layer8 needs standardized instruction and previous-sentence conditioning.")
+                    if self.memory_vis_input_rms is not None:
+                        raise ValueError("memory_vis_layer8 uses A9 layer-8 calibration, not memory_vis_input_rms.")
+                elif not self.memory_v0920_input_read:
                     raise ValueError("memory_vis_bank needs memory_v0920_input_read (the visual tokens join the input read).")
                 if not self.memory_v35_enabled:
                     raise ValueError("memory_vis_bank needs memory_v35_enabled (the per-tick bank transition).")
@@ -655,7 +668,7 @@ class Pi0Config(_model.BaseModelConfig):
                     raise ValueError("memory_vis_input_rms must be positive or None.")
                 if not (self.memory_vis_image_write or self.memory_vis_state_slot):
                     raise ValueError("memory_vis_bank needs at least one write source (memory_vis_image_write or memory_vis_state_slot).")
-            elif self.memory_vis_state_slot or not self.memory_vis_image_write:
+            elif self.memory_vis_layer8 or self.memory_vis_state_slot or not self.memory_vis_image_write:
                 raise ValueError("memory_vis_state_slot / memory_vis_image_write need memory_vis_bank.")
             if self.memory_task_conditioned_write and self.memory_architecture != "v32_layer8_dual_query":
                 raise ValueError("memory_task_conditioned_write requires the v3.2 dual-query architecture.")

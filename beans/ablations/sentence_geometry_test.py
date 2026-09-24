@@ -62,3 +62,18 @@ def test_token_probe_scores_latest_contexts_and_reports_whole_sentence_interfere
         assert np.isfinite(np.asarray(report["matrices"]["distinct_context_hidden_feature"])).all()
     finally:
         gemma.PALIGEMMA_VOCAB_SIZE = old
+
+
+def test_conditioned_slot_probe_does_not_require_a_direct_input_reader(monkeypatch):
+    from openpi.models import gemma
+    from openpi.models.pi0_a9align_aux_test import TinyAlignedAux
+
+    monkeypatch.setattr(gemma, "PALIGEMMA_VOCAB_SIZE", 128)
+    model = TinyAlignedAux()
+    model.memory_v5_slot_max_diff = 1
+    assert not getattr(model, "memory_template_read", False)
+    assert not hasattr(model, "memory_template_rows")
+    report = geometry.measure(model)
+    assert len(report["single_write_recall_cosines"]) == 3
+    assert min(report["single_write_recall_cosines"]) > .99999
+    assert np.isfinite(report["matrices"]["template_hidden_feature"]).all()

@@ -11,6 +11,8 @@ B9's template writer is paired with direct template reads instead of learned ret
 Separate A9-aligned rows retain **eight conditioned queries at layer 8** instead: the sentence-slot
 `snap_mlp3_a9align` ([section 5](#5-a9b9-aligned-snap-mlp3)) and its token-writer control
 `snap_token_mlp3_a9align` ([section 6](#6-token-mlp3-a9-aligned-writer-control-new-node)).
+The complete **four-way A9/B9-aligned slot ablation** is in [section 7](#7-four-way-a9b9-aligned-slot-ablation),
+separate from the older input-read rows below.
 
 Templates are induced from the supplied training sentence vocabulary by token differences; no beans phase names or fixed
 five-way task rules are coded into discovery. The current 20-sentence vocabulary produces **5 addresses**. This is not
@@ -425,3 +427,124 @@ Optional storage override: add `OPENPI_BEANS_AB_CHECKPOINT_ROOT=/absolute/checkp
 The A/B saves, resume lookup and B's A-checkpoint loader all use this root; KI source weights and logs remain in the
 repository. The recipe guard records the override and refuses to silently resume from a different root. Node-local
 `/scr` is **not permanent storage**: archive important checkpoints before the node/allocation is cleaned up.
+
+## 7. Four-way A9/B9-aligned slot ablation
+
+2026-09-24: keep the already-running `snap_mlp3_a9align` baseline. Add three independent auxiliary rows;
+do not replace old input-read recipes or resume their checkpoints into the new rows.
+
+| experiment | row / `run_<row>.sh` | auxiliary writes per valid tick |
+| --- | --- | --- |
+| SNAP (sentence only; already running) | `snap_mlp3_a9align` | none |
+| SNAP + visual | `vis8_mlp3_a9align` | 8 front-camera pooled associations |
+| SNAP + sensory | `state8_mlp3_a9align` | 1 normalized proprioceptive-state association |
+| SNAP + visual + sensory | `vis8s_mlp3_a9align` | 8 visual + 1 state association into **one shared auxiliary bank** |
+
+All four keep section5's A9/B9 sentence-template writer, whitening, 3x1024 hidden layers, output-only delta,
+**8 instruction/previous-sentence-conditioned queries and layer8 injection**. No input reader, token write, pointer,
+or token read-back. Keep decay .99, gate .5, state masking .5, RTC15, stride5/T40/TBPTT25, sentence history16,
+25/25/50 sampling with **pad75**, original losses, A LR5e-5/B LR2.5e-5, seed42 and split/labels.
+A retains inside-scan vision; B retains outside-scan image encoding. KI10000 initialization, RTC, batch and lengths
+still differ from historical A9/B9: this is recipe alignment, not an exact historical reproduction.
+
+The auxiliary bank uses the formerly inactive visual core, with the same **3x1024 delta-bank configuration** as the
+sentence bank. Its 8 independent queries use the same instruction standardization, previous-note conditioning,
+state-digit exclusion and layer8 tanh/RMS calibration as A9. They are appended after the historical 16 inactive visual
+columns and 8 sentence columns, preserving earlier positions (24 -> 32 memory columns). Auxiliary columns are absent
+from blocks0..8 and visible to blocks9+. At initialization empty-bank tokens are zero/masked; trained slot embeddings
+survive content-zeroing, as in A9. This adds capacity, not matched parameter/FLOP counts.
+
+Writes use memory-blind input image tokens / normalized state, with stopped source gradients. Pooler/projections,
+conditioned reader and auxiliary core `m0` learn; historical unused projections/gates/compressors stay frozen, and
+the new injection gate stays fixed at .5. The carried auxiliary transition commits once per valid tick (8/1/9 sequential
+associations), not an additional legacy visual write. Historical side diagnostics/loss coefficients are retained.
+Auxiliary history replays up to320 past ticks without gradients before the sampled window; padding neither writes nor
+decays. Its dynamic output is detached, while unchanged static MLP hidden weights retain their current-window gradients
+(history itself is still detached). Serving and held-out eval carry the bank across ticks; `--vis-zero-read` silences only auxiliary content.
+
+New parameters are initialized after all common A9 parameters, preserving their RNG order. All three auxiliary rows
+construct identical parameter trees/initializers (unused source modules stay inactive); only write-source flags differ.
+Each row independently starts **KI10000 -> own A500 -> own B3000**, never from the trained sentence-only A.
+B restores every own-A parameter with a fresh optimizer. Save every250; keep A250/500, B1000/2000/3000 plus two newest
+rolling saves. W&B stays `beans0922_ablation`; new auxiliary recipe is `a9align_slot_aux_mlp3_v1`.
+
+### Stop the two requested old runs
+
+On each compute node hosting an old run, inside its tmux, select that node's checkout. Example: Cardinal below;
+on Anvil use `/anvil/scratch/x-zmai/memory_project_beans0922` instead. Pull first to obtain the exact-run controller.
+If the two old runs live on different nodes, run this block on each; an absent run is a zero-match no-op.
+Stopping loses progress since the last save. Checkpoints/logs, allocations, 1GB keep-alives, aligned SNAP and token runs
+are preserved. No deletion or rename is necessary: the new rows own separate namespaces.
+
+```bash
+cd /fs/scratch/PAS2099/memory_project_beans0922
+git pull --ff-only origin main
+bash beans/ablations/ablation_ctl.sh status snap_mlp3 --run-name slot_snap_mlp3_b12
+bash beans/ablations/ablation_ctl.sh status vis8s --run-name slot_vis8s_b12
+bash beans/ablations/ablation_ctl.sh stop snap_mlp3 --run-name slot_snap_mlp3_b12
+bash beans/ablations/ablation_ctl.sh stop vis8s --run-name slot_vis8s_b12
+bash beans/ablations/ablation_ctl.sh status snap_mlp3 --run-name slot_snap_mlp3_b12
+bash beans/ablations/ablation_ctl.sh status vis8s --run-name slot_vis8s_b12
+nvidia-smi
+```
+
+Both final status checks should report zero matches. If other jobs still occupy the cards, choose a free allocation;
+do not kill unrelated processes.
+
+### Four-H100 launch: one new row per node
+
+For **80GB H100s**, use effective global **BATCH=12 ACCUM=3**: global microbatch4, one sequence/card, three accumulations
+per optimizer update (not batch36). Learning rate and sample count/update stay fixed, but RNG/reduction order and cost
+differ from ACCUM1; report this confound. The running baseline is untouched. For strict accumulation matching, run a
+separately named baseline with the same setting. H200's existing recipe remains BATCH16/ACCUM1/WORKERS8.
+No silent OOM fallback; full-model GPU fit must pass the target-node smoke. CPU tests alone cannot establish it.
+
+If needed, enter the W&B key without echoing it, in the same tmux shell:
+
+```bash
+read -rsp 'W&B API key: ' WANDB_API_KEY
+echo
+export WANDB_API_KEY
+```
+
+Choose `vis8_mlp3_a9align`, `state8_mlp3_a9align`, or `vis8s_mlp3_a9align` on each free node:
+
+```bash
+(
+  set -euo pipefail
+  # Run from the checkout selected above.
+  export NEW_ROW=vis8_mlp3_a9align
+  export JOB="${SLURM_JOB_ID:-}"
+  export GRES=4 CPUS=24 GPUS=0,1,2,3
+  export BATCH=12 ACCUM=3 WORKERS=4
+  export A_STEPS=500 STEPS=3000
+  export RUN_NAME="slot_${NEW_ROW}_b12_acc3"
+  export OPENPI_BEANS_BASE_PARAMS="$PWD/beans/checkpoints/pi05_yam_beans0922_base/beans0922_base/10000/params"
+  unset OPENPI_BEANS_AB_A_PARAMS OPENPI_BEANS_AB_CHECKPOINT_ROOT
+  mkdir -p beans/ablations/logs
+  {
+    bash "beans/ablations/run_${NEW_ROW}.sh" smoke &&
+    bash "beans/ablations/run_${NEW_ROW}.sh"
+  } 2>&1 | tee -a "beans/ablations/logs/run_${RUN_NAME}.out"
+)
+```
+
+Smoke A2 -> B2 uses separate names/W&B off; formal A500 -> B3000 starts only if both pass. Detach tmux with Ctrl+b,d.
+Terminal closure does not stop detached tmux, but Slurm expiry still stops the job: keep the allocation alive.
+From another tmux window, inspect e.g. the visual-only row (substitute the row consistently for the others):
+
+```bash
+pgrep -a -u "$USER" -f 'scripts/train.py|run_stages.sh'
+nvidia-smi
+tail -n 20 beans/ablations/logs/run_slot_vis8_mlp3_a9align_b12_acc3.out
+AUX_TRAIN_LOG=$(ls -t beans/ablations/logs/train_*slot_vis8_mlp3_a9align_b12_acc3_*.log 2>/dev/null | head -n 1)
+[ -n "$AUX_TRAIN_LOG" ] && tail -n 50 -f "$AUX_TRAIN_LOG"
+```
+
+Formal run names: `slot_vis8_mlp3_a9align_b12_acc3_A/B`. Checkpoints (substitute row for the other variants):
+
+- A: `beans/checkpoints/pi05_yam_beans0922_ab_vis8_mlp3_a9align_A/slot_vis8_mlp3_a9align_b12_acc3_A/{250,500}/params`
+- B: `beans/checkpoints/pi05_yam_beans0922_ab_vis8_mlp3_a9align/slot_vis8_mlp3_a9align_b12_acc3_B/{1000,2000,3000}/params`
+
+The recipe guard records row, batch, accumulation, lengths, prefill, KI source and optional checkpoint root; changed
+signatures require a new run name. The sentence-geometry helper accepts these configs and measures the sentence bank.

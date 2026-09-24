@@ -111,13 +111,19 @@ def measure(model):
         encoded = model.v5_encode_sentence(tokens, mask)
         raw_value = model.memory_sem_value_proj(encoded)
         keys, values = model.v5_sentence_kv(tokens, mask)
-        addresses = model.v5_template_keys()
+        if getattr(model, "memory_template_read", False):
+            addresses = model.v5_template_keys()
+        else:
+            # A9 stores the same template-keyed sentences, but its runtime reader
+            # is conditioned and has no direct-read memory_template_rows attribute.
+            # Probe the real WRITE keys, not invented fixed runtime read queries.
+            addresses = keys[jnp.asarray(reps, dtype=jnp.int32), 0]
     finally:
         model.v5_encode_sentence = encode
     keys, values = np.asarray(keys)[:, 0], np.asarray(values)[:, 0]
     addresses = np.asarray(addresses)
     if len(addresses) != len(reps) or not np.allclose(keys, addresses[groups], atol=1e-4):
-        raise ValueError("write keys do not match discovered direct-read addresses")
+        raise ValueError("write keys do not match discovered template addresses")
     bank = model.memory_semantic
     blank = bank.init_state(1)
     hidden = np.asarray(bank.hidden_key(blank, jnp.asarray(addresses)[None]))[0]

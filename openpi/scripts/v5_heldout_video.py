@@ -102,12 +102,13 @@ def make_decode_fn(model, max_decode_steps: int, *, carry_visual: bool = False):
                 prefix_tokens,
                 prefix_mask,
                 prefix_ar,
-                model.memory.init_state(batch),
+                visual_state,
                 top_token_count=top_tokens,
                 state_token_mask=state_token_mask,
                 semantic_state=sem_state,
                 v5_prev_tokens=prev_tokens,
                 v5_prev_mask=prev_mask,
+                sensory_state=preprocessed.state,
             )
         kv_cache = prepared["cache"]
         final_prefix = prepared["final_prefix"]

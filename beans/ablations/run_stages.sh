@@ -3,11 +3,14 @@
 set -euo pipefail
 ROOT="${MEMORY_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
 ROW=${CFG#pi05_yam_beans0922_ab_}
-case "$ROW" in snap|snap_mlp3|snap_mlp3_a9align|snap_token_mlp3_a9align|vis8|vis8s|state8|vis8s_add|state8_add) ;; *) exit 2 ;; esac
+case "$ROW" in snap|snap_mlp3|snap_mlp3_a9align|snap_token_mlp3_a9align|vis8_mlp3_a9align|state8_mlp3_a9align|vis8s_mlp3_a9align|vis8|vis8s|state8|vis8s_add|state8_add) ;; *) exit 2 ;; esac
 recipe=template_slot_ab_v1
 if [ "$ROW" = snap_mlp3 ]; then recipe=template_slot_snap_mlp3_v1; fi
 default_a_steps=250
 if [ "$ROW" = snap_mlp3_a9align ]; then recipe=a9align_snap_mlp3_v1; default_a_steps=500; fi
+case "$ROW" in vis8_mlp3_a9align|state8_mlp3_a9align|vis8s_mlp3_a9align)
+  recipe=a9align_slot_aux_mlp3_v1; default_a_steps=500 ;;
+esac
 default_run=slot_${ROW}
 if [ "$ROW" = snap_token_mlp3_a9align ]; then
   recipe=a9align_token_mlp3_v1; default_a_steps=500; default_run=token_mlp3_a9align

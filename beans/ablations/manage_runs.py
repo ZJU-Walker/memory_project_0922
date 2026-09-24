@@ -7,10 +7,11 @@ import re
 import signal
 import time
 
-ROWS = ("snap", "snap_mlp3", "snap_mlp3_a9align", "snap_token_mlp3_a9align", "vis8", "vis8s", "state8", "vis8s_add", "state8_add")
+ROWS = ("snap", "snap_mlp3", "snap_mlp3_a9align", "snap_token_mlp3_a9align", "vis8", "vis8s", "state8", "vis8s_add", "state8_add",
+        "vis8_mlp3_a9align", "state8_mlp3_a9align", "vis8s_mlp3_a9align")
 
 
-def processes(root, row=None):
+def processes(root, row=None, run_name=None):
     """Only this UID + this checkout; do not print environment contents."""
     all_procs = {}
     for entry in Path("/proc").iterdir():
@@ -53,6 +54,19 @@ def processes(root, row=None):
                 continue
         elif orphan and not config.startswith("pi05_yam_beans0922_"):
             continue
+        if run_name:
+            # Exact chain/experiment identity, not a row substring. This also
+            # selects smoke launchers and the A/B parent so B cannot auto-restart.
+            names = {run_name, f"smoke_{run_name}"}
+            experiments = {f"{name}_{stage}" for name in names for stage in ("A", "B")}
+            exp_arg = re.search(r"--exp-name(?:=|\s+)([\w-]+)(?:\s|$)", cmd)
+            run = env.get(b"RUN_NAME", b"").decode(errors="replace")
+            exp = exp_arg[1] if exp_arg else env.get(b"EXP", b"").decode(errors="replace")
+            if exp:
+                if exp not in experiments:
+                    continue
+            elif run not in names:
+                continue
         selected.add(pid)
     # Capture descendants before terminating launchers; includes dataloader workers.
     while True:
@@ -74,10 +88,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("status", "stop", "archive"))
     parser.add_argument("row", nargs="?", choices=ROWS)
+    parser.add_argument("--run-name", help="exact A/B chain name, e.g. slot_vis8s_b12 (status/stop only)")
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--apply", action="store_true", help="actually move obsolete ab_<row>/smoke_ab_<row> directories")
     args = parser.parse_args(); root = args.root.resolve()
-    found = processes(root, args.row)
+    if args.run_name and (not args.row or args.action == "archive" or not re.fullmatch(r"[\w-]+", args.run_name)):
+        parser.error("--run-name requires an explicit row and status/stop, with a simple run name")
+    found = processes(root, args.row, args.run_name)
     if args.action == "archive":
         if found:
             raise SystemExit("Stop this checkout's training before archiving.")

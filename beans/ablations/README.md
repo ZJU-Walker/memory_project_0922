@@ -8,6 +8,11 @@ It defaults to A500->B3000 and is documented in [the main README](../../README.m
 Its paired `snap_token_mlp3_a9align` row changes only the writer representation (four model flags), retaining the same
 three-layer bank and layer-8 reader. See [new-node commands](../../README.md#6-token-mlp3-a9-aligned-writer-control-new-node).
 The new-node commands do **not** stop the ongoing slot run.
+The complete four-way **A9/B9-aligned slot** group adds `vis8_mlp3_a9align`, `state8_mlp3_a9align`, and
+`vis8s_mlp3_a9align` beside the existing sentence-only baseline. Sentence and auxiliary reads are conditioned
+at **layer8**, never at the input. Auxiliary cores are also 3x1024. See [section7](../../README.md#7-four-way-a9b9-aligned-slot-ablation)
+for exact differences, validation boundaries, scoped old-run stop commands, and four-H100 launch.
+Old rows remain unchanged; their checkpoints must not initialize the new rows.
 
 ## One tick (direct-template rows only)
 
