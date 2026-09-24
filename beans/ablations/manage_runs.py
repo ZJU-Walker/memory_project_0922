@@ -7,7 +7,7 @@ import re
 import signal
 import time
 
-ROWS = ("snap", "snap_mlp3", "vis8", "vis8s", "state8", "vis8s_add", "state8_add")
+ROWS = ("snap", "snap_mlp3", "snap_mlp3_a9align", "snap_token_mlp3_a9align", "vis8", "vis8s", "state8", "vis8s_add", "state8_add")
 
 
 def processes(root, row=None):

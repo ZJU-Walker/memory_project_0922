@@ -17,7 +17,7 @@ spec.loader.exec_module(control)
 def sleepers(tmp_path):
     children = {}
     try:
-        for row in ("snap", "snap_mlp3", "vis8", "vis8s"):
+        for row in ("snap", "snap_mlp3", "snap_mlp3_a9align", "snap_token_mlp3_a9align", "vis8", "vis8s"):
             children[row] = subprocess.Popen(
                 [sys.executable, "-c", "import time; time.sleep(120)", str(tmp_path / "train.py"),
                  f"pi05_yam_beans0922_ab_{row}"],
@@ -37,7 +37,7 @@ def test_status_does_not_confuse_row_prefixes(sleepers):
         assert set(control.processes(root, row)) == {child.pid}
 
 
-@pytest.mark.parametrize("row", ["vis8", "snap_mlp3"])
+@pytest.mark.parametrize("row", ["vis8", "snap_mlp3", "snap_mlp3_a9align", "snap_token_mlp3_a9align"])
 def test_stop_preserves_other_rows(sleepers, row):
     root, children = sleepers
     subprocess.run(

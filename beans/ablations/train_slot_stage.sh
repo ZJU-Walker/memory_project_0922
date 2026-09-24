@@ -22,7 +22,7 @@ for ((round=0; round<${WAIT_ROUNDS:-120}; round++)); do
   echo "Waiting for GPUs $GPUS (1 GB keep-alives are allowed)"; sleep 30
 done
 [ "$clear" = 1 ] || { echo 'GPUs still occupied'; exit 1; }
-extra=(); ckpt="$ROOT/beans/checkpoints/$CFG/$EXP"
+extra=(); ckpt="${OPENPI_BEANS_AB_CHECKPOINT_ROOT:-$ROOT/beans/checkpoints}/$CFG/$EXP"
 if [ -d "$ckpt" ]; then
   if find "$ckpt" -mindepth 1 -maxdepth 1 -type d -regex '.*/[0-9]+' | read -r _; then extra=(--resume); else extra=(--overwrite); fi
 fi

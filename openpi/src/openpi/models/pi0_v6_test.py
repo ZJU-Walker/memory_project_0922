@@ -51,8 +51,10 @@ class _TinyV6Seq(_TinyV5Seq):
         beta_init: float = 0.0,
         sentence_len: int = 4,
         reference_tokens: tuple[tuple[int, ...], ...] | None = None,
+        hidden_dims: tuple[int, ...] = (64,),
+        pooling: str = "mean",
     ):
-        super().__init__(rngs, oracle_writes=True)
+        super().__init__(rngs, oracle_writes=True, pooling=pooling)
         # a richer reference vocabulary: "<obj> in bin <k>"-shaped rows over a tiny token space
         # tokens: 10..13 objects, 20 = "in", 21 = "bin", 30..32 digits
         if reference_tokens is None:
@@ -73,7 +75,7 @@ class _TinyV6Seq(_TinyV5Seq):
             memory.MemoryConfig(
                 d_input=WIDTH,
                 d_key=D_KEY,
-                hidden_dims=(64,),
+                hidden_dims=hidden_dims,
                 d_value=WIDTH,
                 mlp_l2norm=True,
                 blank_initial_output=True,
@@ -84,7 +86,8 @@ class _TinyV6Seq(_TinyV5Seq):
             ),
             rngs=rngs,
         )
-        self.memory_sem_key_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)
+        encoded_width = (1 + self.memory_v5_pool_queries) * WIDTH if pooling == "standardized_attention" else WIDTH
+        self.memory_sem_key_proj = nnx.Linear(encoded_width, D_KEY, use_bias=False, rngs=rngs)
         self.memory_sem_query_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)
         if token_writes:
             self.memory_v6_token_key_proj = nnx.Linear(WIDTH, D_KEY, use_bias=False, rngs=rngs)

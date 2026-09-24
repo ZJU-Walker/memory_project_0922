@@ -62,6 +62,9 @@ def test_v5_config_gating_and_spec():
 class _TinyV5Seq(_TinyV35):
     """The v5 sequence path on the tiny v3.5 stand-in: no fact head, sentence-fed bank."""
 
+    # embed_prefix now routes camera encoding through this production helper.
+    _image_tower_tokens = pi0.Pi0._image_tower_tokens
+    _top_camera_token_count = pi0.Pi0._top_camera_token_count
     _memory_token_total = pi0.Pi0._memory_token_total
     v5_encode_sentence = pi0.Pi0.v5_encode_sentence
     v5_sentence_intent = pi0.Pi0.v5_sentence_intent
@@ -199,6 +202,43 @@ def test_v5_content_addressed_write_then_read(tiny_v5_oracle):
 
 def _actions():
     return jnp.zeros((1, 3, 4, 2), dtype=jnp.float32)
+
+
+@pytest.mark.parametrize("oracle_writes", [True, False])
+def test_v5_layer8_batched_vision_preserves_losses_and_nonvision_gradients(tiny_v5_predicted, monkeypatch, oracle_writes):
+    """Moving the frozen tower outside the scan also works with the legacy layer-8 reader.
+
+    Compare every loss/metric and every non-image gradient. Image parameters are
+    frozen in A9/B9; their gradients intentionally vanish on the batched path.
+    """
+    model = tiny_v5_predicted
+    monkeypatch.setattr(model, "memory_v5_oracle_writes", oracle_writes)
+    monkeypatch.setattr(model, "memory_v0920_input_read", False, raising=False)
+    monkeypatch.setattr(model, "memory_v0920_vision_outside_scan", False, raising=False)
+    observation = _v4_sequence_observation()
+
+    def loss(m):
+        terms = m._compute_sequence_loss_v32(jax.random.key(51), observation, _actions(), train=False)
+        return jnp.sum(terms["flow"] + terms["ce"]), terms
+
+    (baseline, baseline_terms), baseline_grads = nnx.value_and_grad(loss, has_aux=True)(model)
+    baseline_params = nnx.state(model, nnx.Param)
+    monkeypatch.setattr(model, "memory_v0920_vision_outside_scan", True)
+    (batched, batched_terms), batched_grads = nnx.value_and_grad(loss, has_aux=True)(model)
+    assert jax.tree.structure(baseline_params) == jax.tree.structure(nnx.state(model, nnx.Param))
+    np.testing.assert_allclose(batched, baseline, rtol=2e-5, atol=2e-5)
+    for name, value in baseline_terms.items():
+        np.testing.assert_allclose(batched_terms[name], value, rtol=2e-5, atol=2e-5, err_msg=name)
+    old_leaves = jax.tree_util.tree_leaves_with_path(baseline_grads)
+    new_leaves = jax.tree_util.tree_leaves_with_path(batched_grads)
+    assert len(old_leaves) == len(new_leaves)
+    for (old_path, old), (new_path, new) in zip(old_leaves, new_leaves, strict=True):
+        assert old_path == new_path
+        path = "/".join(str(getattr(key, "key", key)) for key in old_path)
+        if path.startswith("PaliGemma/img/"):
+            np.testing.assert_array_equal(new, jnp.zeros_like(new))
+        else:
+            np.testing.assert_allclose(new, old, rtol=2e-4, atol=2e-5, err_msg=path)
 
 
 def test_v5_oracle_sequence_writes_on_every_sentence_change(tiny_v5_oracle):

@@ -1,4 +1,4 @@
-"""CPU-only sentence/template geometry and oracle-write recall; no training or GPU use.
+"""CPU-only sentence/template or contextual-token geometry and oracle-write recall.
 
 Use --initialize with a stage-A config for the exact training seed/KI graft, or
 --params for a trained checkpoint. This is bank/representation diagnostics, not
@@ -87,6 +87,8 @@ def load_model(config, args, output):
 
 
 def measure(model):
+    if getattr(model, "memory_v6_token_writes", False):
+        return measure_tokens(model)
     import jax
     import jax.numpy as jnp
 
@@ -172,6 +174,97 @@ def measure(model):
                                "no decoder, no confidence gating. This is not episode or task success."}
 
 
+def measure_tokens(model):
+    """Measure the real token writer, including interference within one sentence.
+
+    Context identity follows _v6_context_keys: positions 0 and 1 both use h_0.
+    Repeated contexts intentionally overwrite; score the last value at each
+    context, not every historical token as though each had a unique address.
+    """
+    import jax
+    import jax.numpy as jnp
+
+    rows = tuple(tuple(row) for row in model.memory_v5_reference_tokens)
+    tokens, mask = model.v5_reference_token_rows(model.memory_v5_sentence_len)
+    keys, values, valid = model.v6_sentence_token_kv(tokens, mask)
+    valid_np = np.asarray(valid)
+    locations = np.argwhere(valid_np)
+    flat_keys, flat_values = np.asarray(keys)[valid_np], np.asarray(values)[valid_np]
+    token_ids = np.asarray(tokens)[valid_np]
+    contexts = [tuple(rows[r][:max(1, int(p))]) for r, p in locations]
+    representatives = {}
+    for i, context in enumerate(contexts):
+        representatives.setdefault(context, i)
+    reps = list(representatives.values())
+    value_reps = [int(np.flatnonzero(token_ids == t)[0]) for t in sorted(set(token_ids.tolist()))]
+    bank = model.memory_semantic
+    blank = bank.init_state(1)
+    hidden = np.asarray(bank.hidden_key(blank, jnp.asarray(flat_keys)[None]))[0]
+    matrices = {
+        "distinct_context_key": cosine_matrix(flat_keys[reps]),
+        "distinct_context_hidden_feature": cosine_matrix(hidden[reps]),
+        "distinct_token_value": cosine_matrix(flat_values[value_reps]),
+    }
+    summaries = {name: pair_summary(mat, np.triu(np.ones_like(mat, bool), 1)) for name, mat in matrices.items()}
+
+    @jax.jit
+    def write(state, k, v, keep):
+        return bank.delta_write_kv_multi(state, k[None], v[None], keep[None], slot_loop="scan")[0]
+
+    @jax.jit
+    def read(state, k):
+        return bank.read_key(state, k[None])[0]
+
+    single = []
+    for i in range(len(flat_keys)):
+        k, v = jnp.asarray(flat_keys[i:i + 1]), jnp.asarray(flat_values[i:i + 1])
+        state = write(blank, k, v, jnp.ones((1,), bool))
+        single.append(float(cosine_matrix(np.asarray(read(state, k)), flat_values[i:i + 1])[0, 0]))
+
+    # Cosines for ALL original positions after an entire sentence was committed.
+    # Unlike isolated association recall, these need not be 1 (overwrites/overlap).
+    whole = []
+    for r, row in enumerate(rows):
+        state = write(blank, keys[r], values[r], valid[r])
+        retrieved = np.asarray(read(state, keys[r]))[:len(row)]
+        cos = np.diag(cosine_matrix(retrieved, np.asarray(values[r])[:len(row)]))
+        whole.append({"sentence": r, "token_cosines": cos.tolist()})
+
+    sequential = []
+    for label, order in (("reference_order", range(len(rows))), ("reverse_order", reversed(range(len(rows))))):
+        state, latest = blank, {}
+        for r in order:
+            state = write(state, keys[r], values[r], valid[r])
+            for i, (row_id, _) in enumerate(locations):
+                if row_id == r:
+                    latest[contexts[i]] = i
+        targets = list(latest.values())
+        retrieved = np.asarray(read(state, jnp.asarray(flat_keys[targets])))
+        candidates = flat_values[value_reps]
+        candidate_ids = token_ids[value_reps]
+        scores = cosine_matrix(retrieved, candidates)
+        for j, i in enumerate(targets):
+            best = int(candidate_ids[np.argmax(scores[j])])
+            expected = int(token_ids[i])
+            target_cos = float(cosine_matrix(retrieved[j:j + 1], flat_values[i:i + 1])[0, 0])
+            alternatives = scores[j][candidate_ids != expected]
+            sequential.append({"order": label, "context_tokens": list(contexts[i]),
+                               "expected_token": expected, "nearest_token": best, "correct": best == expected,
+                               "target_cosine": target_cos, "read_norm": float(np.linalg.norm(retrieved[j])),
+                               "target_margin": float(target_cos - alternatives.max()) if len(alternatives) else None})
+    return {"reference_tokens": rows, "valid_token_count": len(locations),
+            "context_count": len(representatives), "context_representatives": [list(c) for c in representatives],
+            "candidate_token_ids": token_ids[value_reps].tolist(),
+            "matrices": {name: mat.tolist() for name, mat in matrices.items()}, "summary": summaries,
+            "single_write_recall_cosines": single, "whole_sentence_write_recall": whole,
+            "sequential_oracle_writes": sequential,
+            "recall_protocol": "Production contextual token keys/values, configured MLP and delta rule. Isolated "
+                               "associations, then complete sentences, then all references forward/reversed. "
+                               "One decay per sentence commit; no idle ticks. Sequential scoring targets the LAST "
+                               "token at each causal context (positions 0 and 1 share h_0 in the existing writer). "
+                               "No learned-reader, decoder, or confidence-gate evaluation; not task success."}
+
+
 def main():
     from openpi.training import config as config_lib
     from openpi.models import tokenizer as tokenizer_lib
@@ -185,16 +278,18 @@ def main():
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=False)
     config = config_lib.get_config(args.config_name)
-    if not config.model.memory_template_read:
-        raise ValueError("This probe requires the direct-template sentence-bank configuration.")
+    is_token = config.model.memory_v6_token_writes
+    if not config.model.memory_template_read and not is_token:
+        raise ValueError("This probe requires direct-template reads or the contextual token writer.")
     print("Loading CPU-only model; no optimizer, data loader, or training.", flush=True)
     model, provenance = load_model(config, args, args.output_dir)
-    print("Measuring production sentence representations and slot recall.", flush=True)
+    print("Measuring production token geometry." if is_token else "Measuring production sentence/slot geometry.", flush=True)
     report = measure(model)
     tokenizer = tokenizer_lib.PaligemmaTokenizer()
     sp = next(v for v in vars(tokenizer).values() if hasattr(v, "decode"))
     report["sentences"] = [sp.decode(list(row)).strip() for row in report["reference_tokens"]]
-    report.update(schema_version="template_sentence_geometry/1", config_name=args.config_name, provenance=provenance,
+    report.update(schema_version="contextual_token_geometry/1" if is_token else "template_sentence_geometry/1",
+                  config_name=args.config_name, provenance=provenance,
                   bank_dims=list(model.memory_semantic.config.dims), alpha_step=model.memory_semantic.config.alpha_step,
                   device="cpu")
     path = args.output_dir / "sentence_geometry.json"
@@ -203,7 +298,7 @@ def main():
         print(name, json.dumps(summary), flush=True)
     recall = report["single_write_recall_cosines"]
     records = report["sequential_oracle_writes"]
-    print(f"Single-write cosine min/mean: {min(recall):.6f}/{np.mean(recall):.6f}", flush=True)
+    print(f"Isolated-association cosine min/mean: {min(recall):.6f}/{np.mean(recall):.6f}", flush=True)
     print(f"Sequential latest-value identification: {sum(r['correct'] for r in records)}/{len(records)}", flush=True)
     print(f"Report: {path}", flush=True)
 

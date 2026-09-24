@@ -3,8 +3,13 @@
 The [main README](../../README.md) is the current runbook: stop/update/archive commands, the four main rows, and A250→B3000.
 Historical token-bank recipes are not interchangeable with this recipe (`template_slot_ab_v1`).
 The separate `snap_mlp3` row (`template_slot_snap_mlp3_v1`) is described below; it does not change the original rows.
+The independent `snap_mlp3_a9align` row restores the old A9/B9 conditioned layer-8 reader (not the input reader).
+It defaults to A500->B3000 and is documented in [the main README](../../README.md#5-a9b9-aligned-snap-mlp3).
+Its paired `snap_token_mlp3_a9align` row changes only the writer representation (four model flags), retaining the same
+three-layer bank and layer-8 reader. See [new-node commands](../../README.md#6-token-mlp3-a9-aligned-writer-control-new-node).
+The new-node commands do **not** stop the ongoing slot run.
 
-## One tick
+## One tick (direct-template rows only)
 
 1. Read every automatically induced sentence-template address from the sentence fast-weight bank. Current vocabulary: 5.
    Occupancy masks hide unwritten addresses. Retrieval is parallel, not sequential token decoding.
@@ -83,7 +88,15 @@ Tests cover template discovery, read/write address equality, unwritten masking, 
 stage parity, auxiliary row differences, past-only replay and padding, and the existing bank/serving contracts.
 They also cover linear/nonlinear template reads, production 3x1024 output-only delta updates, the mean-0.9 gate,
 SNAP-MLP3 sampling and unchanged controls, and row-scoped stop isolation using harmless temporary sleeper processes.
+The A9-aligned row additionally checks historical model parity except RTC and B-only batched frozen vision, stage-specific learning rates,
+own-A500 loading, optional external-checkpoint-root consistency, and the legacy sentence reader's CPU tests.
+Its A keeps the original inside-scan image encoding; B enables `memory_v0920_vision_outside_scan` without changing the
+layer-8 reader or parameter tree. A tiny-model regression compares losses and non-vision gradients between both paths.
 `measure_sentence_geometry.sh` measures real sentence/value cosines, pre/post-MLP template address cosines, and
 single/sequential-write recall on CPU, at exact A initialization or a saved checkpoint. See the main README for commands.
+It also supports the token row: isolated token associations, within-sentence overwrite/interference, distinct-context
+pre/post-MLP cosines and sequential latest-token recall. Exact-key recall is not learned-query retrieval or policy accuracy.
+Token tests cover masked writes, unchanged hidden fast weights, once-per-tick decay at full 3x1024 bank width,
+conditioned-reader sequence gradients, label prefill, config-only writer differences and isolated A500->B3000 names.
 Logs retain normal telemetry keys: `vis_bank_norm`, `vis_read_rms`, `vis_read_injected_rms`, `vis_commit_rate`,
 `memory_grad_norm`, sentence/flow losses.

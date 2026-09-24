@@ -36,3 +36,29 @@ def test_probe_uses_template_groups_and_production_memory(hidden):
         assert model.v5_encode_sentence.__self__ is model
     finally:
         gemma.PALIGEMMA_VOCAB_SIZE = old
+
+
+def test_token_probe_scores_latest_contexts_and_reports_whole_sentence_interference():
+    import flax.nnx as nnx
+    from openpi.models import gemma
+    from openpi.models.pi0_v6_test import _TinyV6Seq
+
+    old = gemma.PALIGEMMA_VOCAB_SIZE
+    gemma.PALIGEMMA_VOCAB_SIZE = 128
+    try:
+        model = _TinyV6Seq(nnx.Rngs(7), pointer_read=False, hidden_dims=(64, 64, 64), sentence_len=4,
+                           reference_tokens=((10, 20, 21, 30), (10, 20, 21, 31), (11, 20, 21, 32), (40,)))
+        model.memory_v6_whiten_keys = True
+        report = geometry.measure(model)
+        assert report["valid_token_count"] == 13
+        assert report["context_count"] == 7  # 3 per object, plus singleton; first two positions alias
+        assert min(report["single_write_recall_cosines"]) > .99999
+        assert len(report["whole_sentence_write_recall"]) == 4
+        assert len(report["sequential_oracle_writes"]) == 14
+        for item in report["sequential_oracle_writes"]:
+            assert np.isfinite(item["target_cosine"])
+            if item["context_tokens"] == [10, 20, 21]:
+                assert item["expected_token"] == (31 if item["order"] == "reference_order" else 30)
+        assert np.isfinite(np.asarray(report["matrices"]["distinct_context_hidden_feature"])).all()
+    finally:
+        gemma.PALIGEMMA_VOCAB_SIZE = old
