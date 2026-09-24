@@ -4,7 +4,7 @@ set -uo pipefail
 ROOT="${MEMORY_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
 cd "$ROOT" || exit 2
 export PYTHONDONTWRITEBYTECODE=1
-MODE=${1:-cpu}; ROWS=${ROWS:-"snap vis8 vis8s state8 vis8s_add state8_add"}
+MODE=${1:-cpu}; ROWS=${ROWS:-"snap snap_mlp3 vis8 vis8s state8 vis8s_add state8_add"}
 PY="${OPENPI_PYTHON:-$ROOT/openpi/.venv/bin/python}"
 LOGS="$ROOT/beans/ablations/logs"; mkdir -p "$LOGS"; LOG="$LOGS/run_tests.log"
 fails=0
@@ -14,7 +14,8 @@ cpu_tests() {
       src/openpi/models/pi0_v0922ab_test.py src/openpi/training/beans0922_ablation_test.py scripts/train_v0922ab_test.py \
       scripts/v5_heldout_visual_test.py \
       src/openpi/models/pi0_v0920_query_context_test.py src/openpi/models/pi0_v0920_v4_token_test.py \
-      src/openpi/shared/project_paths_test.py) 2>&1 | tee -a "$LOG"; then
+      src/openpi/shared/project_paths_test.py ../beans/ablations/manage_runs_test.py \
+      ../beans/ablations/run_stages_test.py ../beans/ablations/sentence_geometry_test.py) 2>&1 | tee -a "$LOG"; then
     echo 'cpu: PASS'
   else echo 'cpu: FAIL'; fails=$((fails+1)); fi
 }

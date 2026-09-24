@@ -1,0 +1,212 @@
+"""CPU-only sentence/template geometry and oracle-write recall; no training or GPU use.
+
+Use --initialize with a stage-A config for the exact training seed/KI graft, or
+--params for a trained checkpoint. This is bank/representation diagnostics, not
+autoregressive accuracy or a test of the predicted-sentence confidence gate.
+"""
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import json
+import os
+from pathlib import Path
+import sys
+
+# Set before importing JAX: never compete with an ongoing GPU training job.
+os.environ["JAX_PLATFORMS"] = "cpu"
+import numpy as np
+
+
+def cosine_matrix(left, right=None):
+    left = np.asarray(left, dtype=np.float64)
+    right = left if right is None else np.asarray(right, dtype=np.float64)
+    left = left / np.maximum(np.linalg.norm(left, axis=-1, keepdims=True), 1e-12)
+    right = right / np.maximum(np.linalg.norm(right, axis=-1, keepdims=True), 1e-12)
+    return left @ right.T
+
+
+def pair_summary(matrix, mask):
+    values = np.asarray(matrix)[np.asarray(mask, dtype=bool)]
+    if not len(values):
+        return {"pairs": 0}
+    return {"pairs": int(len(values)), "min": float(values.min()), "mean": float(values.mean()),
+            "max": float(values.max()), "mean_abs": float(np.abs(values).mean())}
+
+
+def template_groups(rows, max_diff):
+    from openpi.models.sentence_slots import template_masks, template_representatives
+
+    masks = template_masks(rows, max_diff)
+    signatures = [tuple(t for t, keep in zip(row, mask, strict=True) if keep)
+                  for row, mask in zip(rows, masks, strict=True)]
+    representatives = template_representatives(rows, max_diff)
+    addresses = [signatures[i] for i in representatives]
+    return representatives, np.asarray([addresses.index(s) for s in signatures])
+
+
+def load_model(config, args, output):
+    import jax
+    from flax import nnx
+    from openpi.models import model as model_lib
+    from openpi.training import weight_loaders
+
+    if args.params:
+        params = model_lib.restore_params(args.params, restore_type=np.ndarray)
+        provenance = {"kind": "trained_checkpoint", "params": str(args.params.resolve()),
+                      "parameter_tree_sha256": weight_loaders.parameter_tree_sha256(params)}
+        model = config.model.load(params)
+    else:
+        if not config.model.memory_v5_oracle_writes:
+            raise ValueError("--initialize requires the stage-A config; B must load its own trained A.")
+        # Exactly train.main -> init_train_state's two RNG splits, graft, and freeze cast.
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "openpi/scripts"))
+        from train import _cast_frozen_params, _load_weights_and_validate
+
+        init_rng = jax.random.split(jax.random.key(config.seed))[1]
+        model_rng = jax.random.split(init_rng)[1]
+        abstract = nnx.eval_shape(config.model.create, model_rng)
+        graph, shape = nnx.split(abstract)
+        loader = dataclasses.replace(config.weight_loader,
+                                     manifest_output_path=str(output / "initialization_graft_manifest.json"))
+        partial = _load_weights_and_validate(loader, shape.to_pure_dict())
+
+        @jax.jit
+        def initialize(rng, graft):
+            state = nnx.state(config.model.create(rng))
+            state.replace_by_pure_dict(graft)
+            return _cast_frozen_params(config, state)
+
+        state = initialize(model_rng, partial)
+        model = nnx.merge(graph, state)
+        provenance = {"kind": "untrained_exact_stage_a_initialization", "seed": config.seed,
+                      "base_params": loader.params_path,
+                      "parameter_tree_sha256": weight_loaders.parameter_tree_sha256(state.to_pure_dict())}
+    model.eval()
+    return model, provenance
+
+
+def measure(model):
+    import jax
+    import jax.numpy as jnp
+
+    rows = tuple(tuple(row) for row in model.memory_v5_reference_tokens)
+    reps, groups = template_groups(rows, model.memory_v5_slot_max_diff)
+    tokens, mask = model.v5_reference_token_rows(model.memory_v5_sentence_len)
+    # Reuse identical deterministic reference encodings within this read-only probe.
+    # Calling the production methods below still computes the actual slot/whitening path.
+    encode = model.v5_encode_sentence
+    cache = {}
+
+    def cached_encode(t, m):
+        key = (np.asarray(t).tobytes(), np.asarray(m).tobytes(), t.shape)
+        if key not in cache:
+            cache[key] = encode(t, m)
+        return cache[key]
+
+    model.v5_encode_sentence = cached_encode
+    try:
+        encoded = model.v5_encode_sentence(tokens, mask)
+        raw_value = model.memory_sem_value_proj(encoded)
+        keys, values = model.v5_sentence_kv(tokens, mask)
+        addresses = model.v5_template_keys()
+    finally:
+        model.v5_encode_sentence = encode
+    keys, values = np.asarray(keys)[:, 0], np.asarray(values)[:, 0]
+    addresses = np.asarray(addresses)
+    if len(addresses) != len(reps) or not np.allclose(keys, addresses[groups], atol=1e-4):
+        raise ValueError("write keys do not match discovered direct-read addresses")
+    bank = model.memory_semantic
+    blank = bank.init_state(1)
+    hidden = np.asarray(bank.hidden_key(blank, jnp.asarray(addresses)[None]))[0]
+    matrices = {name: cosine_matrix(vectors) for name, vectors in (
+        ("sentence_encoding", encoded), ("raw_projected_value", raw_value),
+        ("whitened_write_value", values), ("write_key", keys),
+        ("template_key", addresses), ("template_hidden_feature", hidden))}
+    upper = np.triu(np.ones((len(rows), len(rows)), dtype=bool), 1)
+    summaries = {}
+    for name, matrix in matrices.items():
+        if name.startswith("template_"):
+            summaries[name] = {"different_templates": pair_summary(matrix, np.triu(np.ones_like(matrix, bool), 1))}
+        else:
+            summaries[name] = {"same_template": pair_summary(matrix, upper & (groups[:, None] == groups[None])),
+                               "different_templates": pair_summary(matrix, upper & (groups[:, None] != groups[None]))}
+
+    # No decoder/gate: exact label associations isolate memory storage and overwrite interference.
+    # Use the production delta rule; the occupancy wrapper only masks never-written slots.
+    @jax.jit
+    def write(state, key, value):
+        return bank.delta_write_kv_multi(state, key[None, None], value[None, None], jnp.ones((1, 1), bool))[0]
+
+    @jax.jit
+    def read(state):
+        return bank.read_key(state, jnp.asarray(addresses)[None])[0]
+
+    single = []
+    for i in range(len(rows)):
+        state = write(blank, jnp.asarray(keys[i]), jnp.asarray(values[i]))
+        result = np.asarray(read(state))[groups[i]]
+        single.append(float(cosine_matrix(result[None], values[i:i + 1])[0, 0]))
+    sequential = []
+    for label, order in (("reference_order", range(len(rows))), ("reverse_order", reversed(range(len(rows))))):
+        state, latest = blank, {}
+        for i in order:
+            state = write(state, jnp.asarray(keys[i]), jnp.asarray(values[i]))
+            latest[int(groups[i])] = i
+        retrieval = np.asarray(read(state))
+        for slot, target in sorted(latest.items()):
+            candidates = np.flatnonzero(groups == slot)
+            scores = cosine_matrix(retrieval[slot:slot + 1], values[candidates])[0]
+            best = int(candidates[np.argmax(scores)])
+            target_cos = float(cosine_matrix(retrieval[slot:slot + 1], values[target:target + 1])[0, 0])
+            alternatives = scores[candidates != target]
+            sequential.append({"order": label, "slot": slot, "expected_sentence": target,
+                               "nearest_sentence_within_template": best, "correct": best == target,
+                               "target_cosine": target_cos, "read_norm": float(np.linalg.norm(retrieval[slot])),
+                               "target_margin": float(target_cos - alternatives.max()) if len(alternatives) else None})
+    return {"reference_tokens": rows, "template_representatives": list(reps), "template_groups": groups.tolist(),
+            "matrices": {k: v.tolist() for k, v in matrices.items()}, "summary": summaries,
+            "single_write_recall_cosines": single, "sequential_oracle_writes": sequential,
+            "recall_protocol": "All reference sentences once, then reverse order; one real delta commit per sentence, "
+                               "including configured per-commit decay. Score latest value per template. No idle ticks, "
+                               "no decoder, no confidence gating. This is not episode or task success."}
+
+
+def main():
+    from openpi.training import config as config_lib
+    from openpi.models import tokenizer as tokenizer_lib
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config-name", default="pi05_yam_beans0922_ab_snap_mlp3_A")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--initialize", action="store_true")
+    source.add_argument("--params", type=Path)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    args = parser.parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=False)
+    config = config_lib.get_config(args.config_name)
+    if not config.model.memory_template_read:
+        raise ValueError("This probe requires the direct-template sentence-bank configuration.")
+    print("Loading CPU-only model; no optimizer, data loader, or training.", flush=True)
+    model, provenance = load_model(config, args, args.output_dir)
+    print("Measuring production sentence representations and slot recall.", flush=True)
+    report = measure(model)
+    tokenizer = tokenizer_lib.PaligemmaTokenizer()
+    sp = next(v for v in vars(tokenizer).values() if hasattr(v, "decode"))
+    report["sentences"] = [sp.decode(list(row)).strip() for row in report["reference_tokens"]]
+    report.update(schema_version="template_sentence_geometry/1", config_name=args.config_name, provenance=provenance,
+                  bank_dims=list(model.memory_semantic.config.dims), alpha_step=model.memory_semantic.config.alpha_step,
+                  device="cpu")
+    path = args.output_dir / "sentence_geometry.json"
+    path.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+    for name, summary in report["summary"].items():
+        print(name, json.dumps(summary), flush=True)
+    recall = report["single_write_recall_cosines"]
+    records = report["sequential_oracle_writes"]
+    print(f"Single-write cosine min/mean: {min(recall):.6f}/{np.mean(recall):.6f}", flush=True)
+    print(f"Sequential latest-value identification: {sum(r['correct'] for r in records)}/{len(records)}", flush=True)
+    print(f"Report: {path}", flush=True)
+
+
+if __name__ == "__main__":
+    main()

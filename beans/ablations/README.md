@@ -2,6 +2,7 @@
 
 The [main README](../../README.md) is the current runbook: stop/update/archive commands, the four main rows, and A250→B3000.
 Historical token-bank recipes are not interchangeable with this recipe (`template_slot_ab_v1`).
+The separate `snap_mlp3` row (`template_slot_snap_mlp3_v1`) is described below; it does not change the original rows.
 
 ## One tick
 
@@ -44,11 +45,27 @@ Each row: KI base/10000 → own A250 (oracle writes) → own B3000 (predicted-co
 with fresh optimizer, rather than accidentally fresh-initializing memory. Both stages retain label sentence-history
 prefill; B is not purely free-running autoregressive training. No 500-step write-label ramp.
 
-Common: 4 GPUs, seed 42, v4e onset sampling/losses, lr 2.5e-5, 40 ticks, 5-frame stride, TBPTT25, decay 0.999/tick.
+Common to the main rows: 4 GPUs, seed 42, v4e onset sampling/losses, lr 2.5e-5, 40 ticks, 5-frame stride, TBPTT25, decay 0.999/tick.
 User-selected batches: H200 `BATCH=16 ACCUM=1`; H100 `BATCH=12 ACCUM=1`. Both run without accumulation.
 Equal steps therefore expose H200 to 4/3 as many training windows; report this confound in cross-cluster comparisons.
 No automatic OOM batch reduction. A/B have separate config/experiment names, with per-run recipe guards.
 Auxiliary history is expensive (video decoding and frozen image encoding); measure throughput before large sweeps.
+
+## Separate SNAP-MLP3 control
+
+`run_snap_mlp3.sh [smoke]` keeps the current sentence-only SNAP input/reader and A/B protocol, but changes:
+
+- Sentence bank hidden dimensions to `(1024, 1024, 1024)`; inner `delta_output` writes change only the final matrix.
+  The nonlinear hidden weights remain trainable by the outer optimizer.
+- Predicted-write gate to **mean** valid sentence-token probability **>= 0.9**, not minimum probability. A's oracle
+  label writes bypass the predicted-confidence gate as in the original A/B recipe.
+- Window mixture to episode-start **25%**, ordinary slice **25%**, transition-anchored **50%**; anchored starts span
+  **0-50 frames** before a sentence change (`memory_slice_prob=0.5`, `memory_critical_prob=0.5`, pad 50).
+
+RTC remains **15**; decay remains **0.999**, state masking remains off, and v4e onset/hard-token/decision CE weights
+remain **6 / 5 / 0.2**. Five template addresses are still read at the input; no token write/pointer/readback or auxiliary bank.
+This bundles three requested experimental changes and is **not** a one-factor bank-depth ablation or an exact B9 replica.
+See [the stop-vis8 / update / smoke / launch commands](../../README.md#4-snap-mlp3-separate-sentence-only-control).
 
 ## Files and checks
 
@@ -64,5 +81,9 @@ Auxiliary history is expensive (video decoding and frozen image encoding); measu
 
 Tests cover template discovery, read/write address equality, unwritten masking, unknown rejection, finite sequence gradients,
 stage parity, auxiliary row differences, past-only replay and padding, and the existing bank/serving contracts.
+They also cover linear/nonlinear template reads, production 3x1024 output-only delta updates, the mean-0.9 gate,
+SNAP-MLP3 sampling and unchanged controls, and row-scoped stop isolation using harmless temporary sleeper processes.
+`measure_sentence_geometry.sh` measures real sentence/value cosines, pre/post-MLP template address cosines, and
+single/sequential-write recall on CPU, at exact A initialization or a saved checkpoint. See the main README for commands.
 Logs retain normal telemetry keys: `vis_bank_norm`, `vis_read_rms`, `vis_read_injected_rms`, `vis_commit_rate`,
 `memory_grad_norm`, sentence/flow losses.

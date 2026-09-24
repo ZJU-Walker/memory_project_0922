@@ -5,7 +5,9 @@ B loads all of its own row\'s A parameters and starts a fresh optimizer. The tra
 writer uses argmax under teacher forcing (as B9); deployment decodes autoregressively.
 Both stages retain label-supervised sentence-history prefill. Auxiliary banks replay
 past observations without gradients before a window, and persist across rollout ticks.
-All rows share KI base/10000, seed, v4e sampling/losses and bank decay.
+The main rows share KI base/10000, seed, v4e sampling/losses and bank decay.
+The separate snap_mlp3 control keeps the losses/decay but uses a three-hidden-layer
+sentence bank, mean-probability 0.9 write gate, and 25/25/50 sampling with pad 50.
 The requested hardware recipes use batch 16 on H200 and batch 12 on H100, no accumulation.
 Slot addresses and their count come from the training vocabulary, never task names.
 """
@@ -64,6 +66,33 @@ def snap_config(existing: dict, name: str = "pi05_yam_beans0922_ab_snap", *, ste
     return _recipe(existing, name, steps=steps, wandb=wandb, batch=batch)
 
 
+def snap_mlp3_config(existing: dict, name: str = "pi05_yam_beans0922_ab_snap_mlp3", *, steps: int = AB_STEPS,
+                     wandb: bool = True, batch: int = AB_BATCH) -> cfg.TrainConfig:
+    """SNAP-MLP3: change only bank depth, confidence aggregation/gate and window sampling.
+
+    Three 1024-wide hidden layers; the inner delta rule updates only the final
+    1024x2048 matrix. Hidden-layer parameters still learn in the outer optimizer.
+    RTC 15, direct template reads at the input, v4e losses and decay 0.999 stay as SNAP.
+    """
+    base = snap_config(existing, name, steps=steps, wandb=wandb, batch=batch)
+    return dataclasses.replace(
+        base,
+        model=dataclasses.replace(
+            base.model,
+            memory_semantic=dataclasses.replace(base.model.memory_semantic, hidden_dims=(1024, 1024, 1024)),
+            memory_v5_write_conf=0.9,
+            memory_v5_write_conf_min=False,
+        ),
+        data=dataclasses.replace(
+            base.data,
+            base_config=dataclasses.replace(
+                base.data.base_config,
+                memory_slice_prob=0.5, memory_critical_prob=0.5, memory_critical_start_pad=50,
+            ),
+        ),
+    )
+
+
 def sensory_config(existing: dict, name: str, *, image: bool = True, state: bool = False, rule: str = "delta",
                    steps: int = AB_STEPS, wandb: bool = True, batch: int = AB_BATCH, slots: int = VIS_SLOTS) -> cfg.TrainConfig:
     """snap + a sensory bank (Pi0Config.memory_vis_bank) read as `slots` fixed-query tokens at the input. `image` = the
@@ -102,6 +131,8 @@ ROWS = {  # name suffix -> (image slots, state slot, commit rule); every row = s
     "state8": (False, True, "delta"),
     "state8_add": (False, True, "additive"),
 }
+SENTENCE_ROWS = ("snap", "snap_mlp3")
+ALL_ROWS = (*SENTENCE_ROWS, *ROWS)
 
 
 def stage_a_params(row: str) -> str:
@@ -115,6 +146,8 @@ def row_config(existing: dict, row: str, *, stage: str = "B", smoke: bool = Fals
     kwargs = dict(steps=2 if smoke else (A_STEPS if stage == "A" else AB_STEPS), wandb=not smoke, batch=AB_BATCH)
     if row == "snap":
         base = snap_config(existing, name, **kwargs)
+    elif row == "snap_mlp3":
+        base = snap_mlp3_config(existing, name, **kwargs)
     else:
         image, state, rule = ROWS[row]
         base = sensory_config(existing, name, image=image, state=state, rule=rule, **kwargs)
@@ -130,4 +163,4 @@ def row_config(existing: dict, row: str, *, stage: str = "B", smoke: bool = Fals
 
 def get_configs(existing: dict) -> list:
     return [row_config(existing, row, stage=stage, smoke=smoke)
-            for row in ("snap", *ROWS) for stage in ("A", "B") for smoke in (False, True)]
+            for row in ALL_ROWS for stage in ("A", "B") for smoke in (False, True)]

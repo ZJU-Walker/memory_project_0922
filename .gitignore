@@ -56,6 +56,7 @@ v7/
 # the RoboMME evaluation client is source code (the generic eval/ rule above is for run outputs)
 !openpi/cluster_robomme/eval/
 beans/ablations/logs/
+beans/ablations/diagnostics/
 # node-local mirrors of project data (symlinks to the node's own disk; see beans/ablations/README.md)
 /local/
 

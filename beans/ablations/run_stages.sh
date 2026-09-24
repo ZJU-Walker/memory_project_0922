@@ -3,7 +3,9 @@
 set -euo pipefail
 ROOT="${MEMORY_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
 ROW=${CFG#pi05_yam_beans0922_ab_}
-case "$ROW" in snap|vis8|vis8s|state8|vis8s_add|state8_add) ;; *) exit 2 ;; esac
+case "$ROW" in snap|snap_mlp3|vis8|vis8s|state8|vis8s_add|state8_add) ;; *) exit 2 ;; esac
+recipe=template_slot_ab_v1
+if [ "$ROW" = snap_mlp3 ]; then recipe=template_slot_snap_mlp3_v1; fi
 MODE=${MODE:-train}; case "$MODE" in train|smoke) ;; *) exit 2 ;; esac
 RUN_NAME=${RUN_NAME:-slot_${ROW}}
 [[ "$RUN_NAME" =~ ^[a-zA-Z0-9_-]+$ ]] || { echo 'Invalid RUN_NAME'; exit 2; }
@@ -24,7 +26,7 @@ for stage in A B; do
   if [ "$stage" = A ]; then config="${config}_A"; steps=$a_steps; fi
   config="${config}${suffix}"; exp="${RUN_NAME}_${stage}"
   ckpt="$ROOT/beans/checkpoints/$config/$exp"; marker="$LOGS/${exp}.recipe"
-  signature="template_slot_ab_v1 row=$ROW stage=$stage batch=$OPENPI_BEANS_AB_BATCH accum=$OPENPI_BEANS_AB_ACCUM steps=$steps A=$a_steps prefill=${OPENPI_BEANS_AB_PREFILL_STEPS:-320} base=$OPENPI_BEANS_BASE_PARAMS"
+  signature="$recipe row=$ROW stage=$stage batch=$OPENPI_BEANS_AB_BATCH accum=$OPENPI_BEANS_AB_ACCUM steps=$steps A=$a_steps prefill=${OPENPI_BEANS_AB_PREFILL_STEPS:-320} base=$OPENPI_BEANS_BASE_PARAMS"
   if [ -f "$marker" ]; then
     [ "$(< "$marker")" = "$signature" ] || { echo "Recipe changed: choose a new RUN_NAME"; exit 2; }
   elif [ -e "$ckpt" ]; then
