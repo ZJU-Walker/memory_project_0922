@@ -17,7 +17,8 @@ cpu_tests() {
       scripts/v5_heldout_visual_test.py \
       src/openpi/models/pi0_v0920_query_context_test.py src/openpi/models/pi0_v0920_v4_token_test.py \
       src/openpi/shared/project_paths_test.py ../beans/ablations/manage_runs_test.py \
-      ../beans/ablations/run_stages_test.py ../beans/ablations/sentence_geometry_test.py) 2>&1 | tee -a "$LOG"; then
+      ../beans/ablations/run_stages_test.py ../beans/ablations/state8_b_from_a250_test.py \
+      ../beans/ablations/sentence_geometry_test.py) 2>&1 | tee -a "$LOG"; then
     echo 'cpu: PASS'
   else echo 'cpu: FAIL'; fails=$((fails+1)); fi
 }

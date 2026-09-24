@@ -13,6 +13,8 @@ The complete four-way **A9/B9-aligned slot** group adds `vis8_mlp3_a9align`, `st
 at **layer8**, never at the input. Auxiliary cores are also 3x1024. See [section7](../../README.md#7-four-way-a9b9-aligned-slot-ablation)
 for exact differences, validation boundaries, scoped old-run stop commands, and four-H100 launch.
 Old rows remain unchanged; their checkpoints must not initialize the new rows.
+For the user's saved aligned state-slot A250, the separate [B-only continuation](STATE8_A250_B_B12.md)
+loads all its parameters and starts B3000 at batch12/ACCUM1 without rerunning A or changing the standard chains.
 
 ## One tick (direct-template rows only)
 

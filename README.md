@@ -548,3 +548,6 @@ Formal run names: `slot_vis8_mlp3_a9align_b12_acc3_A/B`. Checkpoints (substitute
 
 The recipe guard records row, batch, accumulation, lengths, prefill, KI source and optional checkpoint root; changed
 signatures require a new run name. The sentence-geometry helper accepts these configs and measures the sentence bank.
+
+For the opt-in **state-slot A250 -> B3000, batch12/ACCUM1** continuation (skip the rest of A), see the
+[B-only runbook](beans/ablations/STATE8_A250_B_B12.md). The standard A500 chains above remain unchanged.
