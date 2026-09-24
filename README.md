@@ -85,7 +85,7 @@ Do not use broad `pkill python` or `scancel <allocation>`: those can kill keep-a
 bash beans/ablations/run_tests.sh cpu
 GPUS=0,1,2,3 BATCH=16 WORKERS=8 bash beans/ablations/run_snap.sh smoke
 # For an auxiliary row, smoke that row on its target hardware too:
-GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 bash beans/ablations/run_vis8s.sh smoke
+GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 bash beans/ablations/run_vis8s.sh smoke
 ```
 
 Smoke executes **A2 → B2**, including checkpoint loading. It has separate experiment names and no W&B.
@@ -96,11 +96,11 @@ mkdir -p beans/ablations/logs
 # Stanford 4 H200: SNAP; when outside an existing allocation set JOB=<allocation> GRES=4.
 setsid nohup env GPUS=0,1,2,3 BATCH=16 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_snap.sh > beans/ablations/logs/run_slot_snap.out 2>&1 < /dev/null &
 # Other node / four free cards: SNAP + visual
-setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_slot_vis8.out 2>&1 < /dev/null &
+setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8.sh > beans/ablations/logs/run_slot_vis8.out 2>&1 < /dev/null &
 # Other node / four free cards: SNAP + visual + sensory
-setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8s.sh > beans/ablations/logs/run_slot_vis8s.out 2>&1 < /dev/null &
+setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_vis8s.sh > beans/ablations/logs/run_slot_vis8s.out 2>&1 < /dev/null &
 # Other node / four free cards: SNAP + sensory
-setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=8 A_STEPS=250 STEPS=3000 bash beans/ablations/run_state8.sh > beans/ablations/logs/run_slot_state8.out 2>&1 < /dev/null &
+setsid nohup env GPUS=0,1,2,3 BATCH=8 ACCUM=1 WORKERS=4 A_STEPS=250 STEPS=3000 bash beans/ablations/run_state8.sh > beans/ablations/logs/run_slot_state8.out 2>&1 < /dev/null &
 ```
 
 An 8-GPU node can run two rows with `GPUS=0,1,2,3` and `GPUS=4,5,6,7`.
@@ -125,6 +125,8 @@ Step names retain this repository's existing zero-based convention (including St
 checkpoint steps. Smoke A2/B2 likewise ends at checkpoint step 2.
 
 W&B project: `beans0922_ablation`; standard sentence/flow losses and sensory-bank telemetry retain their existing names.
+H100 commands use `WORKERS=4` conservatively because past-image replay adds host-memory pressure. Check the job's RAM limit
+before increasing workers; GPU count alone does not determine safe loader parallelism.
 Defaults: `ACCUM=1`, `WORKERS=8`, `A_STEPS=250`, `STEPS=3000`, `BATCH=16`, `GPUS=0,1,2,3`.
 `JOB` enables an overlapping Slurm step; omit it when already on allocated GPUs. 1 GB keep-alives are permitted by
 the launcher and must be left running. Source/data details: [mechanism](beans/ablations/README.md), [run history](beans/README.md).
